@@ -46,4 +46,4 @@ venvPath = "."
 venv = ".venv"
 typeCheckingMode = "basic"
 include = ["app"]
-exclude = ["alembic"]
+exclude = ["alembic", "**/node_modules", "**/__pycache__", "**/.*"]
