@@ -3,7 +3,10 @@
     "dashboard": "ダッシュボード",
     "team": "チーム",
     "admin": "管理",
-    "settings": "設定"
+    "settings": "設定",
+    "feed": "フィード",
+    "quarterlyReport": "四半期レポート",
+    "teamQuarterlyReport": "チームレポート"
   },
   "auth": {
     "signIn": "Microsoftでサインイン",

@@ -11,6 +11,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  ReferenceLine,
 } from 'recharts';
 import { useAuthStore } from '../stores/authStore';
 import {
@@ -75,13 +76,32 @@ function MetricCard({ title, children, loading }: { title: string; children: Rea
 // 1. Category Balance
 // ---------------------------------------------------------------------------
 
-function BalanceChart({ members }: { members: MemberBalance[]; targets: Record<string, number> }) {
+function BalanceChart({ members, targets }: { members: MemberBalance[]; targets: Record<string, number> }) {
   const categories = Array.from(new Set(members.flatMap((m) => Object.keys(m.categories))));
   if (members.length === 0 || categories.length === 0) {
     return <p style={emptyText}>No task data for this period.</p>;
   }
 
   const chartData = members.map((m) => ({ name: m.display_name.split(' ')[0], ...m.categories }));
+
+  // Compute cumulative target reference lines (sum targets in category order)
+  const referenceLines: Array<{ x: number; label: string }> = [];
+  let cumulative = 0;
+  for (const cat of categories) {
+    const t = targets[cat];
+    if (t != null) {
+      cumulative += t;
+      referenceLines.push({ x: cumulative, label: cat });
+    }
+  }
+
+  const cellFill = (actual: number, target: number | undefined): string => {
+    if (target == null) return COLORS[0];
+    const deviation = Math.abs(actual - target);
+    if (deviation <= 5) return '#16a34a';   // green ±5%
+    if (deviation <= 15) return '#d97706';  // yellow 5–15%
+    return '#dc2626';                        // red >15%
+  };
 
   return (
     <ResponsiveContainer width="100%" height={220}>
@@ -91,8 +111,16 @@ function BalanceChart({ members }: { members: MemberBalance[]; targets: Record<s
         <YAxis type="category" dataKey="name" width={60} tick={{ fontSize: 11 }} />
         <Tooltip formatter={(v) => typeof v === 'number' ? `${v.toFixed(1)}%` : String(v)} />
         <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
-        {categories.map((cat, i) => (
-          <Bar key={cat} dataKey={cat} stackId="a" fill={COLORS[i % COLORS.length]} />
+        {referenceLines.map((rl) => (
+          <ReferenceLine key={rl.label} x={rl.x} stroke="#6b7280" strokeDasharray="4 2"
+            label={{ value: `${rl.label} tgt`, position: 'insideTopRight', fontSize: 9, fill: '#6b7280' }} />
+        ))}
+        {categories.map((cat) => (
+          <Bar key={cat} dataKey={cat} stackId="a" fill={COLORS[categories.indexOf(cat) % COLORS.length]}>
+            {chartData.map((row, j) => (
+              <Cell key={j} fill={cellFill(Number(row[cat as keyof typeof row] ?? 0), targets[cat])} />
+            ))}
+          </Bar>
         ))}
       </BarChart>
     </ResponsiveContainer>

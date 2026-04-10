@@ -3,7 +3,10 @@
     "dashboard": "Dashboard",
     "team": "Team",
     "admin": "Admin",
-    "settings": "Settings"
+    "settings": "Settings",
+    "feed": "Feed",
+    "quarterlyReport": "Quarterly Report",
+    "teamQuarterlyReport": "Team Reports"
   },
   "auth": {
     "signIn": "Sign in with Microsoft",

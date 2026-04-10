@@ -3,7 +3,10 @@
     "dashboard": "대시보드",
     "team": "팀",
     "admin": "관리자",
-    "settings": "설정"
+    "settings": "설정",
+    "feed": "피드",
+    "quarterlyReport": "분기 보고서",
+    "teamQuarterlyReport": "팀 보고서"
   },
   "auth": {
     "signIn": "Microsoft로 로그인",
