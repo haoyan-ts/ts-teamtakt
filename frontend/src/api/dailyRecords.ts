@@ -75,6 +75,18 @@ export async function deleteAbsence(
   });
 }
 
+export async function updateAbsence(
+  id: string,
+  payload: {
+    absence_type?: string;
+    note?: string | null;
+    form_opened_at: string;
+  }
+): Promise<Absence> {
+  const res = await client.put<Absence>(`/absences/${id}`, payload);
+  return res.data;
+}
+
 export async function getAbsences(params: {
   start_date?: string;
   end_date?: string;
