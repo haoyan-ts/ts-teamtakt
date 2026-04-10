@@ -22,6 +22,7 @@ from app.db.schemas.team import (
     TeamMemberResponse,
     TeamResponse,
 )
+from app.services.notification import NotificationService
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -184,6 +185,34 @@ async def create_join_request(
     db.add(req)
     await db.commit()
     await db.refresh(req)
+
+    # Notify leaders of the team
+    leaders_result = await db.execute(
+        select(User)
+        .join(TeamMembership, User.id == TeamMembership.user_id)
+        .where(
+            TeamMembership.team_id == team_id,
+            TeamMembership.left_at.is_(None),
+            User.is_leader.is_(True),
+        )
+    )
+    leaders = leaders_result.scalars().all()
+    if leaders:
+        svc = NotificationService(db)
+        for leader in leaders:
+            await svc.send(
+                user_id=leader.id,
+                trigger_type="team_join_request",
+                title="New team join request",
+                body=f"{current_user.display_name} has requested to join your team.",
+                data={
+                    "requester_id": str(current_user.id),
+                    "team_id": str(team_id),
+                    "request_id": str(req.id),
+                },
+            )
+        await db.commit()
+
     return JoinRequestResponse.model_validate(req)
 
 

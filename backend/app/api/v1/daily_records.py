@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -11,11 +11,12 @@ from app.core.deps import get_current_user, require_active_user
 from app.core.edit_window import check_edit_window
 from app.core.validators import validate_self_assessment_tags
 from app.core.visibility import apply_visibility_filter, is_record_fully_visible
+from app.core.working_days import count_working_days
 from app.db.engine import get_db
 from app.db.models.absence import Absence, UnlockGrant
 from app.db.models.daily_record import DailyRecord
 from app.db.models.task_entry import TaskEntry, TaskEntrySelfAssessmentTag
-from app.db.models.team import TeamMembership
+from app.db.models.team import TeamMembership, TeamSettings
 from app.db.models.user import User
 from app.db.schemas.daily_record import (
     DailyRecordCreate,
@@ -26,6 +27,7 @@ from app.db.schemas.daily_record import (
     UnlockGrantCreate,
     UnlockGrantResponse,
 )
+from app.services.notification import NotificationService
 
 router = APIRouter(tags=["daily-records"])
 
@@ -33,6 +35,107 @@ router = APIRouter(tags=["daily-records"])
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+async def _follow_chain_root_date(task_entry_id: uuid.UUID, db: AsyncSession) -> date:
+    """Walk carried_from_id chain to root; return root DailyRecord.record_date."""
+    current = task_entry_id
+    for _ in range(200):
+        r = await db.execute(
+            select(TaskEntry.carried_from_id, DailyRecord.record_date)
+            .join(DailyRecord, TaskEntry.daily_record_id == DailyRecord.id)
+            .where(TaskEntry.id == current)
+        )
+        row = r.one_or_none()
+        if row is None:
+            return datetime.now(UTC).date()
+        if row.carried_from_id is None:
+            return row.record_date
+        current = row.carried_from_id
+    return datetime.now(UTC).date()
+
+
+async def _notify_blocker_aging(
+    user_id: uuid.UUID,
+    record_id: uuid.UUID,
+    db: AsyncSession,
+) -> None:
+    """Check blocked carried-over tasks against team threshold; send notifications."""
+    te_result = await db.execute(
+        select(TaskEntry).where(
+            TaskEntry.daily_record_id == record_id,
+            TaskEntry.carried_from_id.is_not(None),
+        )
+    )
+    carried_entries = te_result.scalars().all()
+    if not carried_entries:
+        return
+
+    # Get user's active team and settings
+    membership = await db.scalar(
+        select(TeamMembership).where(
+            TeamMembership.user_id == user_id,
+            TeamMembership.left_at.is_(None),
+        )
+    )
+    if membership is None:
+        return
+
+    settings = await db.scalar(
+        select(TeamSettings).where(TeamSettings.team_id == membership.team_id)
+    )
+    threshold = settings.carryover_aging_days if settings else 5
+
+    today = datetime.now(UTC).date()
+    aging_tasks: list[tuple[TaskEntry, int]] = []
+    for te in carried_entries:
+        root_date = await _follow_chain_root_date(te.carried_from_id, db)
+        age = count_working_days(root_date, today)
+        if age >= threshold:
+            aging_tasks.append((te, age))
+
+    if not aging_tasks:
+        return
+
+    svc = NotificationService(db)
+    max_age = max(age for _, age in aging_tasks)
+    count = len(aging_tasks)
+
+    # Notify the member
+    await svc.send(
+        user_id=user_id,
+        trigger_type="blocker_aging",
+        title=f"{count} blocked task(s) aging ≥ {threshold} working day(s)",
+        body=f"Your oldest blocked carry-over is {max_age} working day(s) old.",
+        data={"task_ids": [str(te.id) for te, _ in aging_tasks], "max_age": max_age},
+    )
+
+    # Notify leader(s) of the team
+    leader_result = await db.execute(
+        select(User)
+        .join(TeamMembership, User.id == TeamMembership.user_id)
+        .where(
+            TeamMembership.team_id == membership.team_id,
+            TeamMembership.left_at.is_(None),
+            User.is_leader.is_(True),
+            User.id != user_id,
+        )
+    )
+    leaders = leader_result.scalars().all()
+    member_result = await db.scalar(select(User).where(User.id == user_id))
+    member_name = member_result.display_name if member_result else "A team member"
+    for leader in leaders:
+        await svc.send(
+            user_id=leader.id,
+            trigger_type="team_member_blocked",
+            title=f"{member_name} has {count} aging blocker(s)",
+            body=f"Oldest blocker is {max_age} working day(s) old.",
+            data={
+                "member_id": str(user_id),
+                "task_ids": [str(te.id) for te, _ in aging_tasks],
+                "max_age": max_age,
+            },
+        )
 
 
 async def _build_task_entry_response(
@@ -234,6 +337,10 @@ async def create_daily_record(
 
     await db.commit()
     await db.refresh(record)
+
+    await _notify_blocker_aging(current_user.id, record.id, db)
+    await db.commit()
+
     return await _build_record_response(record, db)
 
 
@@ -423,6 +530,10 @@ async def update_daily_record(
 
     await db.commit()
     await db.refresh(record)
+
+    await _notify_blocker_aging(record.user_id, record.id, db)
+    await db.commit()
+
     return await _build_record_response(record, db)
 
 

@@ -204,8 +204,8 @@ async def list_tags(
     _user: User = Depends(require_active_user),
 ):
     result = await db.execute(
-        select(SelfAssessmentTag).where(SelfAssessmentTag.is_active == True)
-    )  # noqa: E712
+        select(SelfAssessmentTag).where(SelfAssessmentTag.is_active)
+    )
     return [TagResponse.model_validate(t) for t in result.scalars().all()]
 
 
@@ -262,7 +262,9 @@ async def list_blocker_types(
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_active_user),
 ):
-    result = await db.execute(select(BlockerType).where(BlockerType.is_active == True))  # noqa: E712
+    result = await db.execute(
+        select(BlockerType).where(BlockerType.is_active == True)
+    )  # noqa: E712
     return [BlockerTypeResponse.model_validate(bt) for bt in result.scalars().all()]
 
 

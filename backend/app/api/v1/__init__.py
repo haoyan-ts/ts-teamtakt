@@ -12,7 +12,9 @@ from .holidays import router as holidays_router
 from .metrics import router as metrics_router
 from .notifications import router as notifications_router
 from .projects import router as projects_router
+from .quarterly_reports import router as quarterly_reports_router
 from .sharing_grants import router as sharing_grants_router
+from .social import router as social_router
 from .team_settings import router as team_settings_router
 from .teams import router as teams_router
 from .users import router as users_router
@@ -38,3 +40,5 @@ router.include_router(notifications_router)
 router.include_router(holidays_router)
 router.include_router(sharing_grants_router)
 router.include_router(export_router)
+router.include_router(social_router)
+router.include_router(quarterly_reports_router)
