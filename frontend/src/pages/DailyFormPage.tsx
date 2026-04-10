@@ -111,6 +111,7 @@ interface TaskRowProps {
   projects: Project[];
   tags: SelfAssessmentTag[];
   blockerTypes: BlockerType[];
+  isEditable: boolean;
   onChange: (index: number, updated: Partial<TaskFormEntry>) => void;
   onRemove: (index: number) => void;
   onMoveUp: (index: number) => void;
@@ -126,6 +127,7 @@ const TaskRow = ({
   projects,
   tags,
   blockerTypes,
+  isEditable,
   onChange,
   onRemove,
   onMoveUp,
@@ -164,10 +166,15 @@ const TaskRow = ({
       (t) => t.self_assessment_tag_id === tagId
     );
     if (existing) {
+      const remaining = task.self_assessment_tags.filter(
+        (t) => t.self_assessment_tag_id !== tagId
+      );
+      // If the removed tag was primary, auto-promote the first remaining tag.
+      const needsPromotion = existing.is_primary && remaining.length > 0;
       onChange(index, {
-        self_assessment_tags: task.self_assessment_tags.filter(
-          (t) => t.self_assessment_tag_id !== tagId
-        ),
+        self_assessment_tags: needsPromotion
+          ? remaining.map((t, i) => ({ ...t, is_primary: i === 0 }))
+          : remaining,
       });
     } else {
       onChange(index, {
@@ -429,10 +436,13 @@ const TaskRow = ({
                 <button
                   type="button"
                   onClick={() => handleTagToggle(tag.id)}
+                  disabled={!isEditable}
                   style={{
                     ...s.tagBtn,
                     background: selected ? '#3182ce' : '#e2e8f0',
                     color: selected ? '#fff' : '#2d3748',
+                    opacity: !isEditable ? 0.6 : 1,
+                    cursor: !isEditable ? 'default' : 'pointer',
                   }}
                 >
                   {tag.name}
@@ -441,7 +451,12 @@ const TaskRow = ({
                   <button
                     type="button"
                     onClick={() => handleSetPrimary(tag.id)}
-                    style={s.primaryBtn}
+                    disabled={!isEditable}
+                    style={{
+                      ...s.primaryBtn,
+                      opacity: !isEditable ? 0.4 : 1,
+                      cursor: !isEditable ? 'default' : 'pointer',
+                    }}
                     title="Set as primary"
                   >
                     ★
@@ -516,6 +531,18 @@ export const DailyFormPage = () => {
   useEffect(() => {
     setLoading(true);
     setError(null);
+    // Reset all date-specific state so stale data from a previous date never lingers.
+    // Without this, navigating from a date that had isAbsenceMode=true would hide the
+    // form (and its save button) on the newly-navigated-to date.
+    setExistingRecord(null);
+    setExistingAbsence(null);
+    setUnlockGrant(null);
+    setIsAbsenceMode(false);
+    setAbsenceType('holiday');
+    setTasks([]);
+    setDayLoad(3);
+    setDayNote('');
+    setSuccessMsg(null);
     Promise.all([
       getCategories(),
       getSelfAssessmentTags(),
@@ -844,6 +871,7 @@ export const DailyFormPage = () => {
               projects={projects}
               tags={tags}
               blockerTypes={blockerTypes}
+              isEditable={isEditable}
               onChange={updateTask}
               onRemove={removeTask}
               onMoveUp={(i) => moveTask(i, 'up')}
