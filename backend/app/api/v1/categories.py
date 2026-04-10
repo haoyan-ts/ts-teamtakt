@@ -71,7 +71,7 @@ async def list_categories(
 
     q = select(Category)
     if not include_inactive:
-        q = q.where(Category.is_active == True)  # noqa: E712
+        q = q.where(Category.is_active.is_(True))
     result = await db.execute(q.order_by(Category.sort_order))
     categories = result.scalars().all()
 
@@ -79,7 +79,7 @@ async def list_categories(
     for cat in categories:
         sub_q = select(CategorySubType).where(CategorySubType.category_id == cat.id)
         if not include_inactive:
-            sub_q = sub_q.where(CategorySubType.is_active == True)  # noqa: E712
+            sub_q = sub_q.where(CategorySubType.is_active.is_(True))
         sub_result = await db.execute(sub_q.order_by(CategorySubType.sort_order))
         sub_types = [
             SubTypeResponse.model_validate(st) for st in sub_result.scalars().all()
@@ -263,8 +263,8 @@ async def list_blocker_types(
     _user: User = Depends(require_active_user),
 ):
     result = await db.execute(
-        select(BlockerType).where(BlockerType.is_active == True)
-    )  # noqa: E712
+        select(BlockerType).where(BlockerType.is_active.is_(True))
+    )
     return [BlockerTypeResponse.model_validate(bt) for bt in result.scalars().all()]
 
 

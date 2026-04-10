@@ -85,7 +85,7 @@ async def list_projects(
 
     q = select(Project).where(conditions)
     if not include_inactive:
-        q = q.where(Project.is_active == True)  # noqa: E712
+        q = q.where(Project.is_active.is_(True))
 
     result = await db.execute(q)
     return [ProjectResponse.model_validate(p) for p in result.scalars().all()]

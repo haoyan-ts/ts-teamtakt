@@ -250,7 +250,8 @@ async def send_email(
 
     # Cooldown: 5-min cooldown since last send attempt (successful or failed)
     if draft.sent_at:
-        cooldown_end = draft.sent_at + timedelta(minutes=_COOLDOWN_MINUTES)
+        sent_at = draft.sent_at if draft.sent_at.tzinfo else draft.sent_at.replace(tzinfo=UTC)
+        cooldown_end = sent_at + timedelta(minutes=_COOLDOWN_MINUTES)
         if datetime.now(UTC) < cooldown_end:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -282,7 +283,7 @@ async def send_email(
             .where(
                 TeamMembership.team_id == membership.team_id,
                 TeamMembership.left_at.is_(None),
-                UserModel.is_leader == True,  # noqa: E712
+                UserModel.is_leader.is_(True),
             )
         )
         for leader in leader_r.scalars().all():

@@ -84,7 +84,7 @@ class NotificationService:
             .where(
                 Notification.user_id == user_id,
                 Notification.trigger_type == trigger_type,
-                Notification.is_read == False,  # noqa: E712
+                Notification.is_read.is_(False),
                 Notification.created_at >= window_start,
             )
             .order_by(Notification.created_at.desc())
