@@ -30,5 +30,9 @@ class TeamMemberResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TeamUpdate(BaseModel):
+    name: str
+
+
 class AssignMemberRequest(BaseModel):
     user_id: uuid.UUID

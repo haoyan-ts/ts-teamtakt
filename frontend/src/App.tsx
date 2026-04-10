@@ -10,6 +10,9 @@ import { TeamRequestsPage } from './pages/TeamRequestsPage';
 import { TeamBalanceSettingsPage } from './pages/TeamBalanceSettingsPage';
 import { TeamThresholdSettingsPage } from './pages/TeamThresholdSettingsPage';
 import { AdminListsPage } from './pages/AdminListsPage';
+import { AdminTeamsPage } from './pages/AdminTeamsPage';
+import { AdminTeamDetailPage } from './pages/AdminTeamDetailPage';
+import { TeamMembersPage } from './pages/TeamMembersPage';
 import { WeeklyReportPage } from './pages/WeeklyReportPage';
 import { MonthlyReportPage } from './pages/MonthlyReportPage';
 import { ExportPage } from './pages/ExportPage';
@@ -29,6 +32,7 @@ function App() {
         <Route path="/" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
           <Route index element={<DashboardPage />} />
           <Route path="daily/:date?" element={<DailyFormPage />} />
+          <Route path="team/members" element={<TeamMembersPage />} />
           <Route path="team" element={<ProtectedRoute requireLeader><TeamPage /></ProtectedRoute>} />
           <Route path="team/requests" element={<ProtectedRoute requireLeader><TeamRequestsPage /></ProtectedRoute>} />
           <Route path="team/settings/balance" element={<ProtectedRoute requireLeader><TeamBalanceSettingsPage /></ProtectedRoute>} />
@@ -42,6 +46,8 @@ function App() {
           <Route path="export" element={<ExportPage />} />
           <Route path="settings/notifications" element={<NotificationPreferencesPage />} />
           <Route path="admin/lists" element={<ProtectedRoute requireAdmin><AdminListsPage /></ProtectedRoute>} />
+          <Route path="admin/teams" element={<ProtectedRoute requireAdmin><AdminTeamsPage /></ProtectedRoute>} />
+          <Route path="admin/teams/:teamId" element={<ProtectedRoute requireAdmin><AdminTeamDetailPage /></ProtectedRoute>} />
           <Route path="settings" element={<NotificationPreferencesPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />

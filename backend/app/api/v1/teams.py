@@ -21,6 +21,7 @@ from app.db.schemas.team import (
     TeamCreate,
     TeamMemberResponse,
     TeamResponse,
+    TeamUpdate,
 )
 from app.services.notification import NotificationService
 
@@ -51,6 +52,28 @@ async def _require_team_leader_or_admin(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not a leader of this team",
+        )
+
+
+async def _require_team_member_or_admin(
+    team_id: uuid.UUID,
+    user: User,
+    db: AsyncSession,
+) -> None:
+    """Allow admins unconditionally; any active member of the team may read."""
+    if user.is_admin:
+        return
+    result = await db.execute(
+        select(TeamMembership).where(
+            TeamMembership.user_id == user.id,
+            TeamMembership.team_id == team_id,
+            TeamMembership.left_at.is_(None),
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this team",
         )
 
 
@@ -145,6 +168,51 @@ async def delete_team(
     await db.delete(team)
     await db.commit()
     return {"message": "Team deleted"}
+
+
+@router.patch("/{team_id}", response_model=TeamResponse)
+async def rename_team(
+    team_id: uuid.UUID,
+    body: TeamUpdate,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Team).where(Team.id == team_id))
+    team = result.scalar_one_or_none()
+    if team is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
+        )
+    team.name = body.name
+    await db.commit()
+    await db.refresh(team)
+
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(TeamMembership)
+        .where(
+            TeamMembership.team_id == team.id,
+            TeamMembership.left_at.is_(None),
+        )
+    )
+    member_count = count_result.scalar() or 0
+    leaders_result = await db.execute(
+        select(User)
+        .join(TeamMembership, User.id == TeamMembership.user_id)
+        .where(
+            TeamMembership.team_id == team.id,
+            TeamMembership.left_at.is_(None),
+            User.is_leader,
+        )
+    )
+    leaders = [u.display_name for u in leaders_result.scalars().all()]
+    return TeamResponse(
+        id=team.id,
+        name=team.name,
+        created_at=team.created_at,
+        member_count=member_count,
+        leaders=leaders,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -294,7 +362,7 @@ async def list_team_members(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _require_team_leader_or_admin(team_id, current_user, db)
+    await _require_team_member_or_admin(team_id, current_user, db)
 
     result = await db.execute(
         select(User, TeamMembership)
@@ -354,3 +422,27 @@ async def admin_assign_member(
     await db.commit()
     await db.refresh(new_membership)
     return {"message": "Member assigned", "membership_id": str(new_membership.id)}
+
+
+@router.delete("/{team_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_team_member(
+    team_id: uuid.UUID,
+    user_id: uuid.UUID,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(TeamMembership).where(
+            TeamMembership.team_id == team_id,
+            TeamMembership.user_id == user_id,
+            TeamMembership.left_at.is_(None),
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if membership is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active membership found for this user in this team",
+        )
+    membership.left_at = datetime.now(UTC)
+    await db.commit()

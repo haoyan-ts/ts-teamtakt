@@ -32,6 +32,9 @@ export const Sidebar = ({ isOpen }: { isOpen: boolean }) => {
       <NavLink to="/" end style={navLinkStyle}>{t('nav.dashboard')}</NavLink>
       <NavLink to="/feed" style={navLinkStyle}>{t('nav.feed')}</NavLink>
       <NavLink to="/reports/quarterly" style={navLinkStyle}>{t('nav.quarterlyReport')}</NavLink>
+      {!user?.lobby && user?.team && (
+        <NavLink to="/team/members" style={navLinkStyle}>{t('nav.myTeam', 'My Team')}</NavLink>
+      )}
       {user?.is_leader && (
         <NavLink to="/team" style={navLinkStyle}>{t('nav.team')}</NavLink>
       )}
@@ -40,6 +43,9 @@ export const Sidebar = ({ isOpen }: { isOpen: boolean }) => {
       )}
       {user?.is_admin && (
         <NavLink to="/admin/lists" style={navLinkStyle}>{t('nav.admin')}</NavLink>
+      )}
+      {user?.is_admin && (
+        <NavLink to="/admin/teams" style={navLinkStyle}>{t('nav.adminTeams', 'Teams')}</NavLink>
       )}
       <NavLink to="/settings" style={navLinkStyle}>{t('nav.settings')}</NavLink>
     </nav>

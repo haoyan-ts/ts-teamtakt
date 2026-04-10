@@ -200,3 +200,39 @@ export async function getProjectEffortMetrics(
   const res = await client.get<ProjectEffortEntry[]>(`/teams/${teamId}/metrics/project-effort`, { params });
   return res.data;
 }
+
+// ---- Admin: Team CRUD ----
+
+export interface TeamSummary {
+  id: string;
+  name: string;
+  member_count: number;
+  leaders: string[];
+}
+
+export async function listTeams(): Promise<TeamSummary[]> {
+  const res = await client.get<TeamSummary[]>('/teams');
+  return res.data;
+}
+
+export async function createTeam(name: string): Promise<TeamSummary> {
+  const res = await client.post<TeamSummary>('/teams', { name });
+  return res.data;
+}
+
+export async function renameTeam(teamId: string, name: string): Promise<TeamSummary> {
+  const res = await client.patch<TeamSummary>(`/teams/${teamId}`, { name });
+  return res.data;
+}
+
+export async function deleteTeam(teamId: string): Promise<void> {
+  await client.delete(`/teams/${teamId}`);
+}
+
+export async function assignMember(teamId: string, userId: string): Promise<void> {
+  await client.post(`/teams/${teamId}/members`, { user_id: userId });
+}
+
+export async function removeMember(teamId: string, userId: string): Promise<void> {
+  await client.delete(`/teams/${teamId}/members/${userId}`);
+}

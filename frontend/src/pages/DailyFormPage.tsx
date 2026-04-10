@@ -11,7 +11,7 @@ import {
   getUnlockGrants,
 } from '../api/dailyRecords';
 import { getCategories, getSelfAssessmentTags, getBlockerTypes } from '../api/categories';
-import { getProjects } from '../api/projects';
+import { getProjects, createProject } from '../api/projects';
 import type {
   Category,
   SelfAssessmentTag,
@@ -115,6 +115,7 @@ interface TaskRowProps {
   onRemove: (index: number) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
+  onProjectCreated: (index: number, project: Project) => void;
 }
 
 const TaskRow = ({
@@ -129,7 +130,32 @@ const TaskRow = ({
   onRemove,
   onMoveUp,
   onMoveDown,
+  onProjectCreated,
 }: TaskRowProps) => {
+  const [showNewProject, setShowNewProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectScope, setNewProjectScope] = useState<'personal' | 'team' | 'cross_team'>('personal');
+  const [projectSaving, setProjectSaving] = useState(false);
+  const [projectError, setProjectError] = useState('');
+
+  const submitNewProject = async () => {
+    const name = newProjectName.trim();
+    if (!name) { setProjectError('Name is required.'); return; }
+    setProjectSaving(true);
+    setProjectError('');
+    try {
+      const created = await createProject({ name, scope: newProjectScope });
+      onProjectCreated(index, created);
+      setShowNewProject(false);
+      setNewProjectName('');
+      setNewProjectScope('personal');
+    } catch {
+      setProjectError('Failed to create project. Please try again.');
+    } finally {
+      setProjectSaving(false);
+    }
+  };
+
   const selectedCategory = categories.find((c) => c.id === task.category_id);
   const subTypes = selectedCategory?.sub_types.filter((s) => s.is_active) ?? [];
 
@@ -253,11 +279,58 @@ const TaskRow = ({
           <option value="">— select —</option>
           {projects.filter((p) => p.is_active).map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name}
+              {p.name} ({p.scope})
             </option>
           ))}
         </select>
+        <button
+          type="button"
+          onClick={() => { setShowNewProject((v) => !v); setProjectError(''); }}
+          style={{ ...s.iconBtn, marginLeft: '0.5rem', fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}
+          title="Create a new project"
+        >
+          + New
+        </button>
       </div>
+      {showNewProject && (
+        <div style={{ marginBottom: '0.75rem', padding: '0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              style={{ ...s.input, flex: 1, minWidth: '140px' }}
+              placeholder="Project name"
+              value={newProjectName}
+              onChange={(e) => { setNewProjectName(e.target.value); setProjectError(''); }}
+              onKeyDown={(e) => e.key === 'Enter' && submitNewProject()}
+              autoFocus
+            />
+            <select
+              style={s.select}
+              value={newProjectScope}
+              onChange={(e) => setNewProjectScope(e.target.value as 'personal' | 'team' | 'cross_team')}
+            >
+              <option value="personal">Personal</option>
+              <option value="team">Team</option>
+              <option value="cross_team">Cross-team</option>
+            </select>
+            <button
+              type="button"
+              onClick={submitNewProject}
+              disabled={projectSaving}
+              style={{ padding: '0.3rem 0.75rem', background: '#3182ce', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, fontSize: '0.8rem' }}
+            >
+              {projectSaving ? 'Creating…' : 'Create'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowNewProject(false); setProjectError(''); }}
+              style={{ padding: '0.3rem 0.5rem', background: '#edf2f7', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+            >
+              Cancel
+            </button>
+          </div>
+          {projectError && <p style={{ color: '#e53e3e', fontSize: '0.75rem', margin: '0.3rem 0 0' }}>{projectError}</p>}
+        </div>
+      )}
 
       {/* Description */}
       <div style={s.fieldRow}>
@@ -775,6 +848,10 @@ export const DailyFormPage = () => {
               onRemove={removeTask}
               onMoveUp={(i) => moveTask(i, 'up')}
               onMoveDown={(i) => moveTask(i, 'down')}
+              onProjectCreated={(i, project) => {
+                setProjects((prev) => [...prev, project]);
+                updateTask(i, { project_id: project.id });
+              }}
             />
           ))}
 
