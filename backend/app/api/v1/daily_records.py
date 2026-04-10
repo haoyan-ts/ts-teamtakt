@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -507,17 +508,19 @@ async def update_daily_record(
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-        # Full replacement: delete existing task entries and their tags
-        for te in existing_entries:
-            tags_result = await db.execute(
-                select(TaskEntrySelfAssessmentTag).where(
-                    TaskEntrySelfAssessmentTag.task_entry_id == te.id
+        # Full replacement: delete tags first (respects FK), then task entries.
+        te_ids = [te.id for te in existing_entries]
+        if te_ids:
+            await db.execute(
+                sql_delete(TaskEntrySelfAssessmentTag).where(
+                    TaskEntrySelfAssessmentTag.task_entry_id.in_(te_ids)
                 )
             )
-            for tag in tags_result.scalars().all():
-                await db.delete(tag)
-            await db.delete(te)
-        await db.flush()
+            await db.flush()  # ensure tag rows are gone before task_entries rows
+            await db.execute(
+                sql_delete(TaskEntry).where(TaskEntry.daily_record_id == record.id)
+            )
+            await db.flush()
 
         await _create_task_entries(record.id, body.task_entries, record.user_id, db)
 
