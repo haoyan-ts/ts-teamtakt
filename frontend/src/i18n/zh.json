@@ -1,0 +1,24 @@
+{
+  "nav": {
+    "dashboard": "仪表盘",
+    "team": "团队",
+    "admin": "管理",
+    "settings": "设置"
+  },
+  "auth": {
+    "signIn": "使用Microsoft登录",
+    "signOut": "退出登录",
+    "signingIn": "登录中..."
+  },
+  "onboarding": {
+    "title": "加入团队",
+    "subtitle": "请求加入团队以开始使用",
+    "requestJoin": "请求加入",
+    "pending": "请求待处理"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "发生错误",
+    "back": "返回"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "team": "Team",
+    "admin": "Admin",
+    "settings": "Settings"
+  },
+  "auth": {
+    "signIn": "Sign in with Microsoft",
+    "signOut": "Sign out",
+    "signingIn": "Signing in..."
+  },
+  "onboarding": {
+    "title": "Join a Team",
+    "subtitle": "Request to join a team to get started",
+    "requestJoin": "Request to Join",
+    "pending": "Request pending"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "back": "Back"
+  }
+}
