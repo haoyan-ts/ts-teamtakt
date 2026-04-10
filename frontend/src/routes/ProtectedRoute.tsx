@@ -20,7 +20,7 @@ export const ProtectedRoute = ({ children, requireLeader, requireAdmin, allowLob
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (user?.lobby && !allowLobby && location.pathname !== '/onboarding') {
+  if (user?.lobby && !user?.is_admin && !allowLobby && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }
 

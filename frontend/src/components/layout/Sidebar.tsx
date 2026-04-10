@@ -39,7 +39,7 @@ export const Sidebar = ({ isOpen }: { isOpen: boolean }) => {
         <NavLink to="/team/quarterly" style={navLinkStyle}>{t('nav.teamQuarterlyReport')}</NavLink>
       )}
       {user?.is_admin && (
-        <NavLink to="/admin" style={navLinkStyle}>{t('nav.admin')}</NavLink>
+        <NavLink to="/admin/lists" style={navLinkStyle}>{t('nav.admin')}</NavLink>
       )}
       <NavLink to="/settings" style={navLinkStyle}>{t('nav.settings')}</NavLink>
     </nav>
