@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
-from typing import Any, cast
+from typing import cast
 
 from fastapi import FastAPI
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.types import ExceptionHandler
 
 from app.api.v1 import router as v1_router
 from app.api.v1.social import limiter
@@ -24,6 +25,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="ts-teamtakt", docs_url="/docs", lifespan=lifespan)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, cast(Any, _rate_limit_exceeded_handler))
+app.add_exception_handler(
+    RateLimitExceeded, cast(ExceptionHandler, _rate_limit_exceeded_handler)
+)
 app.add_middleware(SlowAPIMiddleware)
 app.include_router(v1_router, prefix="/api/v1")
