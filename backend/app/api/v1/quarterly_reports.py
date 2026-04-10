@@ -26,11 +26,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user
 from app.db.engine import async_session_factory, get_db
 from app.db.models.admin_settings import AdminSettings
-from app.db.models.category import Category
+from app.db.models.category import Category, CategorySubType
 from app.db.models.daily_record import DailyRecord
 from app.db.models.project import Project
 from app.db.models.quarterly_report import QuarterlyReport, QuarterlyReportStatus
-from app.db.models.task_entry import TaskEntry
+from app.db.models.task_entry import TaskEntry, TaskEntrySelfAssessmentTag
 from app.db.models.team import TeamMembership
 from app.db.models.user import User
 from app.db.schemas.quarterly_report import (
@@ -145,6 +145,26 @@ async def _pre_aggregate(
     cat_result = await db.execute(select(Category.id, Category.name))
     cat_names: dict[uuid.UUID, str] = {row.id: row.name for row in cat_result.all()}
 
+    sub_result = await db.execute(select(CategorySubType.id, CategorySubType.name))
+    sub_names: dict[uuid.UUID, str] = {row.id: row.name for row in sub_result.all()}
+
+    # Primary tags only (per invariant)
+    te_ids = [te.id for te in task_entries]
+    if te_ids:
+        tag_result = await db.execute(
+            select(TaskEntrySelfAssessmentTag).where(
+                TaskEntrySelfAssessmentTag.task_entry_id.in_(te_ids),
+                TaskEntrySelfAssessmentTag.is_primary.is_(True),
+            )
+        )
+        primary_tags = tag_result.scalars().all()
+    else:
+        primary_tags = []
+
+    tag_by_te: dict[uuid.UUID, uuid.UUID] = {
+        t.task_entry_id: t.self_assessment_tag_id for t in primary_tags
+    }
+
     # Aggregation
     proj_effort: dict[str, int] = defaultdict(int)
     proj_task_count: dict[str, int] = defaultdict(int)
@@ -154,6 +174,8 @@ async def _pre_aggregate(
 
     day_notes_by_proj: dict[str, list[str]] = defaultdict(list)
     blocker_texts_by_proj: dict[str, list[str]] = defaultdict(list)
+
+    rec_by_id = {r.id: r for r in records}
 
     for te in task_entries:
         proj = proj_names.get(te.project_id, "?")
@@ -166,6 +188,11 @@ async def _pre_aggregate(
             proj_blocker_count[proj] += 1
         if te.blocker_text:
             blocker_texts_by_proj[proj].append(te.blocker_text)
+
+        rec = rec_by_id.get(te.daily_record_id)
+        if rec and rec.day_note:
+            # Attach day note to project (may duplicate across entries on same record)
+            note_key = (te.daily_record_id, proj)
 
     # Collect day notes per project (one note per record, deduped)
     record_day_notes: dict[uuid.UUID, str | None] = {r.id: r.day_note for r in records}

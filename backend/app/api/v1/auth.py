@@ -114,7 +114,7 @@ async def callback(
         {"sub": str(user.id), "is_leader": user.is_leader, "is_admin": user.is_admin}
     )
     return RedirectResponse(
-        url=f"{settings.FRONTEND_URL}/?token={access_token}", status_code=307
+        url=f"{settings.FRONTEND_URL}/login?token={access_token}", status_code=307
     )
 
 
@@ -150,5 +150,5 @@ async def me(
         "is_admin": user.is_admin,
         "preferred_locale": user.preferred_locale,
         "team": team_data,
-        "lobby": team_data is None,
+        "lobby": team_data is None and not user.is_admin,
     }

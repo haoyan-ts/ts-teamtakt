@@ -51,6 +51,8 @@ async def require_active_user(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    if user.is_admin:
+        return user
     result = await db.execute(
         select(TeamMembership).where(
             TeamMembership.user_id == user.id,
