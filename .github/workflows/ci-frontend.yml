@@ -1,0 +1,39 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/ci-frontend.yml"
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & Type-check (TypeScript)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack (Yarn)
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "yarn"
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: ESLint
+        run: yarn lint
+
+      - name: TypeScript type check
+        run: yarn tsc --noEmit

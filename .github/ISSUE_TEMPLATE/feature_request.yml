@@ -1,0 +1,78 @@
+name: Feature Request
+description: Propose a new feature or enhancement aligned with the PRD
+labels: ["feature", "needs-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for new features or enhancements. Reference the relevant PRD phase when applicable.
+
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User Story
+      description: "As a [role], I want [feature] so that [benefit]."
+      placeholder: "As a team leader, I want to see overload flags on the dashboard so that I can proactively support team members."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Define the specific conditions that must be met for this feature to be considered complete.
+      placeholder: |
+        - [ ] Given X, when Y, then Z
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: prd-phase
+    attributes:
+      label: PRD Phase
+      description: Which phase of the PRD does this belong to?
+      options:
+        - Phase 1A — Core Backend
+        - Phase 1B — Core Frontend
+        - Phase 2A — Insights & Output Backend
+        - Phase 2B — Insights & Output Frontend
+        - Phase 3A — Social & AI Backend
+        - Phase 3B — Social & AI Frontend
+        - Phase 4 — Future
+        - Not in PRD
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - backend
+        - frontend
+        - database
+        - auth
+        - notifications
+        - llm
+        - infra
+        - multiple
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - P1-high
+        - P2-medium
+        - P3-low
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Mockups, related issues, alternative approaches considered.

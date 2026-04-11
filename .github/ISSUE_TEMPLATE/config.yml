@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Product Requirements Document (PRD)
+    url: https://github.com/haoyan-ts/ts-teamtakt/blob/dev/docs/PRD.md
+    about: Review the full PRD and phased backlog before creating issues.
+  - name: Contributing Guide
+    url: https://github.com/haoyan-ts/ts-teamtakt/blob/dev/CONTRIBUTING.md
+    about: Read the contributing guide for branch, commit, and sprint conventions.
