@@ -54,6 +54,7 @@ frontend/build/
 *.key
 *.cert
 secrets/
+backend/alembic.ini
 
 # ── IDEs & Editors ────────────────────────────────────────────────────────────
 .vscode/*
