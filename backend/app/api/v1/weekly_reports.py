@@ -23,7 +23,7 @@ from app.db.engine import get_db
 from app.db.models.category import Category, CategorySubType
 from app.db.models.daily_record import DailyRecord
 from app.db.models.project import Project
-from app.db.models.task_entry import TaskEntry, TaskEntrySelfAssessmentTag
+from app.db.models.task import DailyWorkLog, DailyWorkLogSelfAssessmentTag, Task
 from app.db.models.user import User
 from app.db.models.weekly_report import WeeklyReport
 from app.db.schemas.weekly_report import WeeklyReportData, WeeklyReportSummaryResponse
@@ -84,35 +84,36 @@ async def generate_weekly_report(
     records = rec_r.scalars().all()
     record_ids = [r.id for r in records]
 
-    # Fetch task entries
-    te_r = await db.execute(
-        select(TaskEntry).where(TaskEntry.daily_record_id.in_(record_ids))
+    # Fetch DailyWorkLogs and their parent Tasks for this week's records
+    logs_r = await db.execute(
+        select(DailyWorkLog, Task)
+        .join(Task, DailyWorkLog.task_id == Task.id)
+        .where(DailyWorkLog.daily_record_id.in_(record_ids))
         if record_ids
-        else select(TaskEntry).where(false())
+        else select(DailyWorkLog, Task).where(false())
     )
-    task_entries = te_r.scalars().all()
+    log_task_pairs = logs_r.all()
+    work_logs = [log for log, _ in log_task_pairs]
 
-    # Categories
+    # Categories, sub-types, projects
     cat_r = await db.execute(select(Category.id, Category.name))
     cat_names: dict[uuid.UUID, str] = {row.id: row.name for row in cat_r.all()}
 
     sub_r = await db.execute(select(CategorySubType.id, CategorySubType.name))
     sub_names: dict[uuid.UUID, str] = {row.id: row.name for row in sub_r.all()}
 
-    # Projects
     proj_r = await db.execute(select(Project.id, Project.name))
     proj_names: dict[uuid.UUID, str] = {row.id: row.name for row in proj_r.all()}
 
-    # Tags
+    # Self-assessment tags on work logs
+    log_ids = [log.id for log in work_logs]
     tag_r = await db.execute(
         select(
-            TaskEntrySelfAssessmentTag.self_assessment_tag_id,
-            TaskEntrySelfAssessmentTag.task_entry_id,
-        ).where(
-            TaskEntrySelfAssessmentTag.task_entry_id.in_([te.id for te in task_entries])
-        )
-        if task_entries
-        else select(TaskEntrySelfAssessmentTag).where(false())
+            DailyWorkLogSelfAssessmentTag.self_assessment_tag_id,
+            DailyWorkLogSelfAssessmentTag.daily_work_log_id,
+        ).where(DailyWorkLogSelfAssessmentTag.daily_work_log_id.in_(log_ids))
+        if log_ids
+        else select(DailyWorkLogSelfAssessmentTag).where(false())
     )
     tag_rows = tag_r.all()
 
@@ -124,32 +125,34 @@ async def generate_weekly_report(
     blockers = []
     total_load = sum(r.day_load for r in records)
     tag_counts: dict[str, int] = defaultdict(int)
+    seen_tasks: set[uuid.UUID] = set()
 
-    tag_by_te: dict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
+    tag_by_log: dict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
     for row in tag_rows:
-        tag_by_te[row.task_entry_id].append(row.self_assessment_tag_id)
+        tag_by_log[row.daily_work_log_id].append(row.self_assessment_tag_id)
 
-    for te in task_entries:
-        cat_effort[cat_names.get(te.category_id, "?")] += te.effort
-        if te.sub_type_id:
-            sub_effort[sub_names.get(te.sub_type_id, "?")] += te.effort
-        proj_effort[proj_names.get(te.project_id, "?")] += te.effort
-        if te.status in ("running", "blocked") and te.carried_from_id:
+    for log, task in log_task_pairs:
+        cat_effort[cat_names.get(task.category_id, "?")] += log.effort
+        if task.sub_type_id:
+            sub_effort[sub_names.get(task.sub_type_id, "?")] += log.effort
+        proj_effort[proj_names.get(task.project_id, "?")] += log.effort
+        if task.status in ("running", "blocked") and task.id not in seen_tasks:
             carry_overs.append(
                 {
-                    "task_desc": te.task_description,
-                    "project": proj_names.get(te.project_id, "?"),
-                    "status": te.status,
+                    "task_desc": task.title,
+                    "project": proj_names.get(task.project_id, "?"),
+                    "status": task.status,
                 }
             )
-        if te.status == "blocked":
+        if task.status == "blocked" and task.id not in seen_tasks:
             blockers.append(
                 {
-                    "task_desc": te.task_description,
-                    "project": proj_names.get(te.project_id, "?"),
+                    "task_desc": task.title,
+                    "project": proj_names.get(task.project_id, "?"),
                 }
             )
-        for tag_id in tag_by_te[te.id]:
+        seen_tasks.add(task.id)
+        for tag_id in tag_by_log[log.id]:
             tag_counts[str(tag_id)] += 1
 
     top_projects = [
@@ -159,7 +162,7 @@ async def generate_weekly_report(
 
     data = WeeklyReportData(
         days_reported=len(records),
-        total_tasks=len(task_entries),
+        total_tasks=len(seen_tasks),
         avg_day_load=round(total_load / len(records), 2) if records else 0.0,
         category_breakdown=dict(cat_effort),
         sub_type_breakdown=dict(sub_effort),

@@ -17,7 +17,7 @@ from app.db.models import (  # noqa: E402, F401
     project,
     quarterly_report,
     social,
-    task_entry,
+    task,
     team,
     user,
     weekly_report,

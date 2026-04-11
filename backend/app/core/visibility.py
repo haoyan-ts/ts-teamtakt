@@ -1,7 +1,7 @@
 """
 Field-level visibility filtering for DailyRecord responses.
 
-Private fields: day_load (on DailyRecord), blocker_text (on each TaskEntry).
+Private fields: day_load (on DailyRecord), blocker_text (on each DailyWorkLog).
 These are stripped when the requester is not the record owner, the owner's
 active leader, or an admin.
 
@@ -95,11 +95,11 @@ def apply_visibility_filter(
 
     Private fields nulled:
     - DailyRecordResponse.day_load → None
-    - TaskEntryResponse.blocker_text → None for all task entries
+    - DailyWorkLogResponse.blocker_text → None for all daily work logs
     """
     if visible:
         return record
-    filtered_tasks = [
-        te.model_copy(update={"blocker_text": None}) for te in record.task_entries
+    filtered_logs = [
+        log.model_copy(update={"blocker_text": None}) for log in record.daily_work_logs
     ]
-    return record.model_copy(update={"day_load": None, "task_entries": filtered_tasks})
+    return record.model_copy(update={"day_load": None, "daily_work_logs": filtered_logs})

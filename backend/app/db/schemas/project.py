@@ -11,11 +11,13 @@ class ProjectCreate(BaseModel):
     name: str
     scope: Literal["personal", "team", "cross_team"]
     team_id: uuid.UUID | None = None
+    github_repo: str | None = None
 
 
 class ProjectUpdate(BaseModel):
     name: str | None = None
     is_active: bool | None = None
+    github_repo: str | None = None
 
 
 class ProjectResponse(BaseModel):
@@ -26,5 +28,6 @@ class ProjectResponse(BaseModel):
     created_by: uuid.UUID
     is_active: bool
     created_at: datetime
+    github_repo: str | None
 
     model_config = {"from_attributes": True}

@@ -15,6 +15,7 @@ from .projects import router as projects_router
 from .quarterly_reports import router as quarterly_reports_router
 from .sharing_grants import router as sharing_grants_router
 from .social import router as social_router
+from .tasks import router as tasks_router
 from .team_settings import router as team_settings_router
 from .teams import router as teams_router
 from .users import router as users_router
@@ -28,6 +29,7 @@ router.include_router(teams_router)
 router.include_router(users_router)
 router.include_router(categories_router)
 router.include_router(projects_router)
+router.include_router(tasks_router)
 router.include_router(daily_records_router)
 router.include_router(unlock_router)
 router.include_router(absences_router)

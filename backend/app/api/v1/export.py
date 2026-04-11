@@ -1,13 +1,13 @@
 """
-Export endpoints for daily records and task entries.
+Export endpoints for daily records and work logs.
 
 Member:  GET /export/my-records?start_date=&end_date=&format=csv|xlsx
 Leader:  GET /export/team/{team_id}?start_date=&end_date=&format=csv|xlsx
 Admin:   GET /export/bulk?format=csv|xlsx
 
-CSV: flat rows (one per task entry, record fields repeated).
-XLSX member/leader: Sheet 1 = records, Sheet 2 = task entries.
-XLSX bulk: one sheet per table.
+CSV: flat rows (one per DailyWorkLog, record fields repeated).
+XLSX member/leader: Sheet 1 = records, Sheet 2 = work logs.
+XLSX bulk: one sheet per table (Tasks + DailyWorkLogs separate).
 
 Exports only data the requester is permitted to see.
 """
@@ -31,7 +31,7 @@ from app.db.models.absence import Absence
 from app.db.models.category import BlockerType, Category, CategorySubType
 from app.db.models.daily_record import DailyRecord
 from app.db.models.project import Project
-from app.db.models.task_entry import TaskEntry
+from app.db.models.task import DailyWorkLog, Task
 from app.db.models.team import Team, TeamMembership
 from app.db.models.user import User
 
@@ -53,13 +53,13 @@ async def _team_member_ids(team_id: uuid.UUID, db: AsyncSession) -> list[uuid.UU
     return list(r.scalars().all())
 
 
-async def _fetch_records_with_tasks(
+async def _fetch_records_with_logs(
     user_ids: list[uuid.UUID],
     start_date: date | None,
     end_date: date | None,
     db: AsyncSession,
-) -> tuple[list[DailyRecord], list[TaskEntry]]:
-    """Fetch DailyRecords and their TaskEntries for the given users and range."""
+) -> tuple[list[DailyRecord], list[DailyWorkLog], dict[uuid.UUID, Task]]:
+    """Fetch DailyRecords, their DailyWorkLogs, and a task lookup map."""
     q = select(DailyRecord).where(DailyRecord.user_id.in_(user_ids))
     if start_date:
         q = q.where(DailyRecord.record_date >= start_date)
@@ -70,16 +70,22 @@ async def _fetch_records_with_tasks(
     records = list(r.scalars().all())
 
     record_ids = [rec.id for rec in records]
-    task_rows: list[TaskEntry] = []
+    work_logs: list[DailyWorkLog] = []
+    task_map: dict[uuid.UUID, Task] = {}
     if record_ids:
         rt = await db.execute(
-            select(TaskEntry)
-            .where(TaskEntry.daily_record_id.in_(record_ids))
-            .order_by(TaskEntry.daily_record_id, TaskEntry.sort_order)
+            select(DailyWorkLog)
+            .where(DailyWorkLog.daily_record_id.in_(record_ids))
+            .order_by(DailyWorkLog.daily_record_id, DailyWorkLog.sort_order)
         )
-        task_rows = list(rt.scalars().all())
+        work_logs = list(rt.scalars().all())
 
-    return records, task_rows
+        task_ids = list({log.task_id for log in work_logs})
+        if task_ids:
+            tk = await db.execute(select(Task).where(Task.id.in_(task_ids)))
+            task_map = {t.id: t for t in tk.scalars().all()}
+
+    return records, work_logs, task_map
 
 
 async def _build_lookup_maps(db: AsyncSession) -> dict:
@@ -113,18 +119,19 @@ _RECORD_HEADERS = [
     "day_load",
     "day_note",
 ]
-_TASK_HEADERS = [
-    "task_id",
+_LOG_HEADERS = [
+    "log_id",
     "record_id",
+    "task_id",
+    "task_title",
     "category",
     "sub_type",
     "project",
-    "task_description",
     "effort",
+    "work_note",
     "status",
     "blocker_type",
     "blocker_text",
-    "carried_from_id",
     "sort_order",
 ]
 
@@ -139,68 +146,78 @@ def _record_row(rec: DailyRecord, maps: dict, *, include_private: bool = True) -
     ]
 
 
-def _task_row(task: TaskEntry, maps: dict, *, include_private: bool = True) -> list:
+def _log_row(
+    log: DailyWorkLog,
+    task: Task,
+    maps: dict,
+    *,
+    include_private: bool = True,
+) -> list:
     return [
+        str(log.id),
+        str(log.daily_record_id),
         str(task.id),
-        str(task.daily_record_id),
+        task.title,
         maps["categories"].get(task.category_id, str(task.category_id)),
         maps["subtypes"].get(task.sub_type_id, "") if task.sub_type_id else "",
         maps["projects"].get(task.project_id, str(task.project_id)),
-        task.task_description,
-        task.effort,
+        log.effort,
+        log.work_note or "",
         task.status,
         (
-            maps["blocker_types"].get(task.blocker_type_id, "")
-            if task.blocker_type_id
+            maps["blocker_types"].get(log.blocker_type_id, "")
+            if log.blocker_type_id
             else ""
         ),
-        (task.blocker_text or "") if include_private else "",
-        str(task.carried_from_id) if task.carried_from_id else "",
-        task.sort_order,
+        (log.blocker_text or "") if include_private else "",
+        log.sort_order,
     ]
 
 
 def _build_csv_flat(
     records: list[DailyRecord],
-    tasks: list[TaskEntry],
+    work_logs: list[DailyWorkLog],
+    task_map: dict[uuid.UUID, Task],
     maps: dict,
     *,
     include_private: bool = True,
 ) -> bytes:
-    """One row per task entry; record fields repeated. Records with no tasks get one row."""
+    """One row per work log; record fields repeated. Records with no logs get one row."""
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["task_id", "record_id"] + _RECORD_HEADERS + _TASK_HEADERS[2:])
+    writer.writerow(["log_id", "record_id"] + _RECORD_HEADERS + _LOG_HEADERS[2:])
 
-    tasks_by_record: dict[uuid.UUID, list[TaskEntry]] = {}
-    for t in tasks:
-        tasks_by_record.setdefault(t.daily_record_id, []).append(t)
+    logs_by_record: dict[uuid.UUID, list[DailyWorkLog]] = {}
+    for log in work_logs:
+        logs_by_record.setdefault(log.daily_record_id, []).append(log)
 
     for rec in records:
         rec_row = _record_row(rec, maps, include_private=include_private)
-        rec_tasks = tasks_by_record.get(rec.id, [])
-        if not rec_tasks:
+        rec_logs = logs_by_record.get(rec.id, [])
+        if not rec_logs:
             writer.writerow(
-                ["", str(rec.id)] + rec_row + [""] * (len(_TASK_HEADERS) - 2)
+                ["", str(rec.id)] + rec_row + [""] * (len(_LOG_HEADERS) - 2)
             )
         else:
-            for task in rec_tasks:
-                task_part = _task_row(task, maps, include_private=include_private)[
-                    2:
-                ]  # skip task_id, record_id
-                writer.writerow([str(task.id), str(rec.id)] + rec_row + task_part)
+            for log in rec_logs:
+                task = task_map.get(log.task_id)
+                if task is None:
+                    continue
+                log_part = _log_row(log, task, maps, include_private=include_private)[2:]
+                writer.writerow([str(log.id), str(rec.id)] + rec_row + log_part)
 
     return buf.getvalue().encode("utf-8-sig")  # BOM for Excel compatibility
 
 
 def _build_xlsx_two_sheet(
     records: list[DailyRecord],
-    tasks: list[TaskEntry],
+    work_logs: list[DailyWorkLog],
+    task_map: dict[uuid.UUID, Task],
     maps: dict,
     *,
     include_private: bool = True,
 ) -> bytes:
-    """Sheet 1 = records, Sheet 2 = task entries."""
+    """Sheet 1 = records, Sheet 2 = work logs."""
     wb = openpyxl.Workbook()
     ws_rec = wb.active
     assert ws_rec is not None
@@ -209,10 +226,13 @@ def _build_xlsx_two_sheet(
     for rec in records:
         ws_rec.append(_record_row(rec, maps, include_private=include_private))
 
-    ws_task = wb.create_sheet("TaskEntries")
-    ws_task.append(_TASK_HEADERS)
-    for task in tasks:
-        ws_task.append(_task_row(task, maps, include_private=include_private))
+    ws_log = wb.create_sheet("DailyWorkLogs")
+    ws_log.append(_LOG_HEADERS)
+    for log in work_logs:
+        task = task_map.get(log.task_id)
+        if task is None:
+            continue
+        ws_log.append(_log_row(log, task, maps, include_private=include_private))
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -248,16 +268,16 @@ async def export_my_records(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Export the current user's own daily records + task entries."""
-    records, tasks = await _fetch_records_with_tasks(
+    """Export the current user's own daily records + work logs."""
+    records, work_logs, task_map = await _fetch_records_with_logs(
         [current_user.id], start_date, end_date, db
     )
     maps = await _build_lookup_maps(db)
 
     if format == "csv":
-        content = _build_csv_flat(records, tasks, maps, include_private=True)
+        content = _build_csv_flat(records, work_logs, task_map, maps, include_private=True)
     else:
-        content = _build_xlsx_two_sheet(records, tasks, maps, include_private=True)
+        content = _build_xlsx_two_sheet(records, work_logs, task_map, maps, include_private=True)
 
     return _streaming_response(content, format, "my-records")
 
@@ -277,7 +297,6 @@ async def export_team_records(
     if not (current_user.is_leader or current_user.is_admin):
         raise HTTPException(status_code=403, detail="Leaders and admins only.")
 
-    # Leaders may only export their own team (or granted teams)
     if not current_user.is_admin:
         r = await db.execute(
             select(TeamMembership).where(
@@ -296,15 +315,15 @@ async def export_team_records(
     if not member_ids:
         raise HTTPException(status_code=404, detail="Team not found or has no members.")
 
-    records, tasks = await _fetch_records_with_tasks(
+    records, work_logs, task_map = await _fetch_records_with_logs(
         member_ids, start_date, end_date, db
     )
     maps = await _build_lookup_maps(db)
 
     if format == "csv":
-        content = _build_csv_flat(records, tasks, maps, include_private=True)
+        content = _build_csv_flat(records, work_logs, task_map, maps, include_private=True)
     else:
-        content = _build_xlsx_two_sheet(records, tasks, maps, include_private=True)
+        content = _build_xlsx_two_sheet(records, work_logs, task_map, maps, include_private=True)
 
     return _streaming_response(content, format, f"team-{team_id}-records")
 
@@ -318,7 +337,7 @@ async def export_bulk(
     """
     Admin-only: export all tables for backup/migration.
     XLSX: one sheet per table.
-    CSV: flat combined file (records + tasks).
+    CSV: flat combined file (records + work logs).
     """
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admins only.")
@@ -326,19 +345,19 @@ async def export_bulk(
     users = list((await db.execute(select(User))).scalars().all())
     teams = list((await db.execute(select(Team))).scalars().all())
     records = list((await db.execute(select(DailyRecord))).scalars().all())
-    tasks = list((await db.execute(select(TaskEntry))).scalars().all())
+    tasks = list((await db.execute(select(Task))).scalars().all())
+    work_logs = list((await db.execute(select(DailyWorkLog))).scalars().all())
     absences = list((await db.execute(select(Absence))).scalars().all())
     categories = list((await db.execute(select(Category))).scalars().all())
     projects = list((await db.execute(select(Project))).scalars().all())
     bl_types = list((await db.execute(select(BlockerType))).scalars().all())
 
     if format == "csv":
-        # Bulk CSV: just export records+tasks flat
+        task_map = {t.id: t for t in tasks}
         maps = await _build_lookup_maps(db)
-        content = _build_csv_flat(records, tasks, maps, include_private=True)
+        content = _build_csv_flat(records, work_logs, task_map, maps, include_private=True)
         return _streaming_response(content, "csv", "bulk-export")
 
-    # XLSX with one sheet per table
     wb = openpyxl.Workbook()
 
     def _sheet(title: str, headers: list[str], rows):
@@ -347,133 +366,78 @@ async def export_bulk(
         for row in rows:
             ws.append(row)
 
-    # Users sheet
     _sheet(
         "Users",
+        ["id", "email", "display_name", "is_leader", "is_admin", "preferred_locale", "created_at"],
         [
-            "id",
-            "email",
-            "display_name",
-            "is_leader",
-            "is_admin",
-            "preferred_locale",
-            "created_at",
-        ],
-        [
-            [
-                str(u.id),
-                u.email,
-                u.display_name,
-                u.is_leader,
-                u.is_admin,
-                u.preferred_locale,
-                str(u.created_at),
-            ]
+            [str(u.id), u.email, u.display_name, u.is_leader, u.is_admin, u.preferred_locale, str(u.created_at)]
             for u in users
         ],
     )
-    # Teams sheet
     _sheet(
         "Teams",
         ["id", "name", "created_at"],
         [[str(t.id), t.name, str(t.created_at)] for t in teams],
     )
-    # Records sheet
     _sheet(
         "DailyRecords",
         ["id", "user_id", "record_date", "day_load", "day_note", "created_at"],
         [
-            [
-                str(r.id),
-                str(r.user_id),
-                str(r.record_date),
-                r.day_load,
-                r.day_note or "",
-                str(r.created_at),
-            ]
+            [str(r.id), str(r.user_id), str(r.record_date), r.day_load, r.day_note or "", str(r.created_at)]
             for r in records
         ],
     )
-    # Tasks sheet
     _sheet(
-        "TaskEntries",
-        [
-            "id",
-            "daily_record_id",
-            "category_id",
-            "sub_type_id",
-            "project_id",
-            "task_description",
-            "effort",
-            "status",
-            "blocker_type_id",
-            "blocker_text",
-            "carried_from_id",
-            "sort_order",
-        ],
+        "Tasks",
+        ["id", "title", "assignee_id", "project_id", "category_id", "sub_type_id", "status", "estimated_effort", "github_issue_url", "created_at", "closed_at", "is_active"],
         [
             [
-                str(t.id),
-                str(t.daily_record_id),
-                str(t.category_id),
-                str(t.sub_type_id) if t.sub_type_id else "",
-                str(t.project_id),
-                t.task_description,
-                t.effort,
-                t.status,
-                str(t.blocker_type_id) if t.blocker_type_id else "",
-                t.blocker_text or "",
-                str(t.carried_from_id) if t.carried_from_id else "",
-                t.sort_order,
+                str(t.id), t.title, str(t.assignee_id), str(t.project_id),
+                str(t.category_id), str(t.sub_type_id) if t.sub_type_id else "",
+                t.status, t.estimated_effort or "", t.github_issue_url or "",
+                str(t.created_at), str(t.closed_at) if t.closed_at else "", t.is_active,
             ]
             for t in tasks
         ],
     )
-    # Absences sheet
+    _sheet(
+        "DailyWorkLogs",
+        ["id", "task_id", "daily_record_id", "effort", "work_note", "blocker_type_id", "blocker_text", "sort_order"],
+        [
+            [
+                str(log.id), str(log.task_id), str(log.daily_record_id),
+                log.effort, log.work_note or "",
+                str(log.blocker_type_id) if log.blocker_type_id else "",
+                log.blocker_text or "", log.sort_order,
+            ]
+            for log in work_logs
+        ],
+    )
     _sheet(
         "Absences",
         ["id", "user_id", "record_date", "absence_type", "note"],
-        [
-            [
-                str(a.id),
-                str(a.user_id),
-                str(a.record_date),
-                a.absence_type,
-                a.note or "",
-            ]
-            for a in absences
-        ],
+        [[str(a.id), str(a.user_id), str(a.record_date), a.absence_type, a.note or ""] for a in absences],
     )
-    # Categories sheet
     _sheet(
         "Categories",
         ["id", "name", "is_active"],
         [[str(c.id), c.name, c.is_active] for c in categories],
     )
-    # Projects sheet
     _sheet(
         "Projects",
         ["id", "name", "scope", "team_id", "is_active", "created_at"],
         [
-            [
-                str(p.id),
-                p.name,
-                p.scope,
-                str(p.team_id) if p.team_id else "",
-                p.is_active,
-                str(p.created_at),
-            ]
+            [str(p.id), p.name, p.scope, str(p.team_id) if p.team_id else "", p.is_active, str(p.created_at)]
             for p in projects
         ],
     )
-    # BlockerTypes sheet
     _sheet(
         "BlockerTypes",
         ["id", "name", "is_active"],
         [[str(bt.id), bt.name, bt.is_active] for bt in bl_types],
     )
 
-    # Remove the default empty sheet
+    # Remove default empty sheet created by openpyxl
     if "Sheet" in wb.sheetnames:
         del wb["Sheet"]
 

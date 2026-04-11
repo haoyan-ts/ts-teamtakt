@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import require_active_user
 from app.db.engine import get_db
 from app.db.models.daily_record import DailyRecord
-from app.db.models.task_entry import TaskEntry
+from app.db.models.task import DailyWorkLog
 from app.db.models.team import TeamExtraCc, TeamMembership
 from app.db.models.user import User
 from app.db.models.weekly_report import EmailDraftStatus, WeeklyEmailDraft, WeeklyReport
@@ -117,15 +117,15 @@ async def create_or_refresh_draft(
     records = recs_r.scalars().all()
     record_ids = [r.id for r in records]
 
-    te_r = await db.execute(
-        select(TaskEntry).where(TaskEntry.daily_record_id.in_(record_ids))
+    lt_r = await db.execute(
+        select(DailyWorkLog).where(DailyWorkLog.daily_record_id.in_(record_ids))
         if record_ids
-        else select(TaskEntry).where(false())
+        else select(DailyWorkLog).where(false())
     )
-    task_entries = te_r.scalars().all()
+    work_logs = lt_r.scalars().all()
 
     day_notes = [r.day_note for r in records if r.day_note]
-    blocker_texts = [te.blocker_text for te in task_entries if te.blocker_text]
+    blocker_texts = [log.blocker_text for log in work_logs if log.blocker_text]
 
     rd = report.data
     output_language = await _get_output_language(db)
@@ -250,7 +250,9 @@ async def send_email(
 
     # Cooldown: 5-min cooldown since last send attempt (successful or failed)
     if draft.sent_at:
-        sent_at = draft.sent_at if draft.sent_at.tzinfo else draft.sent_at.replace(tzinfo=UTC)
+        sent_at = (
+            draft.sent_at if draft.sent_at.tzinfo else draft.sent_at.replace(tzinfo=UTC)
+        )
         cooldown_end = sent_at + timedelta(minutes=_COOLDOWN_MINUTES)
         if datetime.now(UTC) < cooldown_end:
             raise HTTPException(

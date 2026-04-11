@@ -6,7 +6,7 @@ from app.core.security import create_access_token
 from app.db.models.category import Category
 from app.db.models.daily_record import DailyRecord
 from app.db.models.project import Project, ProjectScope
-from app.db.models.task_entry import TaskEntry, TaskStatus
+from app.db.models.task import DailyWorkLog, Task, TaskStatus
 from app.db.models.team import Team, TeamMembership, TeamSettings
 from app.db.models.user import User
 
@@ -86,20 +86,29 @@ async def make_daily_record(db, user_id, record_date_str):
     return dr
 
 
-async def make_task_entry(db, daily_record_id, category_id, project_id, sort_order=1):
-    t = TaskEntry(
-        daily_record_id=daily_record_id,
-        category_id=category_id,
+async def make_work_log(
+    db, daily_record_id, category_id, project_id, user_id, sort_order=1
+):
+    task = Task(
+        title="Do something",
+        assignee_id=user_id,
+        created_by=user_id,
         project_id=project_id,
-        task_description="Do something",
-        effort=2,
+        category_id=category_id,
         status=TaskStatus.running,
+    )
+    db.add(task)
+    await db.flush()
+    log = DailyWorkLog(
+        task_id=task.id,
+        daily_record_id=daily_record_id,
+        effort=2,
         sort_order=sort_order,
     )
-    db.add(t)
+    db.add(log)
     await db.commit()
-    await db.refresh(t)
-    return t
+    await db.refresh(log)
+    return log
 
 
 def auth(token):
@@ -116,7 +125,7 @@ async def test_export_my_records_csv(client, db_session):
     cat = await make_category(db_session, "exp01_Cat")
     proj = await make_project(db_session, "exp01_Proj", user.id)
     dr = await make_daily_record(db_session, user.id, "2025-01-06")
-    await make_task_entry(db_session, dr.id, cat.id, proj.id)
+    await make_work_log(db_session, dr.id, cat.id, proj.id, user.id)
 
     resp = await client.get(
         "/api/v1/export/my-records?format=csv",
@@ -134,7 +143,7 @@ async def test_export_my_records_xlsx(client, db_session):
     cat = await make_category(db_session, "exp02_Cat")
     proj = await make_project(db_session, "exp02_Proj", user.id)
     dr = await make_daily_record(db_session, user.id, "2025-01-07")
-    await make_task_entry(db_session, dr.id, cat.id, proj.id)
+    await make_work_log(db_session, dr.id, cat.id, proj.id, user.id)
 
     resp = await client.get(
         "/api/v1/export/my-records?format=xlsx",
@@ -161,7 +170,7 @@ async def test_leader_export_team_csv(client, db_session):
         db_session, "exp03_Proj", member.id, scope=ProjectScope.team, team_id=team.id
     )
     dr = await make_daily_record(db_session, member.id, "2025-01-08")
-    await make_task_entry(db_session, dr.id, cat.id, proj.id)
+    await make_work_log(db_session, dr.id, cat.id, proj.id, member.id)
 
     resp = await client.get(
         f"/api/v1/export/team/{team.id}?format=csv",
