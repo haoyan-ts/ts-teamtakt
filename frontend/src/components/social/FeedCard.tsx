@@ -78,10 +78,10 @@ export const FeedCard = ({ item }: FeedCardProps) => {
         <p style={{ margin: 0, fontSize: '0.875rem', color: '#374151', whiteSpace: 'pre-wrap' }}>{item.day_note}</p>
       )}
 
-      {/* Task entries */}
-      {item.task_entries.length > 0 && (
+      {/* Work logs */}
+      {item.daily_work_logs.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-          {item.task_entries.map((t) => (
+          {item.daily_work_logs.map((t) => (
             <div
               key={t.id}
               style={{
@@ -96,16 +96,16 @@ export const FeedCard = ({ item }: FeedCardProps) => {
             >
               <span style={{
                 color: 'white',
-                background: statusBadgeColor(t.status),
+                background: statusBadgeColor(t.task?.status ?? ''),
                 borderRadius: '4px',
                 padding: '0.1rem 0.4rem',
                 fontSize: '0.7rem',
                 fontWeight: 600,
                 whiteSpace: 'nowrap',
               }}>
-                {t.status.replace('_', ' ')}
+                {(t.task?.status ?? '').replace('_', ' ')}
               </span>
-              <span style={{ flex: 1, color: '#111827' }}>{t.task_description}</span>
+              <span style={{ flex: 1, color: '#111827' }}>{t.task?.title ?? ''}</span>
               <span style={{ color: '#9ca3af', whiteSpace: 'nowrap' }}>E{EFFORT_LABELS[t.effort] || t.effort}</span>
             </div>
           ))}

@@ -4,23 +4,26 @@ import {
   createDailyRecord,
   updateDailyRecord,
   getDailyRecords,
-  getCarryOverTasks,
   createAbsence,
   deleteAbsence,
   getAbsences,
   getUnlockGrants,
 } from '../api/dailyRecords';
+import { getActiveTasks } from '../api/tasks';
 import { getCategories, getSelfAssessmentTags, getBlockerTypes } from '../api/categories';
-import { getProjects, createProject } from '../api/projects';
+import { getProjects } from '../api/projects';
+import { WorkLogRow } from '../components/tasks/WorkLogRow';
+import { TaskCreateModal } from '../components/tasks/TaskCreateModal';
 import type {
   Category,
   SelfAssessmentTag,
   BlockerType,
   Project,
+  Task,
   DailyRecord,
+  DailyWorkLogFormEntry,
   Absence,
   UnlockGrant,
-  TaskFormEntry,
 } from '../types/dailyRecord';
 
 // ---------------------------------------------------------------------------
@@ -68,420 +71,36 @@ function getEditWindowState(
 }
 
 // ---------------------------------------------------------------------------
-// Counter for unique task keys
+// Counter for unique log row keys
 // ---------------------------------------------------------------------------
 let _keyCounter = 0;
-const newKey = () => `task-${++_keyCounter}`;
+const newKey = () => `log-${++_keyCounter}`;
 
-const EMPTY_TASK = (): TaskFormEntry => ({
-  _key: newKey(),
-  category_id: '',
-  sub_type_id: null,
-  project_id: '',
-  task_description: '',
-  effort: 3,
-  status: 'todo',
-  blocker_type_id: null,
-  blocker_text: null,
-  carried_from_id: null,
-  sort_order: 0,
-  self_assessment_tags: [],
-});
+function taskToBlankLog(task: Task): DailyWorkLogFormEntry {
+  return {
+    _key: newKey(),
+    task,
+    task_id: task.id,
+    effort: 3,
+    work_note: null,
+    blocker_type_id: null,
+    blocker_text: null,
+    sort_order: 0,
+    self_assessment_tags: [],
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Validation helper
 // ---------------------------------------------------------------------------
-function validatePrimaryTags(tasks: TaskFormEntry[]): string | null {
-  for (const task of tasks) {
-    const primaryCount = task.self_assessment_tags.filter((t) => t.is_primary).length;
-    if (primaryCount === 0) return 'Each task must have exactly one primary self-assessment tag.';
-    if (primaryCount > 1) return 'Each task must have exactly one primary self-assessment tag.';
+function validatePrimaryTags(logs: DailyWorkLogFormEntry[]): string | null {
+  for (const log of logs) {
+    const primaryCount = log.self_assessment_tags.filter((t) => t.is_primary).length;
+    if (primaryCount === 0) return 'Each work log must have exactly one primary self-assessment tag.';
+    if (primaryCount > 1) return 'Each work log must have exactly one primary self-assessment tag.';
   }
   return null;
 }
-
-// ---------------------------------------------------------------------------
-// Sub-component: single task row
-// ---------------------------------------------------------------------------
-interface TaskRowProps {
-  task: TaskFormEntry;
-  index: number;
-  totalTasks: number;
-  categories: Category[];
-  projects: Project[];
-  tags: SelfAssessmentTag[];
-  blockerTypes: BlockerType[];
-  isEditable: boolean;
-  onChange: (index: number, updated: Partial<TaskFormEntry>) => void;
-  onRemove: (index: number) => void;
-  onMoveUp: (index: number) => void;
-  onMoveDown: (index: number) => void;
-  onProjectCreated: (index: number, project: Project) => void;
-}
-
-const TaskRow = ({
-  task,
-  index,
-  totalTasks,
-  categories,
-  projects,
-  tags,
-  blockerTypes,
-  isEditable,
-  onChange,
-  onRemove,
-  onMoveUp,
-  onMoveDown,
-  onProjectCreated,
-}: TaskRowProps) => {
-  const [showNewProject, setShowNewProject] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectScope, setNewProjectScope] = useState<'personal' | 'team' | 'cross_team'>('personal');
-  const [projectSaving, setProjectSaving] = useState(false);
-  const [projectError, setProjectError] = useState('');
-
-  const submitNewProject = async () => {
-    const name = newProjectName.trim();
-    if (!name) { setProjectError('Name is required.'); return; }
-    setProjectSaving(true);
-    setProjectError('');
-    try {
-      const created = await createProject({ name, scope: newProjectScope });
-      onProjectCreated(index, created);
-      setShowNewProject(false);
-      setNewProjectName('');
-      setNewProjectScope('personal');
-    } catch {
-      setProjectError('Failed to create project. Please try again.');
-    } finally {
-      setProjectSaving(false);
-    }
-  };
-
-  const selectedCategory = categories.find((c) => c.id === task.category_id);
-  const subTypes = selectedCategory?.sub_types.filter((s) => s.is_active) ?? [];
-
-  const handleTagToggle = (tagId: string) => {
-    const existing = task.self_assessment_tags.find(
-      (t) => t.self_assessment_tag_id === tagId
-    );
-    if (existing) {
-      const remaining = task.self_assessment_tags.filter(
-        (t) => t.self_assessment_tag_id !== tagId
-      );
-      // If the removed tag was primary, auto-promote the first remaining tag.
-      const needsPromotion = existing.is_primary && remaining.length > 0;
-      onChange(index, {
-        self_assessment_tags: needsPromotion
-          ? remaining.map((t, i) => ({ ...t, is_primary: i === 0 }))
-          : remaining,
-      });
-    } else {
-      onChange(index, {
-        self_assessment_tags: [
-          ...task.self_assessment_tags,
-          { self_assessment_tag_id: tagId, is_primary: task.self_assessment_tags.length === 0 },
-        ],
-      });
-    }
-  };
-
-  const handleSetPrimary = (tagId: string) => {
-    onChange(index, {
-      self_assessment_tags: task.self_assessment_tags.map((t) => ({
-        ...t,
-        is_primary: t.self_assessment_tag_id === tagId,
-      })),
-    });
-  };
-
-  const s = styles;
-
-  return (
-    <div style={s.taskCard}>
-      {/* Header row: carry-over badge + reorder + remove */}
-      <div style={s.taskHeader}>
-        {task.carried_from_id && (
-          <span style={s.carryBadge}>↩ Carried over</span>
-        )}
-        <div style={s.taskActions}>
-          <button
-            type="button"
-            disabled={index === 0}
-            onClick={() => onMoveUp(index)}
-            style={s.iconBtn}
-            title="Move up"
-          >
-            ▲
-          </button>
-          <button
-            type="button"
-            disabled={index === totalTasks - 1}
-            onClick={() => onMoveDown(index)}
-            style={s.iconBtn}
-            title="Move down"
-          >
-            ▼
-          </button>
-          <button
-            type="button"
-            onClick={() => onRemove(index)}
-            style={{ ...s.iconBtn, color: '#e53e3e' }}
-            title="Remove task"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-
-      {/* Category + Sub-type */}
-      <div style={s.fieldRow}>
-        <label style={s.label}>Category *</label>
-        <select
-          value={task.category_id}
-          onChange={(e) =>
-            onChange(index, { category_id: e.target.value, sub_type_id: null })
-          }
-          style={s.select}
-          required
-        >
-          <option value="">— select —</option>
-          {categories.filter((c) => c.is_active).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-
-        {subTypes.length > 0 && (
-          <>
-            <label style={{ ...s.label, marginLeft: '0.75rem' }}>Sub-type</label>
-            <select
-              value={task.sub_type_id ?? ''}
-              onChange={(e) =>
-                onChange(index, { sub_type_id: e.target.value || null })
-              }
-              style={s.select}
-            >
-              <option value="">— none —</option>
-              {subTypes.map((st) => (
-                <option key={st.id} value={st.id}>
-                  {st.name}
-                </option>
-              ))}
-            </select>
-          </>
-        )}
-      </div>
-
-      {/* Project */}
-      <div style={s.fieldRow}>
-        <label style={s.label}>Project *</label>
-        <select
-          value={task.project_id}
-          onChange={(e) => onChange(index, { project_id: e.target.value })}
-          style={s.select}
-          required
-        >
-          <option value="">— select —</option>
-          {projects.filter((p) => p.is_active).map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} ({p.scope})
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={() => { setShowNewProject((v) => !v); setProjectError(''); }}
-          style={{ ...s.iconBtn, marginLeft: '0.5rem', fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}
-          title="Create a new project"
-        >
-          + New
-        </button>
-      </div>
-      {showNewProject && (
-        <div style={{ marginBottom: '0.75rem', padding: '0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <input
-              style={{ ...s.input, flex: 1, minWidth: '140px' }}
-              placeholder="Project name"
-              value={newProjectName}
-              onChange={(e) => { setNewProjectName(e.target.value); setProjectError(''); }}
-              onKeyDown={(e) => e.key === 'Enter' && submitNewProject()}
-              autoFocus
-            />
-            <select
-              style={s.select}
-              value={newProjectScope}
-              onChange={(e) => setNewProjectScope(e.target.value as 'personal' | 'team' | 'cross_team')}
-            >
-              <option value="personal">Personal</option>
-              <option value="team">Team</option>
-              <option value="cross_team">Cross-team</option>
-            </select>
-            <button
-              type="button"
-              onClick={submitNewProject}
-              disabled={projectSaving}
-              style={{ padding: '0.3rem 0.75rem', background: '#3182ce', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, fontSize: '0.8rem' }}
-            >
-              {projectSaving ? 'Creating…' : 'Create'}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setShowNewProject(false); setProjectError(''); }}
-              style={{ padding: '0.3rem 0.5rem', background: '#edf2f7', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-            >
-              Cancel
-            </button>
-          </div>
-          {projectError && <p style={{ color: '#e53e3e', fontSize: '0.75rem', margin: '0.3rem 0 0' }}>{projectError}</p>}
-        </div>
-      )}
-
-      {/* Description */}
-      <div style={s.fieldRow}>
-        <label style={s.label}>Description *</label>
-        <input
-          type="text"
-          value={task.task_description}
-          onChange={(e) => onChange(index, { task_description: e.target.value })}
-          style={s.input}
-          required
-          placeholder="What did you work on?"
-        />
-      </div>
-
-      {/* Effort + Status */}
-      <div style={s.fieldRow}>
-        <label style={s.label}>Effort (1–5) *</label>
-        <select
-          value={task.effort}
-          onChange={(e) => onChange(index, { effort: Number(e.target.value) })}
-          style={{ ...s.select, width: '5rem' }}
-        >
-          {[1, 2, 3, 4, 5].map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-
-        <label style={{ ...s.label, marginLeft: '1rem' }}>Status *</label>
-        <select
-          value={task.status}
-          onChange={(e) =>
-            onChange(index, {
-              status: e.target.value as TaskFormEntry['status'],
-              blocker_type_id: e.target.value !== 'blocked' ? null : task.blocker_type_id,
-              blocker_text: e.target.value !== 'blocked' ? null : task.blocker_text,
-            })
-          }
-          style={s.select}
-        >
-          <option value="todo">Todo</option>
-          <option value="running">Running</option>
-          <option value="done">Done</option>
-          <option value="blocked">Blocked</option>
-        </select>
-      </div>
-
-      {/* Blocker fields (conditional) */}
-      {task.status === 'blocked' && (
-        <div style={s.blockerSection}>
-          <div style={s.fieldRow}>
-            <label style={s.label}>Blocker type</label>
-            <select
-              value={task.blocker_type_id ?? ''}
-              onChange={(e) =>
-                onChange(index, { blocker_type_id: e.target.value || null })
-              }
-              style={s.select}
-            >
-              <option value="">— select —</option>
-              {blockerTypes.filter((bt) => bt.is_active).map((bt) => (
-                <option key={bt.id} value={bt.id}>
-                  {bt.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={s.fieldRow}>
-            <label style={s.label}>Blocker details (private)</label>
-            <input
-              type="text"
-              value={task.blocker_text ?? ''}
-              onChange={(e) =>
-                onChange(index, { blocker_text: e.target.value || null })
-              }
-              style={s.input}
-              placeholder="Describe the blocker (not visible to other team members)"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Self-assessment tags */}
-      <div style={s.fieldRow}>
-        <label style={s.label}>Self-assessment tags *</label>
-        <div style={s.tagGroup}>
-          {tags.filter((t) => t.is_active).map((tag) => {
-            const ref = task.self_assessment_tags.find(
-              (t) => t.self_assessment_tag_id === tag.id
-            );
-            const selected = !!ref;
-            const isPrimary = ref?.is_primary ?? false;
-            return (
-              <span key={tag.id} style={s.tagWrapper}>
-                <button
-                  type="button"
-                  onClick={() => handleTagToggle(tag.id)}
-                  disabled={!isEditable}
-                  style={{
-                    ...s.tagBtn,
-                    background: selected ? '#3182ce' : '#e2e8f0',
-                    color: selected ? '#fff' : '#2d3748',
-                    opacity: !isEditable ? 0.6 : 1,
-                    cursor: !isEditable ? 'default' : 'pointer',
-                  }}
-                >
-                  {tag.name}
-                </button>
-                {selected && !isPrimary && (
-                  <button
-                    type="button"
-                    onClick={() => handleSetPrimary(tag.id)}
-                    disabled={!isEditable}
-                    style={{
-                      ...s.primaryBtn,
-                      opacity: !isEditable ? 0.4 : 1,
-                      cursor: !isEditable ? 'default' : 'pointer',
-                    }}
-                    title="Set as primary"
-                  >
-                    ★
-                  </button>
-                )}
-                {selected && isPrimary && (
-                  <span style={s.primaryIndicator} title="Primary tag">
-                    ★
-                  </span>
-                )}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-      {task.self_assessment_tags.filter((t) => t.is_primary).length === 0 &&
-        task.self_assessment_tags.length > 0 && (
-          <p style={s.tagError}>Select one tag as primary (★)</p>
-        )}
-      {task.self_assessment_tags.length === 0 && (
-        <p style={s.tagError}>At least one tag required; select primary (★)</p>
-      )}
-    </div>
-  );
-};
 
 // ---------------------------------------------------------------------------
 // Main page
@@ -511,7 +130,7 @@ export const DailyFormPage = () => {
   // Form fields
   const [isAbsenceMode, setIsAbsenceMode] = useState(false);
   const [absenceType, setAbsenceType] = useState<string>('holiday');
-  const [tasks, setTasks] = useState<TaskFormEntry[]>([]);
+  const [workLogs, setWorkLogs] = useState<DailyWorkLogFormEntry[]>([]);
   const [dayLoad, setDayLoad] = useState(3);
   const [dayNote, setDayNote] = useState('');
 
@@ -519,6 +138,9 @@ export const DailyFormPage = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Task create modal
+  const [showTaskModal, setShowTaskModal] = useState(false);
 
   // Edit window
   const windowState = useMemo(
@@ -532,14 +154,12 @@ export const DailyFormPage = () => {
     setLoading(true);
     setError(null);
     // Reset all date-specific state so stale data from a previous date never lingers.
-    // Without this, navigating from a date that had isAbsenceMode=true would hide the
-    // form (and its save button) on the newly-navigated-to date.
     setExistingRecord(null);
     setExistingAbsence(null);
     setUnlockGrant(null);
     setIsAbsenceMode(false);
     setAbsenceType('holiday');
-    setTasks([]);
+    setWorkLogs([]);
     setDayLoad(3);
     setDayNote('');
     setSuccessMsg(null);
@@ -551,8 +171,9 @@ export const DailyFormPage = () => {
       getDailyRecords({ date: recordDate }),
       getAbsences({ start_date: recordDate, end_date: recordDate }),
       getUnlockGrants({ record_date: recordDate }),
+      getActiveTasks(),
     ])
-      .then(([cats, tagList, btList, projs, records, absences, grants]) => {
+      .then(([cats, tagList, btList, projs, records, absences, grants, activeTasks]) => {
         setCategories(cats);
         setTags(tagList);
         setBlockerTypes(btList);
@@ -563,42 +184,30 @@ export const DailyFormPage = () => {
           setExistingRecord(rec);
           setDayLoad(rec.day_load ?? 3);
           setDayNote(rec.day_note ?? '');
-          setTasks(
-            rec.task_entries.map((te) => ({
-              _key: newKey(),
-              category_id: te.category_id,
-              sub_type_id: te.sub_type_id,
-              project_id: te.project_id,
-              task_description: te.task_description,
-              effort: te.effort,
-              status: te.status as TaskFormEntry['status'],
-              blocker_type_id: te.blocker_type_id,
-              blocker_text: te.blocker_text,
-              carried_from_id: te.carried_from_id,
-              sort_order: te.sort_order,
-              self_assessment_tags: te.self_assessment_tags,
-            }))
+
+          const logsByTaskId = new Map(
+            rec.daily_work_logs.map((l) => [l.task_id, l])
           );
-        } else if (dateParam === undefined || dateParam === todayISO) {
-          // New record for today — pre-fill carry-over tasks
-          getCarryOverTasks().then((carryOvers) => {
-            setTasks(
-              carryOvers.map((te) => ({
+          const rows: DailyWorkLogFormEntry[] = activeTasks.map((task) => {
+            const existing = logsByTaskId.get(task.id);
+            if (existing) {
+              return {
                 _key: newKey(),
-                category_id: te.category_id,
-                sub_type_id: te.sub_type_id,
-                project_id: te.project_id,
-                task_description: te.task_description,
-                effort: te.effort,
-                status: te.status as TaskFormEntry['status'],
-                blocker_type_id: te.blocker_type_id,
-                blocker_text: te.blocker_text,
-                carried_from_id: te.id, // reference original
-                sort_order: te.sort_order,
-                self_assessment_tags: te.self_assessment_tags,
-              }))
-            );
+                task,
+                task_id: existing.task_id,
+                effort: existing.effort,
+                work_note: existing.work_note,
+                blocker_type_id: existing.blocker_type_id,
+                blocker_text: existing.blocker_text,
+                sort_order: existing.sort_order,
+                self_assessment_tags: existing.self_assessment_tags,
+              };
+            }
+            return taskToBlankLog(task);
           });
+          setWorkLogs(rows);
+        } else {
+          setWorkLogs(activeTasks.map(taskToBlankLog));
         }
 
         if (absences.length > 0) {
@@ -614,20 +223,20 @@ export const DailyFormPage = () => {
       .finally(() => setLoading(false));
   }, [recordDate]);
 
-  // Task manipulation
-  const updateTask = useCallback(
-    (index: number, updated: Partial<TaskFormEntry>) => {
-      setTasks((prev) => prev.map((t, i) => (i === index ? { ...t, ...updated } : t)));
+  // Work log manipulation
+  const updateLog = useCallback(
+    (index: number, updated: Partial<DailyWorkLogFormEntry>) => {
+      setWorkLogs((prev) => prev.map((l, i) => (i === index ? { ...l, ...updated } : l)));
     },
     []
   );
 
-  const removeTask = useCallback((index: number) => {
-    setTasks((prev) => prev.filter((_, i) => i !== index));
+  const removeLog = useCallback((index: number) => {
+    setWorkLogs((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const moveTask = useCallback((index: number, direction: 'up' | 'down') => {
-    setTasks((prev) => {
+  const moveLog = useCallback((index: number, direction: 'up' | 'down') => {
+    setWorkLogs((prev) => {
       const next = [...prev];
       const swapIdx = direction === 'up' ? index - 1 : index + 1;
       [next[index], next[swapIdx]] = [next[swapIdx], next[index]];
@@ -635,7 +244,13 @@ export const DailyFormPage = () => {
     });
   }, []);
 
-  const addTask = () => setTasks((prev) => [...prev, EMPTY_TASK()]);
+  const handleTaskDone = useCallback((index: number) => {
+    setWorkLogs((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleTaskCreated = useCallback((task: Task) => {
+    setWorkLogs((prev) => [...prev, taskToBlankLog(task)]);
+  }, []);
 
   // Toggle absence mode
   const toggleAbsence = async () => {
@@ -688,7 +303,7 @@ export const DailyFormPage = () => {
     e.preventDefault();
     if (!isEditable) return;
 
-    const tagErr = validatePrimaryTags(tasks);
+    const tagErr = validatePrimaryTags(workLogs);
     if (tagErr) {
       setError(tagErr);
       return;
@@ -702,18 +317,14 @@ export const DailyFormPage = () => {
       day_load: dayLoad,
       day_note: dayNote || null,
       form_opened_at: formOpenedAt.current.toISOString(),
-      task_entries: tasks.map((t, i) => ({
-        category_id: t.category_id,
-        sub_type_id: t.sub_type_id,
-        project_id: t.project_id,
-        task_description: t.task_description,
-        effort: t.effort,
-        status: t.status,
-        blocker_type_id: t.blocker_type_id,
-        blocker_text: t.blocker_text,
-        carried_from_id: t.carried_from_id,
+      daily_work_logs: workLogs.map((l, i) => ({
+        task_id: l.task_id,
+        effort: l.effort,
+        work_note: l.work_note,
+        blocker_type_id: l.blocker_type_id,
+        blocker_text: l.blocker_text,
         sort_order: i,
-        self_assessment_tags: t.self_assessment_tags,
+        self_assessment_tags: l.self_assessment_tags,
       })),
     };
 
@@ -842,46 +453,54 @@ export const DailyFormPage = () => {
       {/* Daily record form (hidden when absence mode is active & confirmed) */}
       {!existingAbsence && !isAbsenceMode && (
         <form onSubmit={handleSubmit}>
-          {/* Tasks */}
+          {/* Work Logs (one per active task) */}
           <div style={s.sectionHeader}>
-            <h3 style={s.sectionTitle}>Tasks</h3>
+            <h3 style={s.sectionTitle}>Today's Tasks</h3>
             <button
               type="button"
-              onClick={addTask}
+              onClick={() => setShowTaskModal(true)}
               disabled={!isEditable}
               style={s.addTaskBtn}
             >
-              + Add Task
+              + New Task
             </button>
           </div>
+          <p style={s.sectionHint}>
+            Log effort for each active task. Mark done when finished.
+          </p>
 
-          {tasks.length === 0 && (
+          {workLogs.length === 0 && (
             <p style={{ color: '#718096', fontStyle: 'italic', marginBottom: '1rem' }}>
-              No tasks yet. Add one above or carry over from yesterday.
+              No active tasks. Create a task or skip rows for tasks not touched today.
             </p>
           )}
 
-          {tasks.map((task, index) => (
-            <TaskRow
-              key={task._key}
-              task={task}
+          {workLogs.map((log, index) => (
+            <WorkLogRow
+              key={log._key}
+              log={log}
               index={index}
-              totalTasks={tasks.length}
-              categories={categories}
-              projects={projects}
+              totalLogs={workLogs.length}
               tags={tags}
               blockerTypes={blockerTypes}
               isEditable={isEditable}
-              onChange={updateTask}
-              onRemove={removeTask}
-              onMoveUp={(i) => moveTask(i, 'up')}
-              onMoveDown={(i) => moveTask(i, 'down')}
-              onProjectCreated={(i, project) => {
-                setProjects((prev) => [...prev, project]);
-                updateTask(i, { project_id: project.id });
-              }}
+              onChange={updateLog}
+              onRemove={removeLog}
+              onMoveUp={(i) => moveLog(i, 'up')}
+              onMoveDown={(i) => moveLog(i, 'down')}
+              onTaskDone={handleTaskDone}
             />
           ))}
+
+          <TaskCreateModal
+            open={showTaskModal}
+            onClose={() => setShowTaskModal(false)}
+            onCreated={handleTaskCreated}
+            categories={categories}
+            projects={projects}
+            blockerTypes={blockerTypes}
+            onProjectCreated={(project) => setProjects((prev) => [...prev, project])}
+          />
 
           {/* Day load (private) */}
           <div style={s.metaSection}>
@@ -1007,6 +626,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '0.5rem',
   },
   sectionTitle: { margin: 0, fontSize: '1rem', fontWeight: 600 },
+  sectionHint: { color: '#718096', fontSize: '0.8rem', margin: '0 0 0.75rem' },
   addTaskBtn: {
     padding: '0.3rem 0.75rem',
     background: '#48bb78',
@@ -1014,28 +634,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontWeight: 500,
-  },
-  taskCard: {
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    padding: '1rem',
-    marginBottom: '0.75rem',
-    background: '#f7fafc',
-  },
-  taskHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '0.5rem',
-  },
-  taskActions: { display: 'flex', gap: '0.25rem' },
-  carryBadge: {
-    background: '#ebf8ff',
-    color: '#2b6cb0',
-    fontSize: '0.75rem',
-    padding: '0.1rem 0.4rem',
-    borderRadius: '4px',
     fontWeight: 500,
   },
   iconBtn: {
@@ -1068,32 +666,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0.3rem 0.5rem',
     fontSize: '0.875rem',
   },
-  blockerSection: {
-    background: '#fff5f5',
-    border: '1px solid #fed7d7',
-    borderRadius: '6px',
-    padding: '0.5rem',
-    marginBottom: '0.5rem',
-  },
-  tagGroup: { display: 'flex', flexWrap: 'wrap', gap: '0.35rem' },
-  tagWrapper: { display: 'inline-flex', alignItems: 'center', gap: '2px' },
-  tagBtn: {
-    border: 'none',
-    borderRadius: '4px',
-    padding: '0.2rem 0.5rem',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-  },
-  primaryBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#d69e2e',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    padding: '0 2px',
-  },
-  primaryIndicator: { color: '#d69e2e', fontSize: '0.8rem' },
-  tagError: { color: '#e53e3e', fontSize: '0.75rem', margin: '0.2rem 0 0' },
   metaSection: {
     background: '#f7fafc',
     border: '1px solid #e2e8f0',

@@ -30,6 +30,7 @@ export interface Project {
   id: string;
   name: string;
   scope: 'personal' | 'team' | 'cross_team';
+  github_repo: string | null;
   is_active: boolean;
 }
 
@@ -38,18 +39,50 @@ export interface SelfAssessmentTagRef {
   is_primary: boolean;
 }
 
-export interface TaskEntry {
+// ---- Task entity (persists across days) ----
+
+export interface Task {
   id: string;
-  daily_record_id: string;
+  title: string;
+  description: string | null;
+  assignee_id: string;
+  project_id: string;
   category_id: string;
   sub_type_id: string | null;
-  project_id: string;
-  task_description: string;
-  effort: number;
   status: 'todo' | 'running' | 'done' | 'blocked';
+  estimated_effort: number | null;
+  blocker_type_id: string | null;
+  github_issue_url: string | null; // immutable after set
+  created_by: string;
+  created_at: string;
+  closed_at: string | null;
+  is_active: boolean;
+}
+
+// ---- DailyWorkLog (what I did today on a task) ----
+
+export interface DailyWorkLog {
+  id: string;
+  task_id: string;
+  task?: Task; // populated when returned as part of DailyRecord
+  daily_record_id: string;
+  effort: number; // 1-5 actual effort today
+  work_note: string | null;
+  blocker_type_id: string | null;
+  blocker_text: string | null; // private
+  sort_order: number;
+  self_assessment_tags: SelfAssessmentTagRef[];
+}
+
+// Form-side type for a single work log row (includes the parent Task for display)
+export interface DailyWorkLogFormEntry {
+  _key: string; // client-side only
+  task: Task;
+  task_id: string;
+  effort: number;
+  work_note: string | null;
   blocker_type_id: string | null;
   blocker_text: string | null;
-  carried_from_id: string | null;
   sort_order: number;
   self_assessment_tags: SelfAssessmentTagRef[];
 }
@@ -63,7 +96,7 @@ export interface DailyRecord {
   form_opened_at: string;
   created_at: string;
   updated_at: string;
-  task_entries: TaskEntry[];
+  daily_work_logs: DailyWorkLog[];
 }
 
 export interface Absence {
@@ -82,20 +115,4 @@ export interface UnlockGrant {
   granted_by: string;
   granted_at: string;
   revoked_at: string | null;
-}
-
-// Form state for a single task entry (before/during saving)
-export interface TaskFormEntry {
-  _key: string; // client-side only, for React key
-  category_id: string;
-  sub_type_id: string | null;
-  project_id: string;
-  task_description: string;
-  effort: number;
-  status: 'todo' | 'running' | 'done' | 'blocked';
-  blocker_type_id: string | null;
-  blocker_text: string | null;
-  carried_from_id: string | null;
-  sort_order: number;
-  self_assessment_tags: SelfAssessmentTagRef[];
 }

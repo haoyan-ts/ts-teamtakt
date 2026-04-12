@@ -1,17 +1,5 @@
 import client from './client';
-
-export interface FeedTaskEntry {
-  id: string;
-  category_id: string;
-  project_id: string;
-  task_description: string;
-  effort: number;
-  status: string;
-  blocker_type_id: string | null;
-  carried_from_id: string | null;
-  sort_order: number;
-  self_assessment_tags: Array<{ self_assessment_tag_id: string; is_primary: boolean }>;
-}
+import type { DailyWorkLog } from '../types/dailyRecord';
 
 export interface ReactionGroup {
   emoji: string;
@@ -26,7 +14,7 @@ export interface FeedItem {
   display_name: string;
   record_date: string;
   day_note: string | null;
-  task_entries: FeedTaskEntry[];
+  daily_work_logs: DailyWorkLog[];
   comment_count: number;
   reactions: ReactionGroup[];
   created_at: string;
