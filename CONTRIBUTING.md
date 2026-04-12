@@ -117,6 +117,39 @@ Critical business rules that must never be broken are documented in [`.github/co
 
 ---
 
+## Versioning
+
+This project uses [Semantic Versioning](https://semver.org/) (MAJOR.MINOR.PATCH). While MAJOR is `0`, the project is under active development and not yet published.
+
+**Canonical version** is stored in the root `pyproject.toml` and kept in sync across `backend/pyproject.toml` and `frontend/package.json` by commitizen.
+
+### How commit types map to version increments
+
+| Commit type | Increment | Example |
+|-------------|-----------|---------|
+| `fix` | patch (0.1.x) | `fix(api): correct edit window deadline` |
+| `feat` | minor (0.x.0) | `feat(ui): add carry-over indicator` |
+| `BREAKING CHANGE` footer | major (x.0.0) | `feat!: redesign record schema` |
+
+### Bumping the version
+
+Run from the **repo root** on the `dev` branch:
+
+```bash
+cz bump           # detects increment from commits, updates all version files, appends CHANGELOG.md, commits, and tags
+git push && git push --tags
+```
+
+To preview what would happen without writing anything:
+
+```bash
+cz bump --dry-run
+```
+
+The tag (`v0.x.y`) moves to `main` when the release PR merges from `dev`. Do not bump directly on `main`.
+
+---
+
 ## Development Setup
 
 See [docs/how-to/contributing.md](docs/how-to/contributing.md) for the full environment setup guide.
