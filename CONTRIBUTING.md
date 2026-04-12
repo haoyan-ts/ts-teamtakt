@@ -6,14 +6,14 @@ Welcome! This guide covers the conventions and workflow for contributing to this
 
 ## Branch Strategy
 
-| Branch | Purpose |
-|--------|---------|
-| `main` | Stable / production-ready code. Protected. |
-| `dev`  | Integration branch. All PRs target `dev`. Protected. |
-| `feat/*` | New features |
-| `fix/*`  | Bug fixes |
-| `chore/*` | Tech debt, refactors, dependency upgrades |
-| `docs/*`  | Documentation-only changes |
+| Branch    | Purpose                                              |
+| --------- | ---------------------------------------------------- |
+| `main`    | Stable / production-ready code. Protected.           |
+| `dev`     | Integration branch. All PRs target `dev`. Protected. |
+| `feat/*`  | New features                                         |
+| `fix/*`   | Bug fixes                                            |
+| `chore/*` | Tech debt, refactors, dependency upgrades            |
+| `docs/*`  | Documentation-only changes                           |
 
 **Branch naming:** `<type>/<short-description>` using kebab-case.
 
@@ -43,6 +43,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 **Scopes:** `backend`, `frontend`, `db`, `auth`, `api`, `ui`, `notifications`, `llm`, `ci`
 
 **Examples:**
+
 ```
 feat(api): add leader unlock endpoint for daily records
 fix(frontend): correct edit window countdown timer
@@ -125,11 +126,11 @@ This project uses [Semantic Versioning](https://semver.org/) (MAJOR.MINOR.PATCH)
 
 ### How commit types map to version increments
 
-| Commit type | Increment | Example |
-|-------------|-----------|---------|
-| `fix` | patch (0.1.x) | `fix(api): correct edit window deadline` |
-| `feat` | minor (0.x.0) | `feat(ui): add carry-over indicator` |
-| `BREAKING CHANGE` footer | major (x.0.0) | `feat!: redesign record schema` |
+| Commit type              | Increment     | Example                                  |
+| ------------------------ | ------------- | ---------------------------------------- |
+| `fix`                    | patch (0.1.x) | `fix(api): correct edit window deadline` |
+| `feat`                   | minor (0.x.0) | `feat(ui): add carry-over indicator`     |
+| `BREAKING CHANGE` footer | major (x.0.0) | `feat!: redesign record schema`          |
 
 ### Bumping the version
 
@@ -155,6 +156,7 @@ The tag (`v0.x.y`) moves to `main` when the release PR merges from `dev`. Do not
 See [docs/how-to/contributing.md](docs/how-to/contributing.md) for the full environment setup guide.
 
 Quick reference:
+
 ```bash
 # Backend
 cd backend && uv sync --all-groups

@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use this template for new features or enhancements. Reference the relevant PRD phase when applicable.
+        Use this template for new features or enhancements.
 
   - type: textarea
     id: user-story
@@ -24,23 +24,6 @@ body:
       placeholder: |
         - [ ] Given X, when Y, then Z
         - [ ] ...
-    validations:
-      required: true
-
-  - type: dropdown
-    id: prd-phase
-    attributes:
-      label: PRD Phase
-      description: Which phase of the PRD does this belong to?
-      options:
-        - Phase 1A — Core Backend
-        - Phase 1B — Core Frontend
-        - Phase 2A — Insights & Output Backend
-        - Phase 2B — Insights & Output Frontend
-        - Phase 3A — Social & AI Backend
-        - Phase 3B — Social & AI Frontend
-        - Phase 4 — Future
-        - Not in PRD
     validations:
       required: true
 
