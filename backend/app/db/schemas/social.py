@@ -54,16 +54,17 @@ class ReactionGroupRead(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class FeedTaskEntry(BaseModel):
+class FeedDailyWorkLog(BaseModel):
     id: uuid.UUID
+    task_id: uuid.UUID
+    task_title: str
     category_id: uuid.UUID
     project_id: uuid.UUID
-    task_description: str
     effort: int
+    work_note: str | None
     status: str
     blocker_type_id: uuid.UUID | None
     # blocker_text intentionally omitted (private field)
-    carried_from_id: uuid.UUID | None
     sort_order: int
     self_assessment_tags: list[dict] = []
 
@@ -76,7 +77,7 @@ class FeedItemRead(BaseModel):
     display_name: str
     record_date: str  # ISO date string
     day_note: str | None
-    task_entries: list[FeedTaskEntry]
+    daily_work_logs: list[FeedDailyWorkLog]
     comment_count: int
     reactions: list[ReactionGroupRead]
     created_at: datetime

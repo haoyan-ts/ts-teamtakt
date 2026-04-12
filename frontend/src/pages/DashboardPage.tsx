@@ -13,9 +13,10 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { getDailyRecords, getAbsences, getCarryOverTasks } from '../api/dailyRecords';
+import { getDailyRecords, getAbsences } from '../api/dailyRecords';
+import { getActiveTasks } from '../api/tasks';
 import { getCategories } from '../api/categories';
-import type { DailyRecord, TaskEntry, Category } from '../types/dailyRecord';
+import type { DailyRecord, Task, Category } from '../types/dailyRecord';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -64,7 +65,7 @@ const TodayStatusCard = ({ records, isAbsent, today }: TodayStatusCardProps) => 
     bgColor = '#ebf8ff';
     borderColor = '#bee3f8';
   } else if (todayRecord) {
-    label = `${todayRecord.task_entries.length} tasks — day load ${todayRecord.day_load ?? '?'}/5`;
+    label = `${todayRecord.daily_work_logs.length} tasks — day load ${todayRecord.day_load ?? '?'}/5`;
     bgColor = '#f0fff4';
     borderColor = '#9ae6b4';
   }
@@ -81,22 +82,22 @@ const TodayStatusCard = ({ records, isAbsent, today }: TodayStatusCardProps) => 
 };
 
 interface RunningBlockedCardProps {
-  carryOver: TaskEntry[];
+  tasks: Task[];
   categories: Category[];
 }
 
-const RunningBlockedCard = ({ carryOver, categories }: RunningBlockedCardProps) => {
+const RunningBlockedCard = ({ tasks, categories }: RunningBlockedCardProps) => {
   const navigate = useNavigate();
-  const categoryName = (id: string) =>
+  const categoryName = (id: string | null) =>
     categories.find((c) => c.id === id)?.name ?? '—';
 
-  const running = carryOver.filter((t) => t.status === 'running');
-  const blocked = carryOver.filter((t) => t.status === 'blocked');
+  const running = tasks.filter((t) => t.status === 'running');
+  const blocked = tasks.filter((t) => t.status === 'blocked');
 
   return (
     <div style={cardStyle}>
       <h3 style={cardTitle}>Running / Blocked Tasks</h3>
-      {carryOver.length === 0 ? (
+      {tasks.length === 0 ? (
         <p style={emptyText}>No running or blocked tasks.</p>
       ) : (
         <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
@@ -107,7 +108,7 @@ const RunningBlockedCard = ({ carryOver, categories }: RunningBlockedCardProps) 
                 style={linkBtn}
                 onClick={() => navigate(`/daily/${todayISO()}`)}
               >
-                {t.task_description}
+                {t.title}
               </button>
               <span style={metaText}> — {categoryName(t.category_id)}</span>
             </li>
@@ -119,7 +120,7 @@ const RunningBlockedCard = ({ carryOver, categories }: RunningBlockedCardProps) 
                 style={linkBtn}
                 onClick={() => navigate(`/daily/${todayISO()}`)}
               >
-                {t.task_description}
+                {t.title}
               </button>
               <span style={metaText}> — {categoryName(t.category_id)}</span>
             </li>
@@ -140,13 +141,13 @@ const WeeklySummaryCard = ({ records, categories, weekStart }: WeeklySummaryCard
   const weekDates = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
   const weekRecords = records.filter((r) => weekDates.includes(r.record_date));
   const daysReported = weekRecords.length;
-  const totalTasks = weekRecords.reduce((s, r) => s + r.task_entries.length, 0);
+  const totalTasks = weekRecords.reduce((s, r) => s + r.daily_work_logs.length, 0);
 
   const effortByCategory: Record<string, number> = {};
   for (const rec of weekRecords) {
-    for (const te of rec.task_entries) {
-      effortByCategory[te.category_id] =
-        (effortByCategory[te.category_id] ?? 0) + te.effort;
+    for (const te of rec.daily_work_logs) {
+      const catId = te.task?.category_id ?? 'unknown';
+      effortByCategory[catId] = (effortByCategory[catId] ?? 0) + te.effort;
     }
   }
   const pieData = Object.entries(effortByCategory).map(([catId, value]) => ({
@@ -250,12 +251,12 @@ const BlockerHistoryCard = ({ records }: BlockerHistoryCardProps) => {
   const recentRecords = records.filter((r) => r.record_date >= twoWeeksAgo);
   const blockers: { date: string; description: string; status: string }[] = [];
   for (const rec of recentRecords) {
-    for (const te of rec.task_entries) {
-      if (te.status === 'blocked' || te.blocker_text) {
+    for (const te of rec.daily_work_logs) {
+      if (te.blocker_text || te.blocker_type_id) {
         blockers.push({
           date: rec.record_date,
-          description: te.task_description,
-          status: te.status,
+          description: te.task?.title ?? `Task ${te.task_id.slice(0, 6)}`,
+          status: te.task?.status ?? 'unknown',
         });
       }
     }
@@ -308,7 +309,7 @@ export const DashboardPage = () => {
   const fourWeeksAgo = addDays(today, -28);
 
   const [records, setRecords] = useState<DailyRecord[]>([]);
-  const [carryOver, setCarryOver] = useState<TaskEntry[]>([]);
+  const [activeTasks, setActiveTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isAbsent, setIsAbsent] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -317,13 +318,13 @@ export const DashboardPage = () => {
   useEffect(() => {
     Promise.all([
       getDailyRecords({ start_date: fourWeeksAgo, end_date: today }),
-      getCarryOverTasks(),
+      getActiveTasks(),
       getCategories(),
       getAbsences({ start_date: today, end_date: today }),
     ])
-      .then(([recs, co, cats, abs]) => {
+      .then(([recs, active, cats, abs]) => {
         setRecords(recs);
-        setCarryOver(co);
+        setActiveTasks(active);
         setCategories(cats);
         setIsAbsent(abs.length > 0);
       })
@@ -339,7 +340,7 @@ export const DashboardPage = () => {
       <h2 style={{ marginBottom: '1rem' }}>My Dashboard</h2>
       <TodayStatusCard records={records} isAbsent={isAbsent} today={today} />
       <div style={grid}>
-        <RunningBlockedCard carryOver={carryOver} categories={categories} />
+        <RunningBlockedCard tasks={activeTasks} categories={categories} />
         <WeeklySummaryCard records={records} categories={categories} weekStart={weekStart} />
         <LoadTrendCard records={records} />
         <BlockerHistoryCard records={records} />

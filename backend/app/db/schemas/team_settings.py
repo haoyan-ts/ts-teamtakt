@@ -12,6 +12,7 @@ class TeamSettingsResponse(BaseModel):
     fragmentation_task_threshold: int
     carryover_aging_days: int
     balance_targets: dict[str, int]
+    github_field_map: dict | None
 
     model_config = {"from_attributes": True}
 
@@ -22,3 +23,4 @@ class TeamSettingsUpdate(BaseModel):
     fragmentation_task_threshold: int | None = Field(None, ge=1)
     carryover_aging_days: int | None = Field(None, ge=1)
     balance_targets: dict[str, int] | None = None
+    github_field_map: dict | None = None

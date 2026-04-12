@@ -30,7 +30,7 @@ from app.db.models.category import Category, CategorySubType
 from app.db.models.daily_record import DailyRecord
 from app.db.models.project import Project
 from app.db.models.quarterly_report import QuarterlyReport, QuarterlyReportStatus
-from app.db.models.task_entry import TaskEntry, TaskEntrySelfAssessmentTag
+from app.db.models.task import DailyWorkLog, DailyWorkLogSelfAssessmentTag, Task
 from app.db.models.team import TeamMembership
 from app.db.models.user import User
 from app.db.schemas.quarterly_report import (
@@ -133,10 +133,15 @@ async def _pre_aggregate(
         return {"days_reported": 0}, {}, {}
 
     record_ids = [r.id for r in records]
-    te_result = await db.execute(
-        select(TaskEntry).where(TaskEntry.daily_record_id.in_(record_ids))
+
+    # Fetch DailyWorkLogs + parent Tasks for the quarter's records
+    log_result = await db.execute(
+        select(DailyWorkLog, Task)
+        .join(Task, DailyWorkLog.task_id == Task.id)
+        .where(DailyWorkLog.daily_record_id.in_(record_ids))
     )
-    task_entries = te_result.scalars().all()
+    log_task_pairs = log_result.all()
+    work_logs = [log for log, _ in log_task_pairs]
 
     # Name lookups
     proj_result = await db.execute(select(Project.id, Project.name))
@@ -149,20 +154,20 @@ async def _pre_aggregate(
     sub_names: dict[uuid.UUID, str] = {row.id: row.name for row in sub_result.all()}
 
     # Primary tags only (per invariant)
-    te_ids = [te.id for te in task_entries]
-    if te_ids:
+    log_ids = [log.id for log in work_logs]
+    if log_ids:
         tag_result = await db.execute(
-            select(TaskEntrySelfAssessmentTag).where(
-                TaskEntrySelfAssessmentTag.task_entry_id.in_(te_ids),
-                TaskEntrySelfAssessmentTag.is_primary.is_(True),
+            select(DailyWorkLogSelfAssessmentTag).where(
+                DailyWorkLogSelfAssessmentTag.daily_work_log_id.in_(log_ids),
+                DailyWorkLogSelfAssessmentTag.is_primary.is_(True),
             )
         )
         primary_tags = tag_result.scalars().all()
     else:
         primary_tags = []
 
-    tag_by_te: dict[uuid.UUID, uuid.UUID] = {
-        t.task_entry_id: t.self_assessment_tag_id for t in primary_tags
+    tag_by_log: dict[uuid.UUID, uuid.UUID] = {
+        t.daily_work_log_id: t.self_assessment_tag_id for t in primary_tags
     }
 
     # Aggregation
@@ -171,35 +176,33 @@ async def _pre_aggregate(
     proj_blocker_count: dict[str, int] = defaultdict(int)
     cat_effort: dict[str, int] = defaultdict(int)
     total_effort = 0
+    seen_tasks: set[uuid.UUID] = set()
 
     day_notes_by_proj: dict[str, list[str]] = defaultdict(list)
     blocker_texts_by_proj: dict[str, list[str]] = defaultdict(list)
 
     rec_by_id = {r.id: r for r in records}
 
-    for te in task_entries:
-        proj = proj_names.get(te.project_id, "?")
-        cat = cat_names.get(te.category_id, "?")
-        proj_effort[proj] += te.effort
-        proj_task_count[proj] += 1
-        total_effort += te.effort
-        cat_effort[cat] += te.effort
-        if te.status == "blocked":
-            proj_blocker_count[proj] += 1
-        if te.blocker_text:
-            blocker_texts_by_proj[proj].append(te.blocker_text)
-
-        rec = rec_by_id.get(te.daily_record_id)
-        if rec and rec.day_note:
-            # Attach day note to project (may duplicate across entries on same record)
-            note_key = (te.daily_record_id, proj)
+    for log, task in log_task_pairs:
+        proj = proj_names.get(task.project_id, "?")
+        cat = cat_names.get(task.category_id, "?")
+        proj_effort[proj] += log.effort
+        total_effort += log.effort
+        cat_effort[cat] += log.effort
+        if task.id not in seen_tasks:
+            proj_task_count[proj] += 1
+            if task.status == "blocked":
+                proj_blocker_count[proj] += 1
+        seen_tasks.add(task.id)
+        if log.blocker_text:
+            blocker_texts_by_proj[proj].append(log.blocker_text)
 
     # Collect day notes per project (one note per record, deduped)
     record_day_notes: dict[uuid.UUID, str | None] = {r.id: r.day_note for r in records}
     record_proj: dict[uuid.UUID, set[str]] = defaultdict(set)
-    for te in task_entries:
-        if te.daily_record_id in record_day_notes:
-            record_proj[te.daily_record_id].add(proj_names.get(te.project_id, "?"))
+    for log, task in log_task_pairs:
+        if log.daily_record_id in record_day_notes:
+            record_proj[log.daily_record_id].add(proj_names.get(task.project_id, "?"))
 
     for rec_id, note in record_day_notes.items():
         if note:
@@ -215,7 +218,7 @@ async def _pre_aggregate(
 
     pre_aggregated = {
         "days_reported": len(records),
-        "total_tasks": len(task_entries),
+        "total_tasks": len(seen_tasks),
         "total_effort": total_effort,
         "project_effort_pct": proj_effort_pct,
         "project_task_counts": dict(proj_task_count),

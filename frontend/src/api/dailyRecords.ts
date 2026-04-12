@@ -1,27 +1,28 @@
 import client from './client';
 import type {
   DailyRecord,
-  TaskEntry,
+  DailyWorkLogFormEntry,
   Absence,
   UnlockGrant,
-  TaskFormEntry,
 } from '../types/dailyRecord';
 
 // ---- Daily Records ----
+
+type WorkLogPayload = Omit<DailyWorkLogFormEntry, '_key' | 'task'>;
 
 interface CreateDailyRecordPayload {
   record_date: string;
   day_load: number;
   day_note?: string | null;
   form_opened_at: string;
-  task_entries: Omit<TaskFormEntry, '_key'>[];
+  daily_work_logs: WorkLogPayload[];
 }
 
 interface UpdateDailyRecordPayload {
   day_load?: number | null;
   day_note?: string | null;
   form_opened_at: string;
-  task_entries?: Omit<TaskFormEntry, '_key'>[] | null;
+  daily_work_logs?: WorkLogPayload[] | null;
 }
 
 export async function createDailyRecord(
@@ -46,11 +47,6 @@ export async function getDailyRecords(params: {
   user_id?: string;
 }): Promise<DailyRecord[]> {
   const res = await client.get<DailyRecord[]>('/daily-records', { params });
-  return res.data;
-}
-
-export async function getCarryOverTasks(): Promise<TaskEntry[]> {
-  const res = await client.get<TaskEntry[]>('/daily-records/carry-over');
   return res.data;
 }
 

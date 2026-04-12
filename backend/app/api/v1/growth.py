@@ -13,7 +13,7 @@ from app.core.deps import require_active_user
 from app.db.engine import get_db
 from app.db.models.category import Category
 from app.db.models.daily_record import DailyRecord
-from app.db.models.task_entry import TaskEntry
+from app.db.models.task import DailyWorkLog, Task
 from app.db.models.user import User
 from app.db.schemas.metrics import (
     GrowthResponse,
@@ -57,10 +57,12 @@ async def get_personal_growth(
         return GrowthResponse(balance_trend=[], load_trend=[], blocker_trend=[])
 
     record_ids = [r.id for r in records]
-    te_r = await db.execute(
-        select(TaskEntry).where(TaskEntry.daily_record_id.in_(record_ids))
+    lt_r = await db.execute(
+        select(DailyWorkLog, Task)
+        .join(Task, DailyWorkLog.task_id == Task.id)
+        .where(DailyWorkLog.daily_record_id.in_(record_ids))
     )
-    task_entries = te_r.scalars().all()
+    log_task_pairs = lt_r.all()
 
     # Category names
     cat_r = await db.execute(select(Category.id, Category.name))
@@ -70,14 +72,17 @@ async def get_personal_growth(
     record_by_id = {r.id: r for r in records}
     monthly_effort: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     monthly_blockers: dict[str, int] = defaultdict(int)
+    seen_blocked: set[tuple] = set()
 
-    for te in task_entries:
-        rec = record_by_id[te.daily_record_id]
+    for log, task in log_task_pairs:
+        rec = record_by_id[log.daily_record_id]
         m = _month_key(rec.record_date)
-        cat = cat_names.get(te.category_id, "Other")
-        monthly_effort[m][cat] += te.effort
-        if te.status == "blocked":
+        cat = cat_names.get(task.category_id, "Other")
+        monthly_effort[m][cat] += log.effort
+        key = (m, task.id)
+        if task.status == "blocked" and key not in seen_blocked:
             monthly_blockers[m] += 1
+            seen_blocked.add(key)
 
     balance_trend: list[MonthlyBalance] = []
     for m in sorted(monthly_effort.keys()):

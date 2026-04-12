@@ -39,15 +39,15 @@ from app.core.ws_manager import ws_manager
 from app.db.engine import async_session_factory, get_db
 from app.db.models.daily_record import DailyRecord
 from app.db.models.social import Comment, Reaction
-from app.db.models.task_entry import TaskEntry, TaskEntrySelfAssessmentTag
+from app.db.models.task import DailyWorkLog, DailyWorkLogSelfAssessmentTag, Task
 from app.db.models.team import TeamMembership
 from app.db.models.user import User
 from app.db.schemas.social import (
     CommentCreate,
     CommentRead,
     CommentUpdate,
+    FeedDailyWorkLog,
     FeedItemRead,
-    FeedTaskEntry,
     ReactionCreate,
     ReactionGroupRead,
 )
@@ -460,31 +460,33 @@ async def get_feed(
 
     feed_items = []
     for record in records:
-        # Load task entries for public fields
-        te_result = await db.execute(
-            select(TaskEntry)
-            .where(TaskEntry.daily_record_id == record.id)
-            .order_by(TaskEntry.sort_order)
+        # Load work logs for public fields (join Task for title/category/project/status)
+        log_result = await db.execute(
+            select(DailyWorkLog, Task)
+            .join(Task, DailyWorkLog.task_id == Task.id)
+            .where(DailyWorkLog.daily_record_id == record.id)
+            .order_by(DailyWorkLog.sort_order)
         )
-        task_entries = []
-        for te in te_result.scalars().all():
+        daily_work_logs = []
+        for log, task in log_result.all():
             tags_result = await db.execute(
-                select(TaskEntrySelfAssessmentTag).where(
-                    TaskEntrySelfAssessmentTag.task_entry_id == te.id
+                select(DailyWorkLogSelfAssessmentTag).where(
+                    DailyWorkLogSelfAssessmentTag.daily_work_log_id == log.id
                 )
             )
-            task_entries.append(
-                FeedTaskEntry(
-                    id=te.id,
-                    category_id=te.category_id,
-                    project_id=te.project_id,
-                    task_description=te.task_description,
-                    effort=te.effort,
-                    status=te.status,
-                    blocker_type_id=te.blocker_type_id,
+            daily_work_logs.append(
+                FeedDailyWorkLog(
+                    id=log.id,
+                    task_id=task.id,
+                    task_title=task.title,
+                    category_id=task.category_id,
+                    project_id=task.project_id,
+                    effort=log.effort,
+                    work_note=log.work_note,
+                    status=task.status,
+                    blocker_type_id=log.blocker_type_id,
                     # blocker_text intentionally omitted
-                    carried_from_id=te.carried_from_id,
-                    sort_order=te.sort_order,
+                    sort_order=log.sort_order,
                     self_assessment_tags=[
                         {
                             "self_assessment_tag_id": str(t.self_assessment_tag_id),
@@ -529,7 +531,7 @@ async def get_feed(
                 display_name=display_name,
                 record_date=record.record_date.isoformat(),
                 day_note=record.day_note,
-                task_entries=task_entries,
+                daily_work_logs=daily_work_logs,
                 comment_count=comment_count or 0,
                 reactions=reaction_groups,
                 created_at=record.created_at,

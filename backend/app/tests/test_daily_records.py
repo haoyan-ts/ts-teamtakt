@@ -82,7 +82,7 @@ async def test_create_daily_record_ok(client, db_session):
             "record_date": str(date.today()),
             "day_load": 4,
             "form_opened_at": datetime.now(UTC).isoformat(),
-            "task_entries": [],
+            "daily_work_logs": [],
         },
         headers=auth(tok),
     )
@@ -107,7 +107,7 @@ async def test_duplicate_daily_record_rejected(client, db_session):
                 "record_date": str(date.today()),
                 "day_load": 2,
                 "form_opened_at": datetime.now(UTC).isoformat(),
-                "task_entries": [],
+                "daily_work_logs": [],
             },
             headers=auth(tok),
         )

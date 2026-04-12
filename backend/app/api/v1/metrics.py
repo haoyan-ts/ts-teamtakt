@@ -1,16 +1,16 @@
 """
 Leader Metrics API — 6 endpoints under /teams/{id}/metrics/*
 
-Carry-over aging invariant:
-  aging = calendar working-days from chain ROOT's record_date to today
-  (not chain-link count; follows carried_from_id to the task where it is NULL)
+Carry-over aging invariant (updated):
+  aging = calendar working-days from Task.created_at.date() to today.
+  No chain traversal needed — Task is the stable identity.
 """
 
 from __future__ import annotations
 
 import uuid
 from collections import defaultdict
-from datetime import date
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -22,7 +22,7 @@ from app.db.engine import get_db
 from app.db.models.category import BlockerType, Category
 from app.db.models.daily_record import DailyRecord
 from app.db.models.project import Project
-from app.db.models.task_entry import TaskEntry
+from app.db.models.task import DailyWorkLog, Task
 from app.db.models.team import TeamMembership, TeamSettings
 from app.db.models.user import User
 from app.db.schemas.metrics import (
@@ -100,30 +100,6 @@ async def _get_settings(team_id: uuid.UUID, db: AsyncSession) -> TeamSettings:
     return s
 
 
-async def _follow_chain_root_date(task_entry_id: uuid.UUID, db: AsyncSession) -> date:
-    """Walk carried_from_id chain to root; return root's DailyRecord.record_date."""
-    current = task_entry_id
-    for _ in range(200):  # safety cap
-        r = await db.execute(
-            select(TaskEntry.carried_from_id, DailyRecord.record_date)
-            .join(DailyRecord, TaskEntry.daily_record_id == DailyRecord.id)
-            .where(TaskEntry.id == current)
-        )
-        row = r.one_or_none()
-        if row is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Broken carry-over chain",
-            )
-        if row.carried_from_id is None:
-            return row.record_date
-        current = row.carried_from_id
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="Carry-over chain too deep",
-    )
-
-
 # ---------------------------------------------------------------------------
 # 1. Overload Detection
 # ---------------------------------------------------------------------------
@@ -155,7 +131,6 @@ async def overload_detection(
     )
     rows = r.all()
 
-    # Group by user
     by_user: dict[uuid.UUID, list[tuple[date, int]]] = defaultdict(list)
     for row in rows:
         by_user[row.user_id].append((row.record_date, row.day_load))
@@ -176,7 +151,6 @@ async def overload_detection(
                 max_load = max(max_load, load)
             else:
                 if streak_start and streak_end:
-                    # Count consecutive working days in streak
                     streak_len = count_working_days(streak_start, streak_end)
                     if streak_len >= min_streak:
                         results.append(
@@ -192,7 +166,6 @@ async def overload_detection(
                 streak_end = None
                 max_load = 0
 
-        # Flush final streak
         if streak_start and streak_end:
             streak_len = count_working_days(streak_start, streak_end)
             if streak_len >= min_streak:
@@ -228,28 +201,41 @@ async def blocker_summary(
     if not members:
         return BlockerSummary(by_type=[], recurring=[])
 
+    # A log counts as "blocked" if it has a per-day blocker_type_id (override),
+    # or if the parent Task.status is "blocked".  The day-level type takes
+    # precedence for classification; fall back to Task.blocker_type_id.
     r = await db.execute(
-        select(TaskEntry, DailyRecord.record_date, Project.name.label("proj_name"))
-        .join(DailyRecord, TaskEntry.daily_record_id == DailyRecord.id)
-        .join(Project, TaskEntry.project_id == Project.id)
+        select(
+            DailyWorkLog.blocker_type_id.label("log_blocker_type_id"),
+            Task.blocker_type_id.label("task_blocker_type_id"),
+            Task.title.label("task_title"),
+            Project.name.label("proj_name"),
+            DailyRecord.record_date,
+            Task.id.label("task_id"),
+        )
+        .join(Task, DailyWorkLog.task_id == Task.id)
+        .join(DailyRecord, DailyWorkLog.daily_record_id == DailyRecord.id)
+        .join(Project, Task.project_id == Project.id)
         .where(
             DailyRecord.user_id.in_(members.keys()),
             DailyRecord.record_date >= start_date,
             DailyRecord.record_date <= end_date,
-            TaskEntry.status == "blocked",
+        )
+        .where(
+            (DailyWorkLog.blocker_type_id.isnot(None))
+            | (Task.status == "blocked")
         )
     )
     rows = r.all()
 
     type_counts: dict[uuid.UUID | None, int] = defaultdict(int)
-    # task_desc+project → set of dates
     recurring_map: dict[tuple[str, str], set[date]] = defaultdict(set)
 
-    for te, rec_date, proj_name in rows:
-        type_counts[te.blocker_type_id] += 1
-        recurring_map[(te.task_description, proj_name)].add(rec_date)
+    for row in rows:
+        effective_type = row.log_blocker_type_id or row.task_blocker_type_id
+        type_counts[effective_type] += 1
+        recurring_map[(row.task_title, row.proj_name)].add(row.record_date)
 
-    # Resolve blocker type names
     type_names: dict[uuid.UUID, str] = {}
     bt_ids = [tid for tid in type_counts if tid is not None]
     if bt_ids:
@@ -295,11 +281,14 @@ async def fragmentation(
     if not members:
         return []
 
+    # Count distinct Tasks touched per (user, date) via DailyWorkLog
     r = await db.execute(
         select(
-            DailyRecord.user_id, DailyRecord.record_date, TaskEntry.id.label("te_id")
+            DailyRecord.user_id,
+            DailyRecord.record_date,
+            DailyWorkLog.task_id,
         )
-        .join(TaskEntry, TaskEntry.daily_record_id == DailyRecord.id)
+        .join(DailyWorkLog, DailyWorkLog.daily_record_id == DailyRecord.id)
         .where(
             DailyRecord.user_id.in_(members.keys()),
             DailyRecord.record_date >= start_date,
@@ -308,9 +297,10 @@ async def fragmentation(
     )
     rows = r.all()
 
-    counts: dict[tuple[uuid.UUID, date], int] = defaultdict(int)
+    # Use a set per (user, date) to count distinct tasks
+    task_sets: dict[tuple[uuid.UUID, date], set[uuid.UUID]] = defaultdict(set)
     for row in rows:
-        counts[(row.user_id, row.record_date)] += 1
+        task_sets[(row.user_id, row.record_date)].add(row.task_id)
 
     threshold = settings.fragmentation_task_threshold
     return [
@@ -318,10 +308,10 @@ async def fragmentation(
             user_id=uid,
             display_name=members[uid],
             date=d,
-            task_count=cnt,
+            task_count=len(task_ids),
         )
-        for (uid, d), cnt in sorted(counts.items(), key=lambda x: x[0])
-        if cnt >= threshold
+        for (uid, d), task_ids in sorted(task_sets.items(), key=lambda x: x[0])
+        if len(task_ids) >= threshold
     ]
 
 
@@ -345,15 +335,15 @@ async def carryover_aging(
     if not members:
         return []
 
-    # Running/blocked carry-overs belonging to team members
+    # Active (non-done) tasks owned by team members.
+    # Aging = working days from Task.created_at.date() to today — no chain traversal.
     r = await db.execute(
-        select(TaskEntry, DailyRecord.user_id, Project.name.label("proj_name"))
-        .join(DailyRecord, TaskEntry.daily_record_id == DailyRecord.id)
-        .join(Project, TaskEntry.project_id == Project.id)
+        select(Task, Project.name.label("proj_name"))
+        .join(Project, Task.project_id == Project.id)
         .where(
-            DailyRecord.user_id.in_(members.keys()),
-            TaskEntry.status.in_(["running", "blocked"]),
-            TaskEntry.carried_from_id.isnot(None),
+            Task.assignee_id.in_(members.keys()),
+            Task.status.in_(["todo", "running", "blocked"]),
+            Task.is_active.is_(True),
         )
     )
     rows = r.all()
@@ -361,30 +351,19 @@ async def carryover_aging(
     if not rows:
         return []
 
-    task_ids = [te.id for te, _, _ in rows]
-
-    # Identify leaf tasks (not carried forward by any other task)
-    fwd_r = await db.execute(
-        select(TaskEntry.carried_from_id).where(TaskEntry.carried_from_id.in_(task_ids))
-    )
-    carried_forward: set[uuid.UUID] = {row[0] for row in fwd_r.all()}
-
-    today = date.today()
+    today = datetime.now(UTC).date()
     threshold = settings.carryover_aging_days
     results: list[CarryoverAgingEntry] = []
 
-    for te, user_id, proj_name in rows:
-        if te.id in carried_forward:
-            continue  # Not current version
-
-        root_date = await _follow_chain_root_date(te.id, db)
+    for task, proj_name in rows:
+        root_date = task.created_at.date()
         days_aged = count_working_days(root_date, today)
         if days_aged >= threshold:
             results.append(
                 CarryoverAgingEntry(
-                    user_id=user_id,
-                    display_name=members.get(user_id, "Unknown"),
-                    task_desc=te.task_description,
+                    user_id=task.assignee_id,
+                    display_name=members.get(task.assignee_id, "Unknown"),
+                    task_desc=task.title,
                     project=proj_name,
                     root_date=root_date,
                     working_days_aged=days_aged,
@@ -417,13 +396,14 @@ async def category_balance(
             members=[], team_aggregate={}, targets=settings.balance_targets
         )
 
-    # Category names
     cat_r = await db.execute(select(Category.id, Category.name))
     cat_names: dict[uuid.UUID, str] = {row.id: row.name for row in cat_r.all()}
 
+    # Effort is on DailyWorkLog; category is on Task
     r = await db.execute(
-        select(DailyRecord.user_id, TaskEntry.category_id, TaskEntry.effort)
-        .join(TaskEntry, TaskEntry.daily_record_id == DailyRecord.id)
+        select(DailyRecord.user_id, Task.category_id, DailyWorkLog.effort)
+        .join(DailyWorkLog, DailyWorkLog.daily_record_id == DailyRecord.id)
+        .join(Task, DailyWorkLog.task_id == Task.id)
         .where(
             DailyRecord.user_id.in_(members.keys()),
             DailyRecord.record_date >= start_date,
@@ -432,7 +412,6 @@ async def category_balance(
     )
     rows = r.all()
 
-    # user_id → {category_name → effort}
     user_effort: dict[uuid.UUID, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     team_effort: dict[str, int] = defaultdict(int)
 
@@ -484,10 +463,12 @@ async def project_effort(
     if not members:
         return []
 
+    # Effort is on DailyWorkLog; project is on Task
     r = await db.execute(
-        select(Project, TaskEntry.effort, DailyRecord.user_id)
-        .join(TaskEntry, TaskEntry.project_id == Project.id)
-        .join(DailyRecord, TaskEntry.daily_record_id == DailyRecord.id)
+        select(Project, DailyWorkLog.effort, DailyRecord.user_id)
+        .join(Task, DailyWorkLog.task_id == Task.id)
+        .join(Project, Task.project_id == Project.id)
+        .join(DailyRecord, DailyWorkLog.daily_record_id == DailyRecord.id)
         .where(
             DailyRecord.user_id.in_(members.keys()),
             DailyRecord.record_date >= start_date,
@@ -496,7 +477,6 @@ async def project_effort(
     )
     rows = r.all()
 
-    # project_id → {project, total, {user_id → effort}}
     proj_data: dict[uuid.UUID, dict] = {}
     for proj, effort, user_id in rows:
         if proj.id not in proj_data:
