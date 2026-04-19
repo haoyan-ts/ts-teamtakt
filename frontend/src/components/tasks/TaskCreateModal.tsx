@@ -159,6 +159,13 @@ export const TaskCreateModal = ({
     }
   };
 
+  const hasContent = !!(title || githubUrl || description || categoryId || projectId);
+
+  const handleClose = () => {
+    if (hasContent && !saving && !window.confirm('Discard unsaved task?')) return;
+    onClose();
+  };
+
   if (!open) return null;
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
@@ -170,7 +177,7 @@ export const TaskCreateModal = ({
       <div style={s.panel}>
         <div style={s.header}>
           <h3 style={s.title}>New Task</h3>
-          <button type="button" onClick={onClose} style={s.closeBtn} aria-label="Close">
+          <button type="button" onClick={handleClose} style={s.closeBtn} aria-label="Close">
             ✕
           </button>
         </div>
@@ -367,7 +374,7 @@ export const TaskCreateModal = ({
           {formError && <p style={s.errorMsg}>{formError}</p>}
 
           <div style={s.footer}>
-            <button type="button" onClick={onClose} style={s.cancelBtn}>
+            <button type="button" onClick={handleClose} style={s.cancelBtn}>
               Cancel
             </button>
             <button type="submit" disabled={saving} style={s.saveBtn}>

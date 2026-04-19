@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   getCategories,
   createCategory,
@@ -56,7 +57,7 @@ function ConfirmDialog({
 // Categories section
 // ---------------------------------------------------------------------------
 
-function CategoriesSection() {
+function CategoriesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => void }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [newCatName, setNewCatName] = useState('');
@@ -172,7 +173,7 @@ function CategoriesSection() {
           style={inputStyle}
           placeholder="New category name"
           value={newCatName}
-          onChange={(e) => setNewCatName(e.target.value)}
+          onChange={(e) => { setNewCatName(e.target.value); onDirtyChange(!!e.target.value.trim()); }}
           onKeyDown={(e) => e.key === 'Enter' && addCategory()}
         />
         <button style={primaryBtn} onClick={addCategory}>Add Category</button>
@@ -185,7 +186,7 @@ function CategoriesSection() {
 // Blocker types section
 // ---------------------------------------------------------------------------
 
-function BlockerTypesSection() {
+function BlockerTypesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => void }) {
   const [types, setTypes] = useState<BlockerType[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
@@ -239,7 +240,7 @@ function BlockerTypesSection() {
           style={inputStyle}
           placeholder="New blocker type"
           value={newName}
-          onChange={(e) => setNewName(e.target.value)}
+          onChange={(e) => { setNewName(e.target.value); onDirtyChange(!!e.target.value.trim()); }}
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
         <button style={primaryBtn} onClick={add}>Add</button>
@@ -252,7 +253,7 @@ function BlockerTypesSection() {
 // Self-assessment tags section
 // ---------------------------------------------------------------------------
 
-function TagsSection() {
+function TagsSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => void }) {
   const [tags, setTags] = useState<SelfAssessmentTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [editNames, setEditNames] = useState<Record<string, string>>({});
@@ -311,7 +312,7 @@ function TagsSection() {
           style={inputStyle}
           placeholder="New tag name"
           value={newTagName}
-          onChange={(e) => setNewTagName(e.target.value)}
+          onChange={(e) => { setNewTagName(e.target.value); onDirtyChange(!!e.target.value.trim()); }}
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
         <button style={primaryBtn} onClick={add}>Add Tag</button>
@@ -390,15 +391,34 @@ function AdminSettingsSection() {
 // Main page
 // ---------------------------------------------------------------------------
 
-export const AdminListsPage = () => (
-  <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-    <h2 style={{ marginBottom: '1rem' }}>Controlled Lists (Admin)</h2>
-    <AdminSettingsSection />
-    <CategoriesSection />
-    <BlockerTypesSection />
-    <TagsSection />
-  </div>
-);
+export const AdminListsPage = () => {
+  const navigate = useNavigate();
+  const [catDirty, setCatDirty] = useState(false);
+  const [blockerDirty, setBlockerDirty] = useState(false);
+  const [tagDirty, setTagDirty] = useState(false);
+  const isDirty = catDirty || blockerDirty || tagDirty;
+
+  const handleBack = () => {
+    if (isDirty && !window.confirm('You have unsaved changes. Leave anyway?')) return;
+    navigate('/');
+  };
+
+  return (
+    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <button
+        onClick={handleBack}
+        style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, fontSize: '0.85rem', marginBottom: '1rem', display: 'block' }}
+      >
+        ← Back
+      </button>
+      <h2 style={{ marginBottom: '1rem' }}>Controlled Lists (Admin)</h2>
+      <AdminSettingsSection />
+      <CategoriesSection onDirtyChange={setCatDirty} />
+      <BlockerTypesSection onDirtyChange={setBlockerDirty} />
+      <TagsSection onDirtyChange={setTagDirty} />
+    </div>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Styles

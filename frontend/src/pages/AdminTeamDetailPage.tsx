@@ -40,7 +40,7 @@ function ConfirmDialog({
 // Rename section
 // ---------------------------------------------------------------------------
 
-function RenameSection({ teamId, currentName, onRenamed }: { teamId: string; currentName: string; onRenamed: (name: string) => void }) {
+function RenameSection({ teamId, currentName, onRenamed, onDirtyChange }: { teamId: string; currentName: string; onRenamed: (name: string) => void; onDirtyChange: (dirty: boolean) => void }) {
   const [name, setName] = useState(currentName);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -58,6 +58,7 @@ function RenameSection({ teamId, currentName, onRenamed }: { teamId: string; cur
     try {
       const updated = await renameTeam(teamId, trimmed);
       onRenamed(updated.name);
+      onDirtyChange(false);
       setSaved(true);
     } catch {
       setError('Failed to rename team. Please try again.');
@@ -73,7 +74,7 @@ function RenameSection({ teamId, currentName, onRenamed }: { teamId: string; cur
         <input
           style={{ ...inputStyle, flex: 1 }}
           value={name}
-          onChange={(e) => { setName(e.target.value); setSaved(false); setError(''); }}
+          onChange={(e) => { setName(e.target.value); setSaved(false); setError(''); onDirtyChange(e.target.value.trim() !== currentName.trim()); }}
           onKeyDown={(e) => e.key === 'Enter' && save()}
         />
         <button style={primaryBtn} onClick={save} disabled={saving}>
@@ -273,6 +274,12 @@ export const AdminTeamDetailPage = () => {
   const navigate = useNavigate();
   const [teamName, setTeamName] = useState('');
   const [membersKey, setMembersKey] = useState(0); // bump to trigger MembersSection reload
+  const [isDirty, setIsDirty] = useState(false);
+
+  const handleBack = () => {
+    if (isDirty && !window.confirm('You have unsaved changes. Leave anyway?')) return;
+    navigate('/admin/teams');
+  };
 
   // We don't have a single-team GET endpoint, so resolve the name from the members section
   // or simply let the rename section show an empty field initially.
@@ -294,7 +301,7 @@ export const AdminTeamDetailPage = () => {
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
       <button
         style={{ ...tinyBtn, marginBottom: '1rem' }}
-        onClick={() => navigate('/admin/teams')}
+        onClick={handleBack}
       >
         ← Back to Teams
       </button>
@@ -306,6 +313,7 @@ export const AdminTeamDetailPage = () => {
         teamId={teamId}
         currentName={teamName}
         onRenamed={(name) => setTeamName(name)}
+        onDirtyChange={setIsDirty}
       />
       <MembersSection key={membersKey} teamId={teamId} />
       <AssignUserSection teamId={teamId} onAssigned={() => setMembersKey((k) => k + 1)} />
