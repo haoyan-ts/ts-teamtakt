@@ -337,3 +337,39 @@ async def test_get_blocker_types_active_only(client, db_session):
     names = [bt["name"] for bt in resp.json()]
     assert "cl11_Active" in names
     assert "cl11_Inactive" not in names
+
+
+# ---------------------------------------------------------------------------
+# 12. Admin creates self-assessment tag → 201
+# ---------------------------------------------------------------------------
+
+
+async def test_admin_creates_self_assessment_tag(client, db_session):
+    admin, tok = await make_user(db_session, "cl12_admin@t.com", is_admin=True)
+    team = await make_team(db_session, "cl12_Team")
+    await make_membership(db_session, admin.id, team.id)
+
+    resp = await client.post(
+        "/api/v1/self-assessment-tags", json={"name": "cl12_Tag"}, headers=auth(tok)
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == "cl12_Tag"
+    assert data["is_active"] is True
+    assert "id" in data
+
+
+# ---------------------------------------------------------------------------
+# 13. Non-admin cannot create self-assessment tag → 403
+# ---------------------------------------------------------------------------
+
+
+async def test_non_admin_cannot_create_self_assessment_tag(client, db_session):
+    member, tok = await make_user(db_session, "cl13_member@t.com")
+    team = await make_team(db_session, "cl13_Team")
+    await make_membership(db_session, member.id, team.id)
+
+    resp = await client.post(
+        "/api/v1/self-assessment-tags", json={"name": "cl13_Tag"}, headers=auth(tok)
+    )
+    assert resp.status_code == 403

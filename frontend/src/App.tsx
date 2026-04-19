@@ -23,6 +23,8 @@ import { FeedPage } from './pages/FeedPage';
 import { QuarterlyReportPage } from './pages/QuarterlyReportPage';
 import { TeamQuarterlyReportPage } from './pages/TeamQuarterlyReportPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { CrossTeamSharingPage } from './pages/CrossTeamSharingPage';
+import { ProjectsPage } from './pages/ProjectsPage';
 
 function App() {
   return (
@@ -40,6 +42,8 @@ function App() {
           <Route path="team/settings/balance" element={<ProtectedRoute requireLeader><TeamBalanceSettingsPage /></ProtectedRoute>} />
           <Route path="team/settings/thresholds" element={<ProtectedRoute requireLeader><TeamThresholdSettingsPage /></ProtectedRoute>} />
           <Route path="team/unlock" element={<ProtectedRoute requireLeader><UnlockPage /></ProtectedRoute>} />
+          <Route path="team/sharing" element={<ProtectedRoute requireLeader><CrossTeamSharingPage /></ProtectedRoute>} />
+          <Route path="projects" element={<ProjectsPage />} />
           <Route path="reports/weekly/:week_start?" element={<WeeklyReportPage />} />
           <Route path="reports/monthly/:ym?" element={<MonthlyReportPage />} />
           <Route path="reports/quarterly/:quarter?" element={<QuarterlyReportPage />} />

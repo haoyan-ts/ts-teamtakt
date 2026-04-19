@@ -9,6 +9,7 @@ import {
   createBlockerType,
   updateBlockerType,
   getSelfAssessmentTags,
+  createSelfAssessmentTag,
   updateSelfAssessmentTag,
 } from '../api/categories';
 import type { Category, BlockerType, SelfAssessmentTag } from '../types/dailyRecord';
@@ -253,6 +254,7 @@ function TagsSection() {
   const [tags, setTags] = useState<SelfAssessmentTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [editNames, setEditNames] = useState<Record<string, string>>({});
+  const [newTagName, setNewTagName] = useState('');
 
   const reload = () => getSelfAssessmentTags().then(setTags).finally(() => setLoading(false));
   useEffect(() => { reload(); }, []);
@@ -265,19 +267,29 @@ function TagsSection() {
     reload();
   };
 
+  const toggle = async (tag: SelfAssessmentTag) => {
+    await updateSelfAssessmentTag(tag.id, { is_active: !tag.is_active });
+    reload();
+  };
+
+  const add = async () => {
+    const name = newTagName.trim();
+    if (!name) return;
+    await createSelfAssessmentTag({ name });
+    setNewTagName('');
+    reload();
+  };
+
   if (loading) return <p>Loading…</p>;
 
   return (
     <section style={sectionStyle}>
       <h3 style={sectionTitle}>Self-Assessment Tags</h3>
-      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-        Fixed 4 tags — edit names only.
-      </p>
       <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
         {tags.map((tag) => (
           <li
             key={tag.id}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', opacity: tag.is_active ? 1 : 0.5 }}
           >
             <input
               style={inputStyle}
@@ -286,9 +298,22 @@ function TagsSection() {
               onChange={(e) => setEditNames((prev) => ({ ...prev, [tag.id]: e.target.value }))}
             />
             <button style={tinyBtn} onClick={() => save(tag)}>Save</button>
+            <button style={tinyBtn} onClick={() => toggle(tag)}>
+              {tag.is_active ? 'Deactivate' : 'Activate'}
+            </button>
           </li>
         ))}
       </ul>
+      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+        <input
+          style={inputStyle}
+          placeholder="New tag name"
+          value={newTagName}
+          onChange={(e) => setNewTagName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+        />
+        <button style={primaryBtn} onClick={add}>Add Tag</button>
+      </div>
     </section>
   );
 }
