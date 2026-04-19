@@ -1,30 +1,64 @@
-# TODO: implement in follow-up GitHub issue
-# GitHub Issue auto-fill for Task creation — see issue filed after #11.
-# The functions below are stubs that signal "not yet implemented".
-# The /tasks/autofill endpoint returns HTTP 501 until this is complete.
-
 from __future__ import annotations
 
-from app.db.schemas.task import TaskAutoFillResponse  # re-exported for callers
+import re
+
+import httpx
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models.category import Category
+from app.db.schemas.task import TaskAutoFillResponse
+
+_GITHUB_ISSUE_RE = re.compile(r"^https://github\.com/([^/]+)/([^/]+)/issues/(\d+)$")
 
 
 async def fetch_github_issue(url: str, github_token: str | None = None) -> dict:
     """Fetch a GitHub Issue by URL via the GitHub REST API.
 
-    Not yet implemented. Raises NotImplementedError until the follow-up issue
-    is resolved.
+    Raises ValueError for invalid URLs or non-2xx API responses.
     """
-    raise NotImplementedError("GitHub auto-fill not yet implemented")
+    m = _GITHUB_ISSUE_RE.match(url.strip())
+    if not m:
+        raise ValueError("Invalid GitHub issue URL")
+    owner, repo, number = m.group(1), m.group(2), m.group(3)
+
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/issues/{number}"
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(api_url, headers=headers)
+
+    if resp.status_code != 200:
+        raise ValueError(f"GitHub API error: {resp.status_code}")
+
+    return resp.json()
 
 
 async def map_to_task_fields(
     issue: dict,
-    project_item: dict | None,
-    field_map: dict,
+    db: AsyncSession,
 ) -> TaskAutoFillResponse:
-    """Map raw GitHub Issue + Project item fields to TaskAutoFillResponse.
+    """Map a raw GitHub Issue dict to TaskAutoFillResponse.
 
-    Not yet implemented. Raises NotImplementedError until the follow-up issue
-    is resolved.
+    Matches first label name (case-insensitive) against active categories.
     """
-    raise NotImplementedError("GitHub auto-fill not yet implemented")
+    title: str | None = issue.get("title")
+    description: str | None = issue.get("body")
+    label_names = [lbl["name"].lower() for lbl in issue.get("labels", [])]
+
+    category_id = None
+    if label_names:
+        result = await db.execute(select(Category).where(Category.is_active.is_(True)))
+        categories = result.scalars().all()
+        for cat in categories:
+            if cat.name.lower() in label_names:
+                category_id = cat.id
+                break
+
+    return TaskAutoFillResponse(
+        title=title,
+        description=description,
+        category_id=category_id,
+    )

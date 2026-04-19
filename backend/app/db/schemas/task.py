@@ -109,6 +109,7 @@ class TaskResponse(BaseModel):
 
 class TaskAutoFillResponse(BaseModel):
     title: str | None = None
+    description: str | None = None
     project_id: uuid.UUID | None = None
     category_id: uuid.UUID | None = None
     sub_type_id: uuid.UUID | None = None

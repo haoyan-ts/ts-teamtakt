@@ -1,6 +1,7 @@
 """Tests for Task CRUD (p11) endpoints."""
 
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
 
 from app.core.security import create_access_token
 from app.db.models.category import Category
@@ -243,17 +244,44 @@ async def test_unique_github_issue_url_per_user(client, db_session):
 
 
 # ===========================================================================
-# Auto-fill stub → 501
+# Auto-fill
 # ===========================================================================
 
 
-async def test_task_autofill_returns_501(client, db_session):
+async def test_task_autofill_happy_path(client, db_session):
     user, tok = await make_user(db_session, "tsk08@t.com")
     await make_team_with_member(db_session, user.id)
+    cat = await make_category(db_session, "bug")
 
-    resp = await client.post(
+    fake_issue = {
+        "title": "Fix the bug",
+        "body": "Something is broken.",
+        "labels": [{"name": "bug"}],
+    }
+    with patch(
+        "app.api.v1.tasks.fetch_github_issue",
+        new=AsyncMock(return_value=fake_issue),
+    ):
+        resp = await client.get(
+            "/api/v1/tasks/autofill",
+            params={"url": "https://github.com/org/repo/issues/1"},
+            headers=auth(tok),
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["title"] == "Fix the bug"
+    assert data["description"] == "Something is broken."
+    assert data["category_id"] == str(cat.id)
+
+
+async def test_task_autofill_invalid_url_returns_400(client, db_session):
+    user, tok = await make_user(db_session, "tsk09@t.com")
+    await make_team_with_member(db_session, user.id)
+
+    resp = await client.get(
         "/api/v1/tasks/autofill",
-        json={"github_issue_url": "https://github.com/org/repo/issues/1"},
+        params={"url": "https://not-github.com/x"},
         headers=auth(tok),
     )
-    assert resp.status_code == 501
+    assert resp.status_code == 400
