@@ -463,3 +463,27 @@ async def test_missing_days_basic(client, db_session):
     last_thursday = last_monday + timedelta(days=3)
     assert str(last_thursday) in missing
     assert str(last_friday) in missing
+
+
+# ---------------------------------------------------------------------------
+# 15. POST /absences with unknown absence_type_id → 422
+# ---------------------------------------------------------------------------
+
+
+async def test_create_absence_unknown_type_id_422(client, db_session):
+    import uuid
+
+    user, tok = await make_user(db_session, "abs15@t.com")
+    team = await make_team(db_session, "abs15_team")
+    await make_membership(db_session, user.id, team.id)
+
+    resp = await client.post(
+        "/api/v1/absences",
+        json={
+            "record_date": str(date.today()),
+            "absence_type_id": str(uuid.uuid4()),  # random, non-existent UUID
+            "form_opened_at": now_iso(),
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 422

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from .absence_types import router as absence_types_router
 from .absences import router as absences_router
 from .admin_settings import router as admin_settings_router
 from .auth import router as auth_router
@@ -35,6 +36,7 @@ router.include_router(tasks_router)
 router.include_router(daily_records_router)
 router.include_router(unlock_router)
 router.include_router(absences_router)
+router.include_router(absence_types_router)
 router.include_router(team_settings_router)
 router.include_router(metrics_router)
 router.include_router(growth_router)

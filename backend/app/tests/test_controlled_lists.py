@@ -373,3 +373,120 @@ async def test_non_admin_cannot_create_self_assessment_tag(client, db_session):
         "/api/v1/self-assessment-tags", json={"name": "cl13_Tag"}, headers=auth(tok)
     )
     assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# 14. Admin creates absence type → 201
+# ---------------------------------------------------------------------------
+
+
+async def test_absence_type_admin_create_ok(client, db_session):
+    admin, tok = await make_user(db_session, "cl14_admin@t.com", is_admin=True)
+    team = await make_team(db_session, "cl14_Team")
+    await make_membership(db_session, admin.id, team.id)
+
+    resp = await client.post(
+        "/api/v1/absence-types", json={"name": "Bereavement"}, headers=auth(tok)
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == "Bereavement"
+    assert data["is_active"] is True
+    assert "id" in data
+
+
+# ---------------------------------------------------------------------------
+# 15. Non-admin cannot create absence type → 403
+# ---------------------------------------------------------------------------
+
+
+async def test_absence_type_non_admin_denied(client, db_session):
+    member, tok = await make_user(db_session, "cl15_member@t.com")
+    team = await make_team(db_session, "cl15_Team")
+    await make_membership(db_session, member.id, team.id)
+
+    resp = await client.post(
+        "/api/v1/absence-types", json={"name": "Bereavement"}, headers=auth(tok)
+    )
+    assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# 16. GET absence types returns active only by default
+# ---------------------------------------------------------------------------
+
+
+async def test_absence_type_list_active_only(client, db_session):
+    admin, tok = await make_user(db_session, "cl16_admin@t.com", is_admin=True)
+    team = await make_team(db_session, "cl16_Team")
+    await make_membership(db_session, admin.id, team.id)
+
+    from app.db.models.absence import AbsenceType
+
+    db_session.add(AbsenceType(id=uuid4(), name="cl16_Active", is_active=True))
+    db_session.add(AbsenceType(id=uuid4(), name="cl16_Inactive", is_active=False))
+    await db_session.commit()
+
+    resp = await client.get("/api/v1/absence-types", headers=auth(tok))
+    assert resp.status_code == 200
+    names = [at["name"] for at in resp.json()]
+    assert "cl16_Active" in names
+    assert "cl16_Inactive" not in names
+
+
+# ---------------------------------------------------------------------------
+# 17. GET absence types with include_inactive=true (admin) returns all
+# ---------------------------------------------------------------------------
+
+
+async def test_absence_type_list_include_inactive_admin(client, db_session):
+    admin, tok = await make_user(db_session, "cl17_admin@t.com", is_admin=True)
+    team = await make_team(db_session, "cl17_Team")
+    await make_membership(db_session, admin.id, team.id)
+
+    from app.db.models.absence import AbsenceType
+
+    db_session.add(AbsenceType(id=uuid4(), name="cl17_Active", is_active=True))
+    db_session.add(AbsenceType(id=uuid4(), name="cl17_Inactive", is_active=False))
+    await db_session.commit()
+
+    resp = await client.get(
+        "/api/v1/absence-types?include_inactive=true", headers=auth(tok)
+    )
+    assert resp.status_code == 200
+    names = [at["name"] for at in resp.json()]
+    assert "cl17_Active" in names
+    assert "cl17_Inactive" in names
+
+
+# ---------------------------------------------------------------------------
+# 18. Admin patches absence type name and is_active
+# ---------------------------------------------------------------------------
+
+
+async def test_absence_type_patch_name_and_is_active(client, db_session):
+    admin, tok = await make_user(db_session, "cl18_admin@t.com", is_admin=True)
+    team = await make_team(db_session, "cl18_Team")
+    await make_membership(db_session, admin.id, team.id)
+
+    create_resp = await client.post(
+        "/api/v1/absence-types",
+        json={"name": "cl18_Original"},
+        headers=auth(tok),
+    )
+    assert create_resp.status_code == 201
+    at_id = create_resp.json()["id"]
+
+    patch_resp = await client.patch(
+        f"/api/v1/absence-types/{at_id}",
+        json={"name": "cl18_Renamed", "is_active": False},
+        headers=auth(tok),
+    )
+    assert patch_resp.status_code == 200
+    data = patch_resp.json()
+    assert data["name"] == "cl18_Renamed"
+    assert data["is_active"] is False
+
+    list_resp = await client.get("/api/v1/absence-types", headers=auth(tok))
+    names = [at["name"] for at in list_resp.json()]
+    assert "cl18_Renamed" not in names  # hidden from active-only list

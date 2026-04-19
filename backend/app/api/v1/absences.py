@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user, require_active_user, require_leader
 from app.core.edit_window import check_edit_window
 from app.db.engine import get_db
-from app.db.models.absence import Absence, UnlockGrant
+from app.db.models.absence import Absence, AbsenceType, UnlockGrant
 from app.db.models.daily_record import DailyRecord
 from app.db.models.team import TeamMembership
 from app.db.models.user import User
@@ -140,6 +140,16 @@ async def create_absence(
             detail="An absence is already recorded for this date.",
         )
 
+    # FK validation: absence_type_id must reference an existing AbsenceType
+    at_check = await db.execute(
+        select(AbsenceType).where(AbsenceType.id == body.absence_type_id)
+    )
+    if at_check.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="absence_type_id does not reference a known absence type.",
+        )
+
     absence = Absence(
         user_id=current_user.id,
         record_date=body.record_date,
@@ -219,6 +229,14 @@ async def update_absence(
     )
 
     if body.absence_type_id is not None:
+        at_check = await db.execute(
+            select(AbsenceType).where(AbsenceType.id == body.absence_type_id)
+        )
+        if at_check.scalar_one_or_none() is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="absence_type_id does not reference a known absence type.",
+            )
         absence.absence_type_id = body.absence_type_id
     if body.note is not None:
         absence.note = body.note
