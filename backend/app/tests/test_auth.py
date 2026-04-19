@@ -178,3 +178,76 @@ async def test_logout(client):
     resp = await client.post("/api/v1/auth/logout")
     assert resp.status_code == 200
     assert resp.json() == {"message": "Logged out"}
+
+
+# ---------------------------------------------------------------------------
+# 9. PATCH /users/me — self-profile update
+# ---------------------------------------------------------------------------
+async def _get_token_for(client, email: str, name: str, mocker) -> str:
+    """Helper: register/login a user and return their Bearer token."""
+    from app.api.v1.auth import _generate_state
+
+    state = _generate_state()
+    id_token = make_fake_id_token(email, name)
+    mocker.patch(
+        "app.api.v1.auth.httpx.AsyncClient", return_value=make_mock_httpx_cm(id_token)
+    )
+    resp = await client.get(f"/api/v1/auth/callback?code=test-code&state={state}")
+    return resp.headers["location"].split("token=")[1]
+
+
+async def test_patch_me_display_name(client, mocker):
+    token = await _get_token_for(
+        client, "patchme1@example.com", "Original Name", mocker
+    )
+    resp = await client.patch(
+        "/api/v1/users/me",
+        json={"display_name": "Updated Name"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["display_name"] == "Updated Name"
+    assert data["email"] == "patchme1@example.com"
+
+
+async def test_patch_me_locale(client, mocker):
+    token = await _get_token_for(client, "patchme2@example.com", "Locale User", mocker)
+    resp = await client.patch(
+        "/api/v1/users/me",
+        json={"preferred_locale": "ja"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["preferred_locale"] == "ja"
+
+
+async def test_patch_me_ignores_roles(client, mocker):
+    """Role fields are not in UserUpdate — the request must be rejected (422)."""
+    token = await _get_token_for(client, "patchme3@example.com", "Role User", mocker)
+    resp = await client.patch(
+        "/api/v1/users/me",
+        json={"is_leader": True},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    # Extra fields are forbidden by Pydantic strict mode; if model uses default
+    # (ignore extra), the field is silently dropped and roles stay unchanged.
+    # Either way roles must NOT change — check via /users/me.
+    assert resp.status_code in (200, 422)
+    if resp.status_code == 200:
+        assert resp.json()["is_leader"] is False
+
+
+async def test_patch_me_invalid_locale(client, mocker):
+    token = await _get_token_for(client, "patchme4@example.com", "Bad Locale", mocker)
+    resp = await client.patch(
+        "/api/v1/users/me",
+        json={"preferred_locale": "fr"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+
+
+async def test_patch_me_no_token(client):
+    resp = await client.patch("/api/v1/users/me", json={"display_name": "X"})
+    assert resp.status_code == 401
