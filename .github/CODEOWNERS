@@ -1,26 +1,39 @@
 # CODEOWNERS
+
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
 #
+
 # Each line is a file pattern followed by one or more owners.
+
 # Owners are automatically requested for review when someone opens a PR
+
 # that modifies files matching the pattern.
+
 #
+
 # Update usernames when team members are added.
 
 # Fallback: repo owner reviews everything
-*                           @haoyan-ts
+
+-                           @haoyan-ts haoyan.li@techshare.co.jp
 
 # Backend — Python FastAPI
-/backend/                   @haoyan-ts
+
+/backend/ @haoyan-ts haoyan.li@techshare.co.jp
 
 # Frontend — React + TypeScript + Vite
-/frontend/                  @haoyan-ts
+
+/frontend/ @haoyan-ts haoyan.li@techshare.co.jp
 
 # Database migrations — high risk, always needs careful review
-/backend/alembic/           @haoyan-ts
+
+/backend/alembic/ @haoyan-ts haoyan.li@techshare.co.jp
 
 # GitHub configuration and CI
-/.github/                   @haoyan-ts
+
+/.github/ @haoyan-ts
 
 # Documentation
-/docs/                      @haoyan-ts
+
+/docs/ @haoyan-ts
