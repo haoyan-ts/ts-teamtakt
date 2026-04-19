@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { authApi } from '../api/auth';
@@ -42,6 +42,14 @@ export const LoginPage = () => {
       >
         {t('auth.signIn')}
       </button>
+      {import.meta.env.VITE_ENABLE_LOCAL_LOGIN === 'true' && (
+        <Link
+          to="/admin-login"
+          style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', textDecoration: 'underline' }}
+        >
+          {t('auth.adminLogin')}
+        </Link>
+      )}
     </div>
   );
 };

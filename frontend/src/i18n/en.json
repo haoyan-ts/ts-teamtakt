@@ -12,7 +12,8 @@
   "auth": {
     "signIn": "Sign in with Microsoft",
     "signOut": "Sign out",
-    "signingIn": "Signing in..."
+    "signingIn": "Signing in...",
+    "adminLogin": "Admin login"
   },
   "onboarding": {
     "title": "Join a Team",

@@ -12,7 +12,8 @@
   "auth": {
     "signIn": "Microsoftでサインイン",
     "signOut": "サインアウト",
-    "signingIn": "サインイン中..."
+    "signingIn": "サインイン中...",
+    "adminLogin": "管理者ログイン"
   },
   "onboarding": {
     "title": "チームに参加",
