@@ -6,7 +6,8 @@
     "settings": "設定",
     "feed": "フィード",
     "quarterlyReport": "四半期レポート",
-    "teamQuarterlyReport": "チームレポート"
+    "teamQuarterlyReport": "チームレポート",
+    "profile": "プロフィール"
   },
   "auth": {
     "signIn": "Microsoftでサインイン",
@@ -23,5 +24,15 @@
     "loading": "読み込み中...",
     "error": "エラーが発生しました",
     "back": "戻る"
+  },
+  "profile": {
+    "title": "プロフィール設定",
+    "email": "メール",
+    "displayName": "表示名",
+    "preferredLocale": "優先言語",
+    "save": "保存",
+    "saving": "保存中…",
+    "saved": "保存しました ✓",
+    "saveError": "保存に失敗しました。もう一度お試しください。"
   }
 }

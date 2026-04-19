@@ -25,6 +25,7 @@ import { TeamQuarterlyReportPage } from './pages/TeamQuarterlyReportPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { CrossTeamSharingPage } from './pages/CrossTeamSharingPage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { ProfileSettingsPage } from './pages/ProfileSettingsPage';
 
 function App() {
   return (
@@ -51,6 +52,7 @@ function App() {
           <Route path="team/quarterly/:quarter?" element={<ProtectedRoute requireLeader><TeamQuarterlyReportPage /></ProtectedRoute>} />
           <Route path="export" element={<ExportPage />} />
           <Route path="settings/notifications" element={<NotificationPreferencesPage />} />
+          <Route path="settings/profile" element={<ProfileSettingsPage />} />
           <Route path="admin/lists" element={<ProtectedRoute requireAdmin><AdminListsPage /></ProtectedRoute>} />
           <Route path="admin/teams" element={<ProtectedRoute requireAdmin><AdminTeamsPage /></ProtectedRoute>} />
           <Route path="admin/teams/:teamId" element={<ProtectedRoute requireAdmin><AdminTeamDetailPage /></ProtectedRoute>} />
