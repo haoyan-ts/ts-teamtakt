@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 
 from sqlalchemy import JSON, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
@@ -12,4 +13,4 @@ class AdminSettings(Base):
         Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     key: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    value: Mapped[dict] = mapped_column(JSON, nullable=False)
+    value: Mapped[Any] = mapped_column(JSON, nullable=False)

@@ -41,6 +41,10 @@ export const Sidebar = ({ isOpen }: { isOpen: boolean }) => {
       {user?.is_leader && (
         <NavLink to="/team/quarterly" style={navLinkStyle}>{t('nav.teamQuarterlyReport')}</NavLink>
       )}
+      {user?.is_leader && (
+        <NavLink to="/team/sharing" style={navLinkStyle}>{t('nav.crossTeamSharing', 'Cross-Team Sharing')}</NavLink>
+      )}
+      <NavLink to="/projects" style={navLinkStyle}>{t('nav.projects', 'Projects')}</NavLink>
       {user?.is_admin && (
         <NavLink to="/admin/lists" style={navLinkStyle}>{t('nav.admin')}</NavLink>
       )}
@@ -48,6 +52,7 @@ export const Sidebar = ({ isOpen }: { isOpen: boolean }) => {
         <NavLink to="/admin/teams" style={navLinkStyle}>{t('nav.adminTeams', 'Teams')}</NavLink>
       )}
       <NavLink to="/settings" style={navLinkStyle}>{t('nav.settings')}</NavLink>
+      <NavLink to="/settings/profile" style={navLinkStyle}>{t('nav.profile')}</NavLink>
     </nav>
   );
 };

@@ -153,6 +153,25 @@ async def create_absence(
     return absence
 
 
+@router.get("/absences/{absence_id}", response_model=AbsenceResponse)
+async def get_absence(
+    absence_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Absence).where(Absence.id == absence_id))
+    absence = result.scalar_one_or_none()
+    if absence is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Absence not found"
+        )
+
+    if absence.user_id != current_user.id:
+        await _assert_leader_access_to_user(current_user, absence.user_id, db)
+
+    return absence
+
+
 @router.get("/absences", response_model=list[AbsenceResponse])
 async def list_absences(
     user_id: uuid.UUID | None = Query(default=None),

@@ -23,6 +23,9 @@ import { FeedPage } from './pages/FeedPage';
 import { QuarterlyReportPage } from './pages/QuarterlyReportPage';
 import { TeamQuarterlyReportPage } from './pages/TeamQuarterlyReportPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { CrossTeamSharingPage } from './pages/CrossTeamSharingPage';
+import { ProjectsPage } from './pages/ProjectsPage';
+import { ProfileSettingsPage } from './pages/ProfileSettingsPage';
 
 function App() {
   return (
@@ -40,6 +43,8 @@ function App() {
           <Route path="team/settings/balance" element={<ProtectedRoute requireLeader><TeamBalanceSettingsPage /></ProtectedRoute>} />
           <Route path="team/settings/thresholds" element={<ProtectedRoute requireLeader><TeamThresholdSettingsPage /></ProtectedRoute>} />
           <Route path="team/unlock" element={<ProtectedRoute requireLeader><UnlockPage /></ProtectedRoute>} />
+          <Route path="team/sharing" element={<ProtectedRoute requireLeader><CrossTeamSharingPage /></ProtectedRoute>} />
+          <Route path="projects" element={<ProjectsPage />} />
           <Route path="reports/weekly/:week_start?" element={<WeeklyReportPage />} />
           <Route path="reports/monthly/:ym?" element={<MonthlyReportPage />} />
           <Route path="reports/quarterly/:quarter?" element={<QuarterlyReportPage />} />
@@ -47,6 +52,7 @@ function App() {
           <Route path="team/quarterly/:quarter?" element={<ProtectedRoute requireLeader><TeamQuarterlyReportPage /></ProtectedRoute>} />
           <Route path="export" element={<ExportPage />} />
           <Route path="settings/notifications" element={<NotificationPreferencesPage />} />
+          <Route path="settings/profile" element={<ProfileSettingsPage />} />
           <Route path="admin/lists" element={<ProtectedRoute requireAdmin><AdminListsPage /></ProtectedRoute>} />
           <Route path="admin/teams" element={<ProtectedRoute requireAdmin><AdminTeamsPage /></ProtectedRoute>} />
           <Route path="admin/teams/:teamId" element={<ProtectedRoute requireAdmin><AdminTeamDetailPage /></ProtectedRoute>} />

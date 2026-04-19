@@ -23,6 +23,7 @@ from app.db.schemas.category import (
     SubTypeCreate,
     SubTypeResponse,
     SubTypeUpdate,
+    TagCreate,
     TagResponse,
     TagUpdate,
 )
@@ -196,6 +197,23 @@ async def update_sub_type(
 # ---------------------------------------------------------------------------
 # Self-Assessment Tags
 # ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/self-assessment-tags",
+    response_model=TagResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_tag(
+    body: TagCreate,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    tag = SelfAssessmentTag(id=uuid.uuid4(), name=body.name, is_active=True)
+    db.add(tag)
+    await db.commit()
+    await db.refresh(tag)
+    return TagResponse.model_validate(tag)
 
 
 @router.get("/self-assessment-tags", response_model=list[TagResponse])

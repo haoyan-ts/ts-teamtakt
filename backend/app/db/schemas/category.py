@@ -47,6 +47,10 @@ class CategoryResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TagCreate(BaseModel):
+    name: str
+
+
 class TagUpdate(BaseModel):
     name: str | None = None
     is_active: bool | None = None

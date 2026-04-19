@@ -9,8 +9,11 @@ import {
   createBlockerType,
   updateBlockerType,
   getSelfAssessmentTags,
+  createSelfAssessmentTag,
   updateSelfAssessmentTag,
 } from '../api/categories';
+import { getAdminSettings, updateAdminSettings } from '../api/adminSettings';
+import type { AdminSettingsData } from '../api/adminSettings';
 import type { Category, BlockerType, SelfAssessmentTag } from '../types/dailyRecord';
 
 // ---------------------------------------------------------------------------
@@ -253,6 +256,7 @@ function TagsSection() {
   const [tags, setTags] = useState<SelfAssessmentTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [editNames, setEditNames] = useState<Record<string, string>>({});
+  const [newTagName, setNewTagName] = useState('');
 
   const reload = () => getSelfAssessmentTags().then(setTags).finally(() => setLoading(false));
   useEffect(() => { reload(); }, []);
@@ -265,19 +269,29 @@ function TagsSection() {
     reload();
   };
 
+  const toggle = async (tag: SelfAssessmentTag) => {
+    await updateSelfAssessmentTag(tag.id, { is_active: !tag.is_active });
+    reload();
+  };
+
+  const add = async () => {
+    const name = newTagName.trim();
+    if (!name) return;
+    await createSelfAssessmentTag({ name });
+    setNewTagName('');
+    reload();
+  };
+
   if (loading) return <p>Loading…</p>;
 
   return (
     <section style={sectionStyle}>
       <h3 style={sectionTitle}>Self-Assessment Tags</h3>
-      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-        Fixed 4 tags — edit names only.
-      </p>
       <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
         {tags.map((tag) => (
           <li
             key={tag.id}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', opacity: tag.is_active ? 1 : 0.5 }}
           >
             <input
               style={inputStyle}
@@ -286,9 +300,88 @@ function TagsSection() {
               onChange={(e) => setEditNames((prev) => ({ ...prev, [tag.id]: e.target.value }))}
             />
             <button style={tinyBtn} onClick={() => save(tag)}>Save</button>
+            <button style={tinyBtn} onClick={() => toggle(tag)}>
+              {tag.is_active ? 'Deactivate' : 'Activate'}
+            </button>
           </li>
         ))}
       </ul>
+      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+        <input
+          style={inputStyle}
+          placeholder="New tag name"
+          value={newTagName}
+          onChange={(e) => setNewTagName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+        />
+        <button style={primaryBtn} onClick={add}>Add Tag</button>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Output language section
+// ---------------------------------------------------------------------------
+
+const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'ja', label: '日本語' },
+  { value: 'ko', label: '한국어' },
+  { value: 'zh', label: '中文' },
+];
+
+function AdminSettingsSection() {
+  const [settings, setSettings] = useState<AdminSettingsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const reload = () =>
+    getAdminSettings()
+      .then(setSettings)
+      .finally(() => setLoading(false));
+
+  useEffect(() => { reload(); }, []);
+
+  const handleChange = async (lang: string) => {
+    setSaving(true);
+    try {
+      const updated = await updateAdminSettings({ output_language: lang });
+      setSettings(updated);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <p>Loading…</p>;
+
+  return (
+    <section style={sectionStyle}>
+      <h3 style={sectionTitle}>Global Settings</h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <label style={{ fontWeight: 500, fontSize: '0.9rem' }}>Output Language</label>
+        <select
+          disabled={saving}
+          value={settings?.output_language ?? ''}
+          onChange={(e) => handleChange(e.target.value)}
+          style={{
+            border: '1px solid var(--border)',
+            borderRadius: '4px',
+            padding: '0.3rem 0.5rem',
+            background: 'var(--bg)',
+            color: 'var(--text-h)',
+            cursor: saving ? 'wait' : 'pointer',
+          }}
+        >
+          {LANGUAGE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {saving && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Saving…</span>}
+      </div>
+      <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+        Applies to weekly emails and quarterly reports. UI language is set per user.
+      </p>
     </section>
   );
 }
@@ -300,6 +393,7 @@ function TagsSection() {
 export const AdminListsPage = () => (
   <div style={{ maxWidth: '800px', margin: '0 auto' }}>
     <h2 style={{ marginBottom: '1rem' }}>Controlled Lists (Admin)</h2>
+    <AdminSettingsSection />
     <CategoriesSection />
     <BlockerTypesSection />
     <TagsSection />

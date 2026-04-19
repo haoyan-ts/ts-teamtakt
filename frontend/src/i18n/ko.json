@@ -6,7 +6,8 @@
     "settings": "설정",
     "feed": "피드",
     "quarterlyReport": "분기 보고서",
-    "teamQuarterlyReport": "팀 보고서"
+    "teamQuarterlyReport": "팀 보고서",
+    "profile": "프로필"
   },
   "auth": {
     "signIn": "Microsoft로 로그인",
@@ -23,5 +24,15 @@
     "loading": "로딩 중...",
     "error": "오류가 발생했습니다",
     "back": "뒤로"
+  },
+  "profile": {
+    "title": "프로필 설정",
+    "email": "이메일",
+    "displayName": "표시 이름",
+    "preferredLocale": "선호 언어",
+    "save": "저장",
+    "saving": "저장 중…",
+    "saved": "저장됨 ✓",
+    "saveError": "저장에 실패했습니다. 다시 시도해 주세요."
   }
 }

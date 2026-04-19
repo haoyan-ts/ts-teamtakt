@@ -359,3 +359,37 @@ async def test_admin_list_users(client, db_session):
     assert isinstance(resp.json(), list)
     emails = [u["email"] for u in resp.json()]
     assert "t13_admin@t.com" in emails
+
+
+# ---------------------------------------------------------------------------
+# 14. GET /teams/{team_id} — detail endpoint
+# ---------------------------------------------------------------------------
+
+
+async def test_member_gets_team_detail(client, db_session):
+    member, tok = await make_user(db_session, "t14_member@t.com")
+    team = await make_team(db_session, "t14_Team")
+    await make_membership(db_session, member.id, team.id)
+
+    resp = await client.get(f"/api/v1/teams/{team.id}", headers=auth(tok))
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == str(team.id)
+    assert data["name"] == "t14_Team"
+
+
+async def test_get_team_detail_not_found(client, db_session):
+    admin, tok = await make_user(db_session, "t14b_admin@t.com", is_admin=True)
+    import uuid
+
+    resp = await client.get(f"/api/v1/teams/{uuid.uuid4()}", headers=auth(tok))
+    assert resp.status_code == 404
+
+
+async def test_non_member_cannot_get_team_detail(client, db_session):
+    outsider, tok = await make_user(db_session, "t14c_outsider@t.com")
+    team = await make_team(db_session, "t14c_Team")
+    # outsider is NOT a member of this team
+
+    resp = await client.get(f"/api/v1/teams/{team.id}", headers=auth(tok))
+    assert resp.status_code == 403

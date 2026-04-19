@@ -91,6 +91,36 @@ async def list_projects(
     return [ProjectResponse.model_validate(p) for p in result.scalars().all()]
 
 
+@router.get("/projects/{project_id}", response_model=ProjectResponse)
+async def get_project(
+    project_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_active_user),
+):
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
+
+    user_team_id = await _get_user_team(current_user, db)
+
+    if project.scope == ProjectScope.personal:
+        if project.created_by != current_user.id and not current_user.is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+            )
+    elif project.scope == ProjectScope.team:
+        if not current_user.is_admin and project.team_id != user_team_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+            )
+    # cross_team: any authenticated user may read
+
+    return ProjectResponse.model_validate(project)
+
+
 @router.patch("/projects/{project_id}", response_model=ProjectResponse)
 async def update_project(
     project_id: uuid.UUID,

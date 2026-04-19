@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     ADMIN_EMAIL: str | None = None
     OPENAI_API_KEY: str | None = None
     OPENAI_API_BASE: str | None = None
+    GITHUB_TOKEN: str | None = None
 
 
 settings = Settings()  # type: ignore[call-arg]  # env vars injected by pydantic-settings

@@ -227,3 +227,83 @@ async def test_visibility_admin_full_access(client, db_session):
     records = resp.json()
     target = next(r for r in records if r["record_date"] == str(rec_date))
     assert target["day_load"] == 2
+
+
+# ---------------------------------------------------------------------------
+# 8. GET /daily-records/{record_id} — detail endpoint
+# ---------------------------------------------------------------------------
+
+
+async def test_owner_gets_record_detail(client, db_session):
+    user, tok = await make_user(db_session, "dr08@t.com")
+    team = await make_team(db_session, "dr08_team")
+    await make_membership(db_session, user.id, team.id)
+
+    rec_date = date.today() - timedelta(days=10)
+    record = await insert_record(db_session, user.id, rec_date, day_load=4)
+
+    resp = await client.get(f"/api/v1/daily-records/{record.id}", headers=auth(tok))
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == str(record.id)
+    assert data["day_load"] == 4
+
+
+async def test_leader_gets_record_detail_with_day_load(client, db_session):
+    leader, leader_tok = await make_user(db_session, "dr09l@t.com", is_leader=True)
+    member, _ = await make_user(db_session, "dr09m@t.com")
+    team = await make_team(db_session, "dr09_team")
+    await make_membership(db_session, leader.id, team.id)
+    await make_membership(db_session, member.id, team.id)
+
+    rec_date = date.today() - timedelta(days=11)
+    record = await insert_record(db_session, member.id, rec_date, day_load=5)
+
+    resp = await client.get(
+        f"/api/v1/daily-records/{record.id}", headers=auth(leader_tok)
+    )
+    assert resp.status_code == 200
+    assert resp.json()["day_load"] == 5
+
+
+async def test_get_record_detail_not_found(client, db_session):
+    user, tok = await make_user(db_session, "dr10@t.com")
+    team = await make_team(db_session, "dr10_team")
+    await make_membership(db_session, user.id, team.id)
+    import uuid
+
+    resp = await client.get(f"/api/v1/daily-records/{uuid.uuid4()}", headers=auth(tok))
+    assert resp.status_code == 404
+
+
+async def test_outsider_cannot_get_record_detail(client, db_session):
+    owner, _ = await make_user(db_session, "dr11o@t.com")
+    outsider, outsider_tok = await make_user(db_session, "dr11x@t.com")
+    team = await make_team(db_session, "dr11o_team")
+    other_team = await make_team(db_session, "dr11x_team")
+    await make_membership(db_session, owner.id, team.id)
+    await make_membership(db_session, outsider.id, other_team.id)
+
+    rec_date = date.today() - timedelta(days=12)
+    record = await insert_record(db_session, owner.id, rec_date)
+
+    resp = await client.get(
+        f"/api/v1/daily-records/{record.id}", headers=auth(outsider_tok)
+    )
+    assert resp.status_code == 403
+
+
+async def test_non_leader_peer_cannot_get_record_detail(client, db_session):
+    owner, _ = await make_user(db_session, "dr12o@t.com")
+    peer, peer_tok = await make_user(db_session, "dr12p@t.com")
+    team = await make_team(db_session, "dr12_team")
+    await make_membership(db_session, owner.id, team.id)
+    await make_membership(db_session, peer.id, team.id)
+
+    rec_date = date.today() - timedelta(days=13)
+    record = await insert_record(db_session, owner.id, rec_date)
+
+    resp = await client.get(
+        f"/api/v1/daily-records/{record.id}", headers=auth(peer_tok)
+    )
+    assert resp.status_code == 403

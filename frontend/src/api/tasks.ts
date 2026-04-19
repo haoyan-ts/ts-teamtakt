@@ -62,7 +62,8 @@ export async function updateTask(
 // ---- GitHub Issue auto-fill ----
 
 export interface GithubAutofillResult {
-  title: string;
+  title: string | null;
+  description: string | null;
   project_id: string | null;
   category_id: string | null;
   sub_type_id: string | null;
@@ -74,7 +75,7 @@ export interface GithubAutofillResult {
 export async function prefillFromGithubIssue(
   url: string
 ): Promise<GithubAutofillResult> {
-  const res = await client.get<GithubAutofillResult>('/github/autofill', {
+  const res = await client.get<GithubAutofillResult>('/tasks/autofill', {
     params: { url },
   });
   return res.data;

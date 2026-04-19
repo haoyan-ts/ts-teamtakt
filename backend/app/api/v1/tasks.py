@@ -7,15 +7,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.deps import get_current_user, require_active_user
 from app.db.engine import get_db
 from app.db.models.task import Task, TaskStatus
 from app.db.models.user import User
 from app.db.schemas.task import (
+    TaskAutoFillResponse,
     TaskCreate,
     TaskResponse,
     TaskUpdate,
 )
+from app.services.github_autofill import fetch_github_issue, map_to_task_fields
 
 router = APIRouter(tags=["tasks"])
 
@@ -127,6 +130,22 @@ async def list_tasks(
     return r.scalars().all()
 
 
+@router.get("/tasks/autofill", response_model=TaskAutoFillResponse)
+async def task_autofill(
+    url: str = Query(..., description="GitHub issue URL"),
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch a GitHub issue and return prefill data for task creation."""
+    try:
+        issue = await fetch_github_issue(url, github_token=settings.GITHUB_TOKEN)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    return await map_to_task_fields(issue, db)
+
+
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: uuid.UUID,
@@ -213,14 +232,3 @@ async def delete_task(
     await _require_task_owner_or_admin(task, current_user)
     task.is_active = False
     await db.commit()
-
-
-@router.post("/tasks/autofill", status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def task_autofill(
-    _current_user: User = Depends(require_active_user),
-):
-    """GitHub Issue auto-fill — not yet implemented. See follow-up issue."""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="GitHub auto-fill not yet implemented",
-    )

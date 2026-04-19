@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from .absences import router as absences_router
+from .admin_settings import router as admin_settings_router
 from .auth import router as auth_router
 from .categories import router as categories_router
 from .daily_records import router as daily_records_router
@@ -24,6 +25,7 @@ from .weekly_reports import router as weekly_reports_router
 
 router = APIRouter()
 router.include_router(health_router)
+router.include_router(admin_settings_router)
 router.include_router(auth_router)
 router.include_router(teams_router)
 router.include_router(users_router)

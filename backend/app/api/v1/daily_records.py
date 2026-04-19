@@ -395,6 +395,55 @@ async def list_daily_records(
     return responses
 
 
+@router.get("/daily-records/{record_id}", response_model=DailyRecordResponse)
+async def get_daily_record(
+    record_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(DailyRecord).where(DailyRecord.id == record_id))
+    record = result.scalar_one_or_none()
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+
+    if record.user_id != current_user.id:
+        if current_user.is_admin:
+            pass
+        elif current_user.is_leader:
+            leader_team = await db.scalar(
+                select(TeamMembership).where(
+                    TeamMembership.user_id == current_user.id,
+                    TeamMembership.left_at.is_(None),
+                )
+            )
+            if leader_team is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+                )
+            member_check = await db.scalar(
+                select(TeamMembership).where(
+                    TeamMembership.user_id == record.user_id,
+                    TeamMembership.team_id == leader_team.team_id,
+                    TeamMembership.left_at.is_(None),
+                )
+            )
+            if member_check is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: user is not in your team",
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+            )
+
+    resp = await _build_record_response(record, db)
+    visible = await is_record_fully_visible(record.user_id, current_user, db)
+    return apply_visibility_filter(resp, visible=visible)
+
+
 @router.put("/daily-records/{record_id}", response_model=DailyRecordResponse)
 async def update_daily_record(
     record_id: uuid.UUID,

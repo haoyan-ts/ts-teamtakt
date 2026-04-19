@@ -6,7 +6,8 @@
     "settings": "Settings",
     "feed": "Feed",
     "quarterlyReport": "Quarterly Report",
-    "teamQuarterlyReport": "Team Reports"
+    "teamQuarterlyReport": "Team Reports",
+    "profile": "Profile"
   },
   "auth": {
     "signIn": "Sign in with Microsoft",
@@ -23,5 +24,15 @@
     "loading": "Loading...",
     "error": "Something went wrong",
     "back": "Back"
+  },
+  "profile": {
+    "title": "Profile Settings",
+    "email": "Email",
+    "displayName": "Display Name",
+    "preferredLocale": "Preferred Language",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved ✓",
+    "saveError": "Save failed. Please try again."
   }
 }

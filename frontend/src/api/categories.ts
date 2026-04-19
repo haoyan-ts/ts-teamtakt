@@ -48,6 +48,11 @@ export async function getSelfAssessmentTags(): Promise<SelfAssessmentTag[]> {
   return res.data;
 }
 
+export async function createSelfAssessmentTag(payload: { name: string }): Promise<SelfAssessmentTag> {
+  const res = await client.post<SelfAssessmentTag>('/self-assessment-tags', payload);
+  return res.data;
+}
+
 export async function updateSelfAssessmentTag(
   id: string,
   payload: { name?: string; is_active?: boolean }

@@ -8,7 +8,7 @@ from app.core.deps import get_current_user, require_admin
 from app.db.engine import get_db
 from app.db.models.team import Team, TeamMembership
 from app.db.models.user import User
-from app.db.schemas.user import UserResponse, UserRoleUpdate
+from app.db.schemas.user import UserResponse, UserRoleUpdate, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -42,6 +42,30 @@ async def get_me(
         "team": team_data,
         "lobby": team_data is None,
     }
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    body: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if body.display_name is not None:
+        current_user.display_name = body.display_name
+    if body.preferred_locale is not None:
+        current_user.preferred_locale = body.preferred_locale
+
+    await db.commit()
+    await db.refresh(current_user)
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        display_name=current_user.display_name,
+        is_leader=current_user.is_leader,
+        is_admin=current_user.is_admin,
+        preferred_locale=current_user.preferred_locale,
+        created_at=current_user.created_at,
+    )
 
 
 @router.get("", response_model=list[UserResponse])

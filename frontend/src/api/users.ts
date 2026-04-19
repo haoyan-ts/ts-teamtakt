@@ -42,3 +42,13 @@ export async function updateUserRoles(
   const res = await client.patch<User>(`/users/${userId}/roles`, payload);
   return res.data;
 }
+
+export interface UserProfileUpdate {
+  display_name?: string;
+  preferred_locale?: string;
+}
+
+export async function updateUserProfile(payload: UserProfileUpdate): Promise<CurrentUser> {
+  const res = await client.patch<CurrentUser>('/users/me', payload);
+  return res.data;
+}
