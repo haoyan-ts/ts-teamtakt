@@ -53,14 +53,14 @@ const COLORS = ['#3182ce', '#48bb78', '#ed8936', '#9f7aea', '#e53e3e', '#38b2ac'
 // ---------------------------------------------------------------------------
 
 const cardStyle: React.CSSProperties = {
-  border: '1px solid #e2e8f0',
+  border: '1px solid var(--border)',
   borderRadius: '8px',
   padding: '1rem',
-  background: '#fff',
+  background: 'var(--bg)',
 };
 const cardTitle: React.CSSProperties = { margin: '0 0 0.75rem', fontSize: '0.95rem', fontWeight: 600 };
-const emptyText: React.CSSProperties = { fontSize: '0.85rem', color: '#a0aec0', fontStyle: 'italic' };
-const th: React.CSSProperties = { textAlign: 'left', padding: '0.3rem 0.5rem', fontWeight: 600, color: '#4a5568', fontSize: '0.8rem' };
+const emptyText: React.CSSProperties = { fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' };
+const th: React.CSSProperties = { textAlign: 'left', padding: '0.3rem 0.5rem', fontWeight: 600, color: 'var(--text-body)', fontSize: '0.8rem' };
 const td: React.CSSProperties = { padding: '0.3rem 0.5rem', fontSize: '0.83rem' };
 
 function MetricCard({ title, children, loading }: { title: string; children: React.ReactNode; loading: boolean }) {
@@ -113,7 +113,7 @@ function BalanceChart({ members, targets }: { members: MemberBalance[]; targets:
         <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
         {referenceLines.map((rl) => (
           <ReferenceLine key={rl.label} x={rl.x} stroke="#6b7280" strokeDasharray="4 2"
-            label={{ value: `${rl.label} tgt`, position: 'insideTopRight', fontSize: 9, fill: '#6b7280' }} />
+            label={{ value: `${rl.label} tgt`, position: 'insideTopRight', fontSize: 9, fill: 'var(--text-secondary)' }} />
         ))}
         {categories.map((cat) => (
           <Bar key={cat} dataKey={cat} stackId="a" fill={COLORS[categories.indexOf(cat) % COLORS.length]}>
@@ -143,12 +143,12 @@ function OverloadPanel({ entries }: { entries: OverloadEntry[] }) {
       {sorted.map((e) => {
         const days =
           Math.round((new Date(e.streak_end).getTime() - new Date(e.streak_start).getTime()) / 86400000) + 1;
-        const color = days >= 5 ? '#e53e3e' : days >= 3 ? '#ed8936' : '#d69e2e';
+        const color = days >= 5 ? 'var(--error)' : days >= 3 ? 'var(--warning)' : 'var(--warning)';
         return (
           <div key={`${e.user_id}-${e.streak_start}`}
-            style={{ padding: '0.4rem 0.6rem', borderLeft: `4px solid ${color}`, background: '#fffaf0', borderRadius: 4 }}>
+            style={{ padding: '0.4rem 0.6rem', borderLeft: `4px solid ${color}`, background: 'var(--warning-bg)', borderRadius: 4 }}>
             <strong style={{ fontSize: '0.88rem' }}>{e.display_name}</strong>
-            <span style={{ fontSize: '0.78rem', marginLeft: '0.5rem', color: '#718096' }}>
+            <span style={{ fontSize: '0.78rem', marginLeft: '0.5rem', color: 'var(--text-secondary)' }}>
               {e.streak_start} → {e.streak_end} ({days}d) · max load {e.max_load}
             </span>
           </div>
@@ -190,7 +190,7 @@ function BlockerPanel({ summary }: { summary: BlockerSummary | null }) {
             </thead>
             <tbody>
               {summary.recurring.map((r, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={td}>{r.task_desc}</td>
                   <td style={td}>{r.project}</td>
                   <td style={td}>{r.days_blocked}</td>
@@ -213,7 +213,7 @@ function FragmentationPanel({ entries }: { entries: FragmentationEntry[] }) {
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
-        <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+        <tr style={{ borderBottom: '2px solid var(--border)' }}>
           <th style={th}>Member</th>
           <th style={th}>Date</th>
           <th style={th}>Tasks</th>
@@ -221,10 +221,10 @@ function FragmentationPanel({ entries }: { entries: FragmentationEntry[] }) {
       </thead>
       <tbody>
         {entries.map((f, i) => (
-          <tr key={i} style={{ borderBottom: '1px solid #f7fafc' }}>
+          <tr key={i} style={{ borderBottom: '1px solid var(--bg-tertiary)' }}>
             <td style={td}>{f.display_name}</td>
             <td style={td}>{f.date}</td>
-            <td style={{ ...td, fontWeight: 600, color: '#e53e3e' }}>{f.task_count}</td>
+            <td style={{ ...td, fontWeight: 600, color: 'var(--error)' }}>{f.task_count}</td>
           </tr>
         ))}
       </tbody>
@@ -242,7 +242,7 @@ function CarryoverPanel({ entries, threshold }: { entries: CarryoverAgingEntry[]
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
-        <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+        <tr style={{ borderBottom: '2px solid var(--border)' }}>
           <th style={th}>Member</th>
           <th style={th}>Task</th>
           <th style={th}>Project</th>
@@ -252,11 +252,11 @@ function CarryoverPanel({ entries, threshold }: { entries: CarryoverAgingEntry[]
       </thead>
       <tbody>
         {sorted.map((e, i) => {
-          const color = e.working_days_aged > threshold ? '#e53e3e' : e.working_days_aged >= threshold * 0.8 ? '#ed8936' : '#2d3748';
+          const color = e.working_days_aged > threshold ? 'var(--error)' : e.working_days_aged >= threshold * 0.8 ? 'var(--warning)' : 'var(--text-body)';
           return (
-            <tr key={i} style={{ borderBottom: '1px solid #f7fafc' }}>
+            <tr key={i} style={{ borderBottom: '1px solid var(--bg-tertiary)' }}>
               <td style={td}>{e.display_name}</td>
-              <td style={{ ...td, color: '#4a5568' }}>{e.task_desc}</td>
+              <td style={{ ...td, color: 'var(--text-body)' }}>{e.task_desc}</td>
               <td style={td}>{e.project}</td>
               <td style={td}>{e.root_date}</td>
               <td style={{ ...td, fontWeight: 700, color }}>{e.working_days_aged}d</td>
@@ -292,12 +292,12 @@ function ProjectEffortPanel({ entries }: { entries: ProjectEffortEntry[] }) {
           <div key={e.project_id}>
             <button
               onClick={() => setExpanded(expanded === e.project_id ? null : e.project_id)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.82rem', color: '#3182ce', padding: '2px 0' }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.82rem', color: 'var(--primary)', padding: '2px 0' }}
             >
               {expanded === e.project_id ? '▾' : '▸'} {e.name} ({e.total_effort} effort pts)
             </button>
             {expanded === e.project_id && (
-              <ul style={{ margin: '0.25rem 0 0.25rem 1rem', padding: 0, listStyle: 'none', fontSize: '0.8rem', color: '#4a5568' }}>
+              <ul style={{ margin: '0.25rem 0 0.25rem 1rem', padding: 0, listStyle: 'none', fontSize: '0.8rem', color: 'var(--text-body)' }}>
                 {e.member_effort.map((m) => (
                   <li key={m.user_id}>{m.display_name}: {m.effort}</li>
                 ))}
@@ -332,7 +332,7 @@ function UnreportedCard({ teamId, today }: { teamId: string; today: string }) {
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+            <tr style={{ borderBottom: '2px solid var(--border)' }}>
               <th style={th}>Member</th>
               <th style={th}>Last Reported</th>
               <th style={th}>Consecutive Missing</th>
@@ -340,7 +340,7 @@ function UnreportedCard({ teamId, today }: { teamId: string; today: string }) {
           </thead>
           <tbody>
             {missing.map((m) => (
-              <tr key={m.user_id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+              <tr key={m.user_id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={td}>{m.display_name}</td>
                 <td style={td}>{m.last_reported ?? '—'}</td>
                 <td style={td}>{m.consecutive_missing}d</td>
@@ -438,10 +438,10 @@ export const TeamPage = () => {
         <h2 style={{ margin: 0 }}>Team Dashboard</h2>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.85rem' }}>
           <label>From <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-            style={{ border: '1px solid #cbd5e0', borderRadius: 4, padding: '2px 6px', fontSize: '0.83rem' }} /></label>
+            style={{ border: '1px solid var(--border-strong)', borderRadius: 4, padding: '2px 6px', fontSize: '0.83rem', background: 'var(--bg)', color: 'var(--text-h)' }} /></label>
           <label>To <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-            style={{ border: '1px solid #cbd5e0', borderRadius: 4, padding: '2px 6px', fontSize: '0.83rem' }} /></label>
-          <a href="/team/settings/balance" style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: '#3182ce' }}>⚙ Settings</a>
+            style={{ border: '1px solid var(--border-strong)', borderRadius: 4, padding: '2px 6px', fontSize: '0.83rem', background: 'var(--bg)', color: 'var(--text-h)' }} /></label>
+          <a href="/team/settings/balance" style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: 'var(--primary)' }}>⚙ Settings</a>
         </div>
       </div>
 

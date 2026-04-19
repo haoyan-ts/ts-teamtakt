@@ -9,11 +9,11 @@ export const Sidebar = ({ isOpen }: { isOpen: boolean }) => {
   const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
     display: 'block',
     padding: '0.75rem 1.5rem',
-    color: isActive ? '#2563eb' : '#374151',
+    color: isActive ? 'var(--primary)' : 'var(--text-h)',
     textDecoration: 'none',
     fontWeight: isActive ? 600 : 400,
-    background: isActive ? '#eff6ff' : 'transparent',
-    borderLeft: isActive ? '3px solid #2563eb' : '3px solid transparent',
+    background: isActive ? 'var(--primary-bg)' : 'transparent',
+    borderLeft: isActive ? '3px solid var(--primary)' : '3px solid transparent',
   });
 
   return (
@@ -21,12 +21,12 @@ export const Sidebar = ({ isOpen }: { isOpen: boolean }) => {
       width: isOpen ? '240px' : '0',
       overflow: 'hidden',
       transition: 'width 0.2s',
-      background: '#f9fafb',
-      borderRight: '1px solid #e5e7eb',
+      background: 'var(--bg-secondary)',
+      borderRight: '1px solid var(--border-subtle)',
       flexShrink: 0,
       height: '100%',
     }}>
-      <div style={{ padding: '1rem 1.5rem', fontWeight: 700, fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb' }}>
+      <div style={{ padding: '1rem 1.5rem', fontWeight: 700, fontSize: '1.125rem', borderBottom: '1px solid var(--border-subtle)' }}>
         TeamTakt
       </div>
       <NavLink to="/" end style={navLinkStyle}>{t('nav.dashboard')}</NavLink>

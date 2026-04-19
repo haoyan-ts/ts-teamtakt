@@ -37,7 +37,7 @@ export const LoginPage = () => {
       <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>TeamTakt</h1>
       <button
         onClick={() => { window.location.href = authApi.getLoginUrl(); }}
-        style={{ padding: '0.75rem 1.5rem', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '1rem', cursor: 'pointer' }}
+        style={{ padding: '0.75rem 1.5rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '1rem', cursor: 'pointer' }}
       >
         {t('auth.signIn')}
       </button>

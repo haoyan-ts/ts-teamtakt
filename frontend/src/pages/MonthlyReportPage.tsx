@@ -111,7 +111,7 @@ export const MonthlyReportPage = () => {
   const { start, end } = monthDateRange(month);
   const data = reports.length ? aggregateReports(reports) : null;
 
-  const card: React.CSSProperties = { border: '1px solid #e2e8f0', borderRadius: 8, padding: '1rem', background: '#fff' };
+  const card: React.CSSProperties = { border: '1px solid var(--border)', borderRadius: 8, padding: '1rem', background: 'var(--bg)' };
   const cardTitle: React.CSSProperties = { margin: '0 0 0.75rem', fontSize: '0.95rem', fontWeight: 600 };
 
   return (
@@ -121,14 +121,14 @@ export const MonthlyReportPage = () => {
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <label style={{ fontSize: '0.85rem' }}>
             Month: <input type="month" value={month} onChange={handleMonthChange}
-              style={{ border: '1px solid #cbd5e0', borderRadius: 4, padding: '2px 6px', fontSize: '0.83rem' }} />
+              style={{ border: '1px solid var(--border-strong)', borderRadius: 4, padding: '2px 6px', fontSize: '0.83rem', background: 'var(--bg)', color: 'var(--text-h)' }} />
           </label>
           {data && (
             <>
               <a href={`/api/v1/export/my-records?start_date=${start}&end_date=${end}&format=csv`}
-                style={{ fontSize: '0.82rem', color: '#3182ce' }}>↓ CSV</a>
+                style={{ fontSize: '0.82rem', color: 'var(--primary)' }}>↓ CSV</a>
               <a href={`/api/v1/export/my-records?start_date=${start}&end_date=${end}&format=xlsx`}
-                style={{ fontSize: '0.82rem', color: '#3182ce' }}>↓ XLSX</a>
+                style={{ fontSize: '0.82rem', color: 'var(--primary)' }}>↓ XLSX</a>
             </>
           )}
         </div>
@@ -138,9 +138,9 @@ export const MonthlyReportPage = () => {
         <p>Loading…</p>
       ) : !data ? (
         <div style={{ ...card, textAlign: 'center', padding: '2rem' }}>
-          <p style={{ color: '#718096', marginBottom: '1rem' }}>No reports found for {month}.</p>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>No reports found for {month}.</p>
           <button onClick={handleGenerate} disabled={generating}
-            style={{ padding: '0.5rem 1.5rem', background: '#3182ce', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+            style={{ padding: '0.5rem 1.5rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
             {generating ? 'Generating…' : 'Generate All Weekly Reports'}
           </button>
         </div>
@@ -157,7 +157,7 @@ export const MonthlyReportPage = () => {
             ].map((kpi) => (
               <div key={kpi.label} style={{ textAlign: 'center', flex: '1 1 80px' }}>
                 <div style={{ fontSize: '1.6rem', fontWeight: 700 }}>{kpi.value}</div>
-                <div style={{ fontSize: '0.75rem', color: '#718096' }}>{kpi.label}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{kpi.label}</div>
               </div>
             ))}
           </div>
@@ -182,13 +182,13 @@ export const MonthlyReportPage = () => {
           <div style={card}>
             <h3 style={cardTitle}>Category Breakdown</h3>
             {Object.keys(data.category_breakdown).length === 0 ? (
-              <p style={{ fontSize: '0.85rem', color: '#a0aec0' }}>No data.</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No data.</p>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '0.85rem' }}>
                 {Object.entries(data.category_breakdown)
                   .sort((a, b) => b[1] - a[1])
                   .map(([k, v]) => (
-                    <li key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid #f7fafc' }}>
+                    <li key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid var(--bg-tertiary)' }}>
                       <span>{k}</span><strong>{v.toFixed(1)}%</strong>
                     </li>
                   ))}
@@ -200,11 +200,11 @@ export const MonthlyReportPage = () => {
           <div style={card}>
             <h3 style={cardTitle}>Top Projects</h3>
             {data.top_projects.length === 0 ? (
-              <p style={{ fontSize: '0.85rem', color: '#a0aec0' }}>No data.</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No data.</p>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '0.85rem' }}>
                 {data.top_projects.map((p) => (
-                  <li key={p.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid #f7fafc' }}>
+                  <li key={p.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid var(--bg-tertiary)' }}>
                     <span>{p.name}</span><strong>{p.effort}</strong>
                   </li>
                 ))}

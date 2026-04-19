@@ -13,11 +13,11 @@ const EFFORT_LABELS = ['', 'XS', 'S', 'M', 'L', 'XL'];
 
 const statusBadgeColor = (status: string): string => {
   switch (status) {
-    case 'done': return '#16a34a';
-    case 'in_progress': return '#2563eb';
-    case 'blocked': return '#dc2626';
-    case 'deferred': return '#9ca3af';
-    default: return '#6b7280';
+    case 'done': return 'var(--success)';
+    case 'in_progress': return 'var(--primary)';
+    case 'blocked': return 'var(--error)';
+    case 'deferred': return 'var(--text-muted)';
+    default: return 'var(--text-secondary)';
   }
 };
 
@@ -55,9 +55,9 @@ export const FeedCard = ({ item }: FeedCardProps) => {
 
   return (
     <div style={{
-      background: 'white',
+      background: 'var(--bg)',
       borderRadius: '10px',
-      border: '1px solid #e5e7eb',
+      border: '1px solid var(--border-subtle)',
       padding: '1rem 1.25rem',
       display: 'flex',
       flexDirection: 'column',
@@ -66,8 +66,8 @@ export const FeedCard = ({ item }: FeedCardProps) => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <span style={{ fontWeight: 700, fontSize: '1rem', color: '#111827' }}>{item.display_name}</span>
-          <span style={{ marginLeft: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
+          <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-h)' }}>{item.display_name}</span>
+          <span style={{ marginLeft: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
             {new Date(item.record_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
           </span>
         </div>
@@ -75,7 +75,7 @@ export const FeedCard = ({ item }: FeedCardProps) => {
 
       {/* Day note */}
       {item.day_note && (
-        <p style={{ margin: 0, fontSize: '0.875rem', color: '#374151', whiteSpace: 'pre-wrap' }}>{item.day_note}</p>
+        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-body)', whiteSpace: 'pre-wrap' }}>{item.day_note}</p>
       )}
 
       {/* Work logs */}
@@ -90,7 +90,7 @@ export const FeedCard = ({ item }: FeedCardProps) => {
                 gap: '0.5rem',
                 padding: '0.375rem 0.5rem',
                 borderRadius: '6px',
-                background: '#f9fafb',
+                background: 'var(--bg-secondary)',
                 fontSize: '0.8125rem',
               }}
             >
@@ -105,8 +105,8 @@ export const FeedCard = ({ item }: FeedCardProps) => {
               }}>
                 {(t.task?.status ?? '').replace('_', ' ')}
               </span>
-              <span style={{ flex: 1, color: '#111827' }}>{t.task?.title ?? ''}</span>
-              <span style={{ color: '#9ca3af', whiteSpace: 'nowrap' }}>E{EFFORT_LABELS[t.effort] || t.effort}</span>
+              <span style={{ flex: 1, color: 'var(--text-h)' }}>{t.task?.title ?? ''}</span>
+              <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>E{EFFORT_LABELS[t.effort] || t.effort}</span>
             </div>
           ))}
         </div>
@@ -121,7 +121,7 @@ export const FeedCard = ({ item }: FeedCardProps) => {
         style={{
           alignSelf: 'flex-start',
           fontSize: '0.8125rem',
-          color: '#2563eb',
+          color: 'var(--primary)',
           background: 'none',
           border: 'none',
           cursor: 'pointer',
@@ -133,7 +133,7 @@ export const FeedCard = ({ item }: FeedCardProps) => {
 
       {expanded && (
         <div style={{ marginTop: '0.25rem' }}>
-          {loadingComments && <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Loading…</p>}
+          {loadingComments && <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Loading…</p>}
           {!loadingComments && comments !== null && (
             <CommentThread recordId={item.id} comments={comments} onMutated={refreshComments} />
           )}

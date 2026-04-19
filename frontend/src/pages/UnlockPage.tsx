@@ -73,20 +73,20 @@ export const UnlockPage = () => {
   };
 
   if (!teamId) {
-    return <p style={{ color: '#e53e3e' }}>You are not assigned to a team.</p>;
+    return <p style={{ color: 'var(--error)' }}>You are not assigned to a team.</p>;
   }
 
-  const card: React.CSSProperties = { border: '1px solid #e2e8f0', borderRadius: 8, padding: '1rem', background: '#fff', marginBottom: '0.75rem' };
-  const inputStyle: React.CSSProperties = { border: '1px solid #cbd5e0', borderRadius: 4, padding: '3px 8px', fontSize: '0.85rem' };
+  const card: React.CSSProperties = { border: '1px solid var(--border)', borderRadius: 8, padding: '1rem', background: 'var(--bg)', marginBottom: '0.75rem' };
+  const inputStyle: React.CSSProperties = { border: '1px solid var(--border-strong)', borderRadius: 4, padding: '3px 8px', fontSize: '0.85rem', background: 'var(--bg)', color: 'var(--text-h)' };
   const btn = (color: string, disabled: boolean): React.CSSProperties => ({
-    padding: '0.3rem 0.75rem', background: disabled ? '#a0aec0' : color, color: '#fff',
+    padding: '0.3rem 0.75rem', background: disabled ? 'var(--text-muted)' : color, color: '#fff',
     border: 'none', borderRadius: 5, cursor: disabled ? 'not-allowed' : 'pointer', fontSize: '0.82rem',
   });
 
   return (
     <div style={{ maxWidth: 700, margin: '0 auto' }}>
       <h2 style={{ marginBottom: '0.25rem' }}>Unlock Edit Window</h2>
-      <p style={{ color: '#718096', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
         Grant a member access to edit a specific past date after the edit window has closed.
         Grants are single-use per (member, date). Revoke at any time.
       </p>
@@ -95,13 +95,13 @@ export const UnlockPage = () => {
       <section style={{ marginBottom: '2rem' }}>
         <h3 style={{ fontSize: '0.95rem', marginBottom: '0.5rem' }}>Active Unlock Grants</h3>
         {loadingGrants ? (
-          <p style={{ fontSize: '0.85rem', color: '#a0aec0' }}>Loading…</p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Loading…</p>
         ) : grants.length === 0 ? (
-          <p style={{ fontSize: '0.85rem', color: '#a0aec0' }}>No active grants.</p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No active grants.</p>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+              <tr style={{ borderBottom: '2px solid var(--border)' }}>
                 <th style={{ textAlign: 'left', padding: '4px 8px' }}>Member</th>
                 <th style={{ textAlign: 'left', padding: '4px 8px' }}>Date</th>
                 <th style={{ textAlign: 'left', padding: '4px 8px' }}>Granted At</th>
@@ -113,12 +113,12 @@ export const UnlockPage = () => {
                 const member = members.find((m) => m.user_id === g.user_id);
                 const isRevoking = revoking[g.id] ?? false;
                 return (
-                  <tr key={g.id} style={{ borderBottom: '1px solid #f7fafc' }}>
+                  <tr key={g.id} style={{ borderBottom: '1px solid var(--bg-tertiary)' }}>
                     <td style={{ padding: '5px 8px' }}>{member?.display_name ?? g.user_id.slice(0, 8)}</td>
                     <td style={{ padding: '5px 8px' }}>{g.record_date}</td>
-                    <td style={{ padding: '5px 8px', color: '#718096' }}>{new Date(g.granted_at).toLocaleString()}</td>
+                    <td style={{ padding: '5px 8px', color: 'var(--text-secondary)' }}>{new Date(g.granted_at).toLocaleString()}</td>
                     <td style={{ padding: '5px 8px' }}>
-                      <button onClick={() => handleRevoke(g.id)} disabled={isRevoking} style={btn('#e53e3e', isRevoking)}>
+                      <button onClick={() => handleRevoke(g.id)} disabled={isRevoking} style={btn('var(--error)', isRevoking)}>
                         {isRevoking ? 'Revoking…' : 'Revoke'}
                       </button>
                     </td>
@@ -134,7 +134,7 @@ export const UnlockPage = () => {
       <section>
         <h3 style={{ fontSize: '0.95rem', marginBottom: '0.5rem' }}>Grant Unlock by Member</h3>
         {loadingMembers ? (
-          <p style={{ fontSize: '0.85rem', color: '#a0aec0' }}>Loading members…</p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Loading members…</p>
         ) : (
           members.map((m) => {
             const isCreating = creating[m.user_id] ?? false;
@@ -150,12 +150,12 @@ export const UnlockPage = () => {
                       onChange={(e) => setDateInputs((d) => ({ ...d, [m.user_id]: e.target.value }))}
                       style={inputStyle}
                     />
-                    <button onClick={() => handleGrant(m.user_id)} disabled={isCreating} style={btn('#3182ce', isCreating)}>
+                    <button onClick={() => handleGrant(m.user_id)} disabled={isCreating} style={btn('var(--primary)', isCreating)}>
                       {isCreating ? 'Granting…' : 'Grant Unlock'}
                     </button>
                   </div>
                 </div>
-                {errMsg && <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#e53e3e' }}>{errMsg}</p>}
+                {errMsg && <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--error)' }}>{errMsg}</p>}
               </div>
             );
           })

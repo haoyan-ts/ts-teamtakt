@@ -93,10 +93,10 @@ export const WorkLogRow = ({
   };
 
   const statusColor: Record<string, string> = {
-    todo: '#a0aec0',
-    running: '#3182ce',
-    done: '#38a169',
-    blocked: '#e53e3e',
+    todo: 'var(--text-muted)',
+    running: 'var(--primary)',
+    done: 'var(--success)',
+    blocked: 'var(--error)',
   };
 
   const s = rowStyles;
@@ -109,7 +109,7 @@ export const WorkLogRow = ({
           <span
             style={{
               ...s.statusDot,
-              background: statusColor[log.task.status] ?? '#a0aec0',
+              background: statusColor[log.task.status] ?? 'var(--text-muted)',
             }}
             title={`Status: ${log.task.status}`}
           />
@@ -148,7 +148,7 @@ export const WorkLogRow = ({
           <button
             type="button"
             onClick={() => onRemove(index)}
-            style={{ ...s.iconBtn, color: '#e53e3e' }}
+            style={{ ...s.iconBtn, color: 'var(--error)' }}
             title="Remove from today's log (task is not deleted)"
           >
             ✕
@@ -207,8 +207,8 @@ export const WorkLogRow = ({
                   disabled={!isEditable}
                   style={{
                     ...s.tagBtn,
-                    background: selected ? '#3182ce' : '#e2e8f0',
-                    color: selected ? '#fff' : '#2d3748',
+                    background: selected ? 'var(--primary)' : 'var(--border)',
+                    color: selected ? '#fff' : 'var(--text-body)',
                     opacity: !isEditable ? 0.6 : 1,
                     cursor: !isEditable ? 'default' : 'pointer',
                   }}
@@ -319,11 +319,11 @@ export const WorkLogRow = ({
 
 const rowStyles: Record<string, React.CSSProperties> = {
   card: {
-    border: '1px solid #e2e8f0',
+    border: '1px solid var(--border)',
     borderRadius: '8px',
     padding: '1rem',
     marginBottom: '0.75rem',
-    background: '#f7fafc',
+    background: 'var(--bg-tertiary)',
   },
   header: {
     display: 'flex',
@@ -347,10 +347,10 @@ const rowStyles: Record<string, React.CSSProperties> = {
   },
   ghLink: {
     fontSize: '0.7rem',
-    color: '#3182ce',
+    color: 'var(--primary)',
     fontWeight: 600,
     textDecoration: 'none',
-    border: '1px solid #bee3f8',
+    border: '1px solid var(--bg-info)',
     borderRadius: '3px',
     padding: '0 0.3rem',
     flexShrink: 0,
@@ -358,7 +358,7 @@ const rowStyles: Record<string, React.CSSProperties> = {
   actions: { display: 'flex', gap: '0.25rem', flexShrink: 0 },
   iconBtn: {
     background: 'none',
-    border: '1px solid #cbd5e0',
+    border: '1px solid var(--border-strong)',
     borderRadius: '4px',
     padding: '0.1rem 0.4rem',
     cursor: 'pointer',
@@ -371,22 +371,26 @@ const rowStyles: Record<string, React.CSSProperties> = {
     gap: '0.4rem',
     marginBottom: '0.6rem',
   },
-  label: { fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', minWidth: '9rem' },
+  label: { fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-body)', minWidth: '9rem' },
   input: {
     flex: 1,
     padding: '0.3rem 0.5rem',
-    border: '1px solid #cbd5e0',
+    border: '1px solid var(--border-strong)',
     borderRadius: '5px',
     fontSize: '0.875rem',
     minWidth: '140px',
+    background: 'var(--bg)',
+    color: 'var(--text-h)',
   },
   select: {
     padding: '0.3rem 0.5rem',
-    border: '1px solid #cbd5e0',
+    border: '1px solid var(--border-strong)',
     borderRadius: '5px',
     fontSize: '0.875rem',
+    background: 'var(--bg)',
+    color: 'var(--text-h)',
   },
-  effortHint: { fontSize: '0.78rem', color: '#718096' },
+  effortHint: { fontSize: '0.78rem', color: 'var(--text-secondary)' },
   tagGroup: { display: 'flex', flexWrap: 'wrap', gap: '0.35rem' },
   tagWrapper: { display: 'inline-flex', alignItems: 'center' },
   tagBtn: {
@@ -400,15 +404,15 @@ const rowStyles: Record<string, React.CSSProperties> = {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    color: '#f6ad55',
+    color: 'var(--warning)',
     fontSize: '0.9rem',
     padding: '0 0.15rem',
   },
-  primaryIndicator: { color: '#f6ad55', fontSize: '0.9rem', padding: '0 0.15rem' },
-  tagError: { color: '#e53e3e', fontSize: '0.75rem', margin: '-0.1rem 0 0.5rem' },
+  primaryIndicator: { color: 'var(--warning)', fontSize: '0.9rem', padding: '0 0.15rem' },
+  tagError: { color: 'var(--error)', fontSize: '0.75rem', margin: '-0.1rem 0 0.5rem' },
   blockerSection: {
-    background: '#fff5f5',
-    border: '1px solid #fed7d7',
+    background: 'var(--error-bg)',
+    border: '1px solid var(--error-bg)',
     borderRadius: '6px',
     padding: '0.6rem',
     marginBottom: '0.5rem',
@@ -417,15 +421,15 @@ const rowStyles: Record<string, React.CSSProperties> = {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    color: '#718096',
+    color: 'var(--text-secondary)',
     fontSize: '0.8rem',
     padding: '0.1rem 0',
     marginBottom: '0.4rem',
   },
-  privateLabel: { color: '#a0aec0', fontWeight: 400, fontSize: '0.75rem' },
+  privateLabel: { color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.75rem' },
   doneBtn: {
     padding: '0.25rem 0.7rem',
-    background: '#38a169',
+    background: 'var(--success)',
     color: '#fff',
     border: 'none',
     borderRadius: '4px',
@@ -433,5 +437,5 @@ const rowStyles: Record<string, React.CSSProperties> = {
     fontSize: '0.8rem',
     fontWeight: 500,
   },
-  doneError: { color: '#e53e3e', fontSize: '0.8rem', marginLeft: '0.5rem' },
+  doneError: { color: 'var(--error)', fontSize: '0.8rem', marginLeft: '0.5rem' },
 };

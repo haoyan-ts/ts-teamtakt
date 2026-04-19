@@ -39,13 +39,13 @@ const CommentNode = ({ comment, recordId, depth, onMutated }: CommentNodeProps) 
   };
 
   return (
-    <div style={{ marginLeft: depth > 0 ? '1.5rem' : 0, borderLeft: depth > 0 ? '2px solid #e5e7eb' : 'none', paddingLeft: depth > 0 ? '0.75rem' : 0 }}>
-      <div style={{ padding: '0.5rem', borderRadius: '6px', background: '#f9fafb', marginBottom: '0.25rem' }}>
+    <div style={{ marginLeft: depth > 0 ? '1.5rem' : 0, borderLeft: depth > 0 ? '2px solid var(--border-subtle)' : 'none', paddingLeft: depth > 0 ? '0.75rem' : 0 }}>
+      <div style={{ padding: '0.5rem', borderRadius: '6px', background: 'var(--bg-secondary)', marginBottom: '0.25rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <span style={{ fontWeight: 600, fontSize: '0.875rem', color: '#111827' }}>
+          <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-h)' }}>
             {comment.author_name}
           </span>
-          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
             {new Date(comment.created_at).toLocaleString()}
             {comment.updated_at !== comment.created_at && ' (edited)'}
           </span>
@@ -59,7 +59,7 @@ const CommentNode = ({ comment, recordId, depth, onMutated }: CommentNodeProps) 
             onCancel={() => setEditing(false)}
           />
         ) : (
-          <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#374151' }}>
+          <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--text-body)' }}>
             {comment.body}
           </p>
         )}
@@ -69,7 +69,7 @@ const CommentNode = ({ comment, recordId, depth, onMutated }: CommentNodeProps) 
             {depth < 3 && (
               <button
                 onClick={() => setReplying((v) => !v)}
-                style={{ fontSize: '0.75rem', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                style={{ fontSize: '0.75rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
               >
                 Reply
               </button>
@@ -78,13 +78,13 @@ const CommentNode = ({ comment, recordId, depth, onMutated }: CommentNodeProps) 
               <>
                 <button
                   onClick={() => setEditing(true)}
-                  style={{ fontSize: '0.75rem', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                 >
                   Edit
                 </button>
                 <button
                   onClick={handleDelete}
-                  style={{ fontSize: '0.75rem', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  style={{ fontSize: '0.75rem', color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                 >
                   Delete
                 </button>

@@ -89,12 +89,12 @@ export const QuarterlyReportPage = () => {
       </div>
 
       {error && (
-        <div style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem' }}>
+        <div style={{ color: 'var(--error)', background: 'var(--error-bg)', border: '1px solid var(--error-bg)', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem' }}>
           {error}
         </div>
       )}
 
-      {loading && <p style={{ color: '#9ca3af' }}>Loading…</p>}
+      {loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
 
       {!loading && (
         <>
@@ -131,7 +131,7 @@ export const QuarterlyReportPage = () => {
                       padding: '0.5rem 1.5rem',
                       border: 'none',
                       borderRadius: '6px',
-                      background: finalizing ? '#bfdbfe' : '#16a34a',
+                      background: finalizing ? 'var(--primary-bg)' : 'var(--success)',
                       color: 'white',
                       cursor: finalizing ? 'not-allowed' : 'pointer',
                       fontWeight: 600,
@@ -144,7 +144,7 @@ export const QuarterlyReportPage = () => {
               )}
 
               {isFinalized && report.finalized_at && (
-                <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                   Finalized on {new Date(report.finalized_at).toLocaleDateString()}
                 </p>
               )}

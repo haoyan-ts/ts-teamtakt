@@ -69,7 +69,7 @@ export const FeedPage = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Feed</h1>
         {user?.is_leader && (
-          <div style={{ display: 'flex', gap: 0, border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', gap: 0, border: '1px solid var(--border-subtle)', borderRadius: '6px', overflow: 'hidden' }}>
             {(['team', 'all'] as const).map((s) => (
               <button
                 key={s}
@@ -77,8 +77,8 @@ export const FeedPage = () => {
                 style={{
                   padding: '0.375rem 1rem',
                   border: 'none',
-                  background: scope === s ? '#2563eb' : 'white',
-                  color: scope === s ? 'white' : '#374151',
+                  background: scope === s ? 'var(--primary)' : 'var(--bg)',
+                  color: scope === s ? '#fff' : 'var(--text-body)',
                   cursor: 'pointer',
                   fontSize: '0.875rem',
                   fontWeight: scope === s ? 600 : 400,
@@ -92,7 +92,7 @@ export const FeedPage = () => {
       </div>
 
       {error && (
-        <div style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem' }}>
+        <div style={{ color: 'var(--error)', background: 'var(--error-bg)', border: '1px solid var(--error-bg)', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem' }}>
           {error}
         </div>
       )}
@@ -104,7 +104,7 @@ export const FeedPage = () => {
       </div>
 
       {loading && (
-        <p style={{ textAlign: 'center', color: '#9ca3af', marginTop: '1rem' }}>Loading…</p>
+        <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '1rem' }}>Loading…</p>
       )}
 
       {!loading && hasMore && items.length > 0 && (
@@ -113,12 +113,12 @@ export const FeedPage = () => {
             onClick={() => loadItems()}
             style={{
               padding: '0.5rem 1.5rem',
-              background: 'white',
-              border: '1px solid #e5e7eb',
+              background: 'var(--bg)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: '6px',
               cursor: 'pointer',
               fontSize: '0.875rem',
-              color: '#374151',
+              color: 'var(--text-body)',
             }}
           >
             Load more
@@ -127,7 +127,7 @@ export const FeedPage = () => {
       )}
 
       {!loading && items.length === 0 && !error && (
-        <div style={{ textAlign: 'center', color: '#9ca3af', marginTop: '3rem', fontSize: '1rem' }}>
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '3rem', fontSize: '1rem' }}>
           No records to show yet.
         </div>
       )}

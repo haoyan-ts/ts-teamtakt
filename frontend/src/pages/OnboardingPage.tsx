@@ -33,22 +33,22 @@ export const OnboardingPage = () => {
   return (
     <div style={{ maxWidth: '480px', margin: '4rem auto', padding: '2rem', textAlign: 'center' }}>
       <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{t('onboarding.title')}</h1>
-      <p style={{ color: '#6b7280', marginBottom: '2rem' }}>{t('onboarding.subtitle')}</p>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>{t('onboarding.subtitle')}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
         {teams.map((team) => (
-          <div key={team.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
+          <div key={team.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', border: '1px solid var(--border-subtle)', borderRadius: '6px' }}>
             <span>{team.name}</span>
             {requested.has(team.id) ? (
-              <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>{t('onboarding.pending')}</span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('onboarding.pending')}</span>
             ) : (
-              <button onClick={() => handleRequest(team.id)} style={{ padding: '0.375rem 0.75rem', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+              <button onClick={() => handleRequest(team.id)} style={{ padding: '0.375rem 0.75rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                 {t('onboarding.requestJoin')}
               </button>
             )}
           </div>
         ))}
       </div>
-      <button onClick={handleSignOut} style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', textDecoration: 'underline' }}>
+      <button onClick={handleSignOut} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', textDecoration: 'underline' }}>
         {t('auth.signOut')}
       </button>
     </div>

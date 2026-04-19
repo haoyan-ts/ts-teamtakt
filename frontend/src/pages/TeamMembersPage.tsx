@@ -19,7 +19,7 @@ export const TeamMembersPage = () => {
   }, [user?.team?.id]);
 
   if (!user?.team) {
-    return <p style={{ color: '#718096' }}>You are not currently assigned to a team.</p>;
+    return <p style={{ color: 'var(--text-secondary)' }}>You are not currently assigned to a team.</p>;
   }
 
   return (
@@ -27,13 +27,13 @@ export const TeamMembersPage = () => {
       <h2 style={{ marginBottom: '1rem' }}>{user.team.name}</h2>
 
       {loading && <p>Loading…</p>}
-      {error && <p style={{ color: '#e53e3e' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--error)' }}>{error}</p>}
 
       {!loading && !error && (
         <div style={sectionStyle}>
           <h3 style={sectionTitle}>Members</h3>
           {members.length === 0 ? (
-            <p style={{ color: '#718096', fontSize: '0.85rem' }}>No active members.</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No active members.</p>
           ) : (
             <table style={tableStyle}>
               <thead>
@@ -65,11 +65,11 @@ export const TeamMembersPage = () => {
 };
 
 const sectionStyle: React.CSSProperties = {
-  border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', background: '#fff',
+  border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem', background: 'var(--bg)',
 };
 const sectionTitle: React.CSSProperties = { margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 600 };
 const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' };
 const th: React.CSSProperties = {
-  textAlign: 'left', padding: '0.3rem 0.5rem', fontWeight: 600, borderBottom: '2px solid #e2e8f0',
+  textAlign: 'left', padding: '0.3rem 0.5rem', fontWeight: 600, borderBottom: '2px solid var(--border)',
 };
 const td: React.CSSProperties = { padding: '0.4rem 0.5rem', verticalAlign: 'middle' };

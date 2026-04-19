@@ -59,10 +59,12 @@ export const TeamThresholdSettingsPage = () => {
 
   const inputStyle: React.CSSProperties = {
     width: '80px',
-    border: '1px solid #cbd5e0',
+    border: '1px solid var(--border-strong)',
     borderRadius: 4,
     padding: '2px 6px',
     fontSize: '0.9rem',
+    background: 'var(--bg)',
+    color: 'var(--text-h)',
   };
 
   return (
@@ -72,7 +74,7 @@ export const TeamThresholdSettingsPage = () => {
         {FIELDS.map(({ key, label, min, max, hint }) => (
           <div key={key}>
             <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: '2px' }}>{label}</label>
-            <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0 0 4px' }}>{hint}</p>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0 0 4px' }}>{hint}</p>
             <input
               type="number"
               min={min}
@@ -84,17 +86,17 @@ export const TeamThresholdSettingsPage = () => {
           </div>
         ))}
       </div>
-      {error && <p style={{ color: '#e53e3e', fontSize: '0.85rem' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--error)', fontSize: '0.85rem' }}>{error}</p>}
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <button
           onClick={handleSave}
           disabled={saving}
-          style={{ padding: '0.4rem 1.2rem', background: '#3182ce', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+          style={{ padding: '0.4rem 1.2rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
-        {saved && <span style={{ color: '#38a169', fontSize: '0.85rem', alignSelf: 'center' }}>Saved ✓</span>}
-        <a href="/team" style={{ alignSelf: 'center', fontSize: '0.85rem', color: '#718096' }}>← Back</a>
+        {saved && <span style={{ color: 'var(--success)', fontSize: '0.85rem', alignSelf: 'center' }}>Saved ✓</span>}
+        <a href="/team" style={{ alignSelf: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>← Back</a>
       </div>
     </div>
   );

@@ -126,32 +126,32 @@ function EmailEditor({
 
   return (
     <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-      <button onClick={onBack} style={{ marginBottom: '1rem', background: 'none', border: 'none', color: '#3182ce', cursor: 'pointer', fontSize: '0.85rem' }}>
+      <button onClick={onBack} style={{ marginBottom: '1rem', background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.85rem' }}>
         ← Back to Report
       </button>
       <h3>Weekly Email Draft — {weekLabel(weekStart)}</h3>
 
       {!draft ? (
         <div>
-          <p style={{ color: '#718096', fontSize: '0.88rem' }}>No draft yet. Generate one with AI:</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>No draft yet. Generate one with AI:</p>
           <button onClick={handleGenerate} disabled={generating}
-            style={{ padding: '0.4rem 1rem', background: '#805ad5', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+            style={{ padding: '0.4rem 1rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
             {generating ? 'Generating…' : '✨ Generate Draft'}
           </button>
-          {error && <p style={{ color: '#e53e3e', fontSize: '0.85rem', marginTop: '0.5rem' }}>{error}</p>}
+          {error && <p style={{ color: 'var(--error)', fontSize: '0.85rem', marginTop: '0.5rem' }}>{error}</p>}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {sent && (
-            <div style={{ background: '#f0fff4', border: '1px solid #9ae6b4', borderRadius: 6, padding: '0.5rem 0.75rem', fontSize: '0.85rem', color: '#276749' }}>
+            <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-bg)', borderRadius: 6, padding: '0.5rem 0.75rem', fontSize: '0.85rem', color: 'var(--success)' }}>
               ✓ Sent at {new Date(draft.last_sent_at!).toLocaleString()}
-              {cooldown && <span style={{ marginLeft: '1rem', color: '#718096' }}>Cooldown: {fmt5minLeft(draft.last_sent_at!)}</span>}
+              {cooldown && <span style={{ marginLeft: '1rem', color: 'var(--text-secondary)' }}>Cooldown: {fmt5minLeft(draft.last_sent_at!)}</span>}
             </div>
           )}
           <div>
             <label style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', marginBottom: 2 }}>Subject</label>
             <input value={draft.subject} onChange={(e) => handleChange('subject', e.target.value)}
-              style={{ width: '100%', border: '1px solid #cbd5e0', borderRadius: 4, padding: '4px 8px', fontSize: '0.88rem' }} />
+              style={{ width: '100%', border: '1px solid var(--border-strong)', borderRadius: 4, padding: '4px 8px', fontSize: '0.88rem', background: 'var(--bg)', color: 'var(--text-h)' }} />
           </div>
           {(['tasks', 'highlights', 'next_week'] as const).map((section) => (
             <div key={section}>
@@ -162,24 +162,24 @@ function EmailEditor({
                 value={draft.body_sections[section]}
                 onChange={(e) => handleChange(section, e.target.value)}
                 rows={5}
-                style={{ width: '100%', border: '1px solid #cbd5e0', borderRadius: 4, padding: '6px 8px', fontSize: '0.85rem', fontFamily: 'inherit', resize: 'vertical' }}
+                style={{ width: '100%', border: '1px solid var(--border-strong)', borderRadius: 4, padding: '6px 8px', fontSize: '0.85rem', fontFamily: 'inherit', resize: 'vertical', background: 'var(--bg)', color: 'var(--text-h)' }}
               />
             </div>
           ))}
-          {error && <p style={{ color: '#e53e3e', fontSize: '0.85rem' }}>{error}</p>}
+          {error && <p style={{ color: 'var(--error)', fontSize: '0.85rem' }}>{error}</p>}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button onClick={handleSave}
-              style={{ padding: '0.4rem 1rem', background: '#3182ce', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.85rem' }}>
+              style={{ padding: '0.4rem 1rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.85rem' }}>
               Save Draft
             </button>
             <button onClick={handleGenerate} disabled={generating}
-              style={{ padding: '0.4rem 1rem', background: '#805ad5', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.85rem' }}>
+              style={{ padding: '0.4rem 1rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.85rem' }}>
               {generating ? 'Regenerating…' : '↻ Regenerate'}
             </button>
             <button
               onClick={() => setShowConfirm(true)}
               disabled={sent && cooldown}
-              style={{ padding: '0.4rem 1rem', background: sent && cooldown ? '#a0aec0' : '#38a169', color: '#fff', border: 'none', borderRadius: 6, cursor: sent && cooldown ? 'not-allowed' : 'pointer', fontSize: '0.85rem' }}>
+              style={{ padding: '0.4rem 1rem', background: sent && cooldown ? 'var(--text-muted)' : 'var(--success)', color: '#fff', border: 'none', borderRadius: 6, cursor: sent && cooldown ? 'not-allowed' : 'pointer', fontSize: '0.85rem' }}>
               Send Email
             </button>
           </div>
@@ -191,19 +191,19 @@ function EmailEditor({
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
         }}>
-          <div style={{ background: '#fff', borderRadius: 10, padding: '1.5rem', maxWidth: 500, width: '90%' }}>
+          <div style={{ background: 'var(--bg)', borderRadius: 10, padding: '1.5rem', maxWidth: 500, width: '90%' }}>
             <h4 style={{ margin: '0 0 0.5rem' }}>Send Email?</h4>
             <p style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>Subject: <strong>{draft.subject}</strong></p>
-            <p style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
               The email will be sent from your account to your leader and configured CC addresses.
             </p>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button onClick={handleSend} disabled={sending}
-                style={{ padding: '0.4rem 1rem', background: '#38a169', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+                style={{ padding: '0.4rem 1rem', background: 'var(--success)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
                 {sending ? 'Sending…' : 'Confirm Send'}
               </button>
               <button onClick={() => setShowConfirm(false)}
-                style={{ padding: '0.4rem 1rem', background: 'none', border: '1px solid #cbd5e0', borderRadius: 6, cursor: 'pointer' }}>
+                style={{ padding: '0.4rem 1rem', background: 'none', border: '1px solid var(--border-strong)', borderRadius: 6, cursor: 'pointer' }}>
                 Cancel
               </button>
             </div>
@@ -261,7 +261,7 @@ export const WeeklyReportPage = () => {
     return <EmailEditor weekStart={weekStart} onBack={() => setShowEmail(false)} />;
   }
 
-  const card: React.CSSProperties = { border: '1px solid #e2e8f0', borderRadius: 8, padding: '1rem', background: '#fff' };
+  const card: React.CSSProperties = { border: '1px solid var(--border)', borderRadius: 8, padding: '1rem', background: 'var(--bg)' };
   const cardTitle: React.CSSProperties = { margin: '0 0 0.75rem', fontSize: '0.95rem', fontWeight: 600 };
 
   return (
@@ -271,16 +271,16 @@ export const WeeklyReportPage = () => {
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <label style={{ fontSize: '0.85rem' }}>
             Week starting: <input type="date" value={weekStart} onChange={handleWeekChange}
-              style={{ border: '1px solid #cbd5e0', borderRadius: 4, padding: '2px 6px', fontSize: '0.83rem' }} />
+              style={{ border: '1px solid var(--border-strong)', borderRadius: 4, padding: '2px 6px', fontSize: '0.83rem', background: 'var(--bg)', color: 'var(--text-h)' }} />
           </label>
           {report && (
             <>
               <a href={`/api/v1/export/my-records?start_date=${weekStart}&end_date=${new Date(new Date(weekStart).getTime() + 6 * 86400000).toISOString().slice(0, 10)}&format=csv`}
-                style={{ fontSize: '0.82rem', color: '#3182ce', marginLeft: '0.5rem' }}>↓ CSV</a>
+                style={{ fontSize: '0.82rem', color: 'var(--primary)', marginLeft: '0.5rem' }}>↓ CSV</a>
               <a href={`/api/v1/export/my-records?start_date=${weekStart}&end_date=${new Date(new Date(weekStart).getTime() + 6 * 86400000).toISOString().slice(0, 10)}&format=xlsx`}
-                style={{ fontSize: '0.82rem', color: '#3182ce' }}>↓ XLSX</a>
+                style={{ fontSize: '0.82rem', color: 'var(--primary)' }}>↓ XLSX</a>
               <button onClick={() => setShowEmail(true)}
-                style={{ padding: '0.3rem 0.8rem', background: '#805ad5', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.82rem' }}>
+                style={{ padding: '0.3rem 0.8rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.82rem' }}>
                 ✉ Email Draft
               </button>
             </>
@@ -292,9 +292,9 @@ export const WeeklyReportPage = () => {
         <p>Loading…</p>
       ) : !report ? (
         <div style={{ ...card, textAlign: 'center', padding: '2rem' }}>
-          <p style={{ color: '#718096', marginBottom: '1rem' }}>No report for {weekLabel(weekStart)} yet.</p>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>No report for {weekLabel(weekStart)} yet.</p>
           <button onClick={handleGenerate} disabled={generating}
-            style={{ padding: '0.5rem 1.5rem', background: '#3182ce', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+            style={{ padding: '0.5rem 1.5rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
             {generating ? 'Generating…' : 'Generate Report'}
           </button>
         </div>
@@ -310,7 +310,7 @@ export const WeeklyReportPage = () => {
             ].map((kpi) => (
               <div key={kpi.label} style={{ textAlign: 'center', flex: '1 1 80px' }}>
                 <div style={{ fontSize: '1.6rem', fontWeight: 700 }}>{kpi.value}</div>
-                <div style={{ fontSize: '0.75rem', color: '#718096' }}>{kpi.label}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{kpi.label}</div>
               </div>
             ))}
           </div>
@@ -319,7 +319,7 @@ export const WeeklyReportPage = () => {
           <div style={card}>
             <h3 style={cardTitle}>Category Breakdown</h3>
             {Object.keys(report.data.category_breakdown).length === 0 ? (
-              <p style={{ fontSize: '0.85rem', color: '#a0aec0' }}>No data.</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No data.</p>
             ) : (
               <ResponsiveContainer width="100%" height={180}>
                 <BarChart
@@ -339,7 +339,7 @@ export const WeeklyReportPage = () => {
           <div style={card}>
             <h3 style={cardTitle}>Top Projects</h3>
             {report.data.top_projects.length === 0 ? (
-              <p style={{ fontSize: '0.85rem', color: '#a0aec0' }}>No data.</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No data.</p>
             ) : (
               <ResponsiveContainer width="100%" height={180}>
                 <BarChart
@@ -359,11 +359,11 @@ export const WeeklyReportPage = () => {
           <div style={card}>
             <h3 style={cardTitle}>Self-assessment Tags</h3>
             {Object.keys(report.data.tag_distribution).length === 0 ? (
-              <p style={{ fontSize: '0.85rem', color: '#a0aec0' }}>No data.</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No data.</p>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '0.85rem' }}>
                 {Object.entries(report.data.tag_distribution).map(([tag, count]) => (
-                  <li key={tag} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid #f7fafc' }}>
+                  <li key={tag} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid var(--bg-tertiary)' }}>
                     <span>{tag}</span><strong>{count}</strong>
                   </li>
                 ))}

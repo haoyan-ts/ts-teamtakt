@@ -57,23 +57,23 @@ const TodayStatusCard = ({ records, isAbsent, today }: TodayStatusCardProps) => 
   const todayRecord = records.find((r) => r.record_date === today);
 
   let label = 'No entry yet';
-  let bgColor = '#f7fafc';
-  let borderColor = '#e2e8f0';
+  let bgColor = 'var(--bg-tertiary)';
+  let borderColor = 'var(--border)';
 
   if (isAbsent) {
     label = 'Absent today';
-    bgColor = '#ebf8ff';
-    borderColor = '#bee3f8';
+    bgColor = 'var(--bg-info)';
+    borderColor = 'var(--border)';
   } else if (todayRecord) {
     label = `${todayRecord.daily_work_logs.length} tasks — day load ${todayRecord.day_load ?? '?'}/5`;
-    bgColor = '#f0fff4';
-    borderColor = '#9ae6b4';
+    bgColor = 'var(--success-bg)';
+    borderColor = 'var(--border)';
   }
 
   return (
     <div style={{ ...cardStyle, background: bgColor, borderColor }}>
       <h3 style={cardTitle}>Today — {today}</h3>
-      <p style={{ margin: '0.25rem 0 0.75rem', color: '#4a5568' }}>{label}</p>
+      <p style={{ margin: '0.25rem 0 0.75rem', color: 'var(--text-body)' }}>{label}</p>
       <button onClick={() => navigate(`/daily/${today}`)} style={ctaBtn}>
         {todayRecord ? "Edit today's record" : "Fill today's record"}
       </button>
@@ -103,7 +103,7 @@ const RunningBlockedCard = ({ tasks, categories }: RunningBlockedCardProps) => {
         <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
           {running.map((t) => (
             <li key={t.id} style={{ marginBottom: '0.3rem' }}>
-              <span style={{ color: '#2b6cb0', marginRight: '0.4rem' }}>▶</span>
+              <span style={{ color: 'var(--primary)', marginRight: '0.4rem' }}>▶</span>
               <button
                 style={linkBtn}
                 onClick={() => navigate(`/daily/${todayISO()}`)}
@@ -115,7 +115,7 @@ const RunningBlockedCard = ({ tasks, categories }: RunningBlockedCardProps) => {
           ))}
           {blocked.map((t) => (
             <li key={t.id} style={{ marginBottom: '0.3rem' }}>
-              <span style={{ color: '#e53e3e', marginRight: '0.4rem' }}>⛔</span>
+              <span style={{ color: 'var(--error)', marginRight: '0.4rem' }}>⛔</span>
               <button
                 style={linkBtn}
                 onClick={() => navigate(`/daily/${todayISO()}`)}
@@ -271,7 +271,7 @@ const BlockerHistoryCard = ({ records }: BlockerHistoryCardProps) => {
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+            <tr style={{ borderBottom: '2px solid var(--border)' }}>
               <th style={th}>Date</th>
               <th style={th}>Task</th>
               <th style={th}>Status</th>
@@ -282,7 +282,7 @@ const BlockerHistoryCard = ({ records }: BlockerHistoryCardProps) => {
               <tr
                 key={i}
                 style={{
-                  borderBottom: '1px solid #e2e8f0',
+                  borderBottom: '1px solid var(--border)',
                   opacity: b.status === 'done' ? 0.6 : 1,
                   textDecoration: b.status === 'done' ? 'line-through' : 'none',
                 }}
@@ -333,7 +333,7 @@ export const DashboardPage = () => {
   }, []);
 
   if (loading) return <div>Loading dashboard…</div>;
-  if (error) return <div style={{ color: '#e53e3e' }}>{error}</div>;
+  if (error) return <div style={{ color: 'var(--error)' }}>{error}</div>;
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto' }}>
@@ -353,15 +353,15 @@ export const DashboardPage = () => {
 // Styles
 // ---------------------------------------------------------------------------
 const cardStyle: React.CSSProperties = {
-  border: '1px solid #e2e8f0',
+  border: '1px solid var(--border)',
   borderRadius: '8px',
   padding: '1rem',
-  background: '#fff',
+  background: 'var(--bg)',
 };
 const cardTitle: React.CSSProperties = { margin: '0 0 0.5rem', fontSize: '0.95rem', fontWeight: 600 };
 const ctaBtn: React.CSSProperties = {
   padding: '0.4rem 1rem',
-  background: '#3182ce',
+  background: 'var(--primary)',
   color: '#fff',
   border: 'none',
   borderRadius: '6px',
@@ -371,19 +371,19 @@ const ctaBtn: React.CSSProperties = {
 const linkBtn: React.CSSProperties = {
   background: 'none',
   border: 'none',
-  color: '#3182ce',
+  color: 'var(--primary)',
   cursor: 'pointer',
   padding: 0,
   fontSize: 'inherit',
   textDecoration: 'underline',
 };
-const metaText: React.CSSProperties = { fontSize: '0.8rem', color: '#718096', margin: 0 };
-const emptyText: React.CSSProperties = { fontSize: '0.85rem', color: '#a0aec0', fontStyle: 'italic' };
+const metaText: React.CSSProperties = { fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 };
+const emptyText: React.CSSProperties = { fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' };
 const grid: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
   gap: '1rem',
   marginTop: '1rem',
 };
-const th: React.CSSProperties = { textAlign: 'left', padding: '0.3rem 0.5rem', fontWeight: 600, color: '#4a5568' };
+const th: React.CSSProperties = { textAlign: 'left', padding: '0.3rem 0.5rem', fontWeight: 600, color: 'var(--text-body)' };
 const td: React.CSSProperties = { padding: '0.3rem 0.5rem' };

@@ -49,7 +49,7 @@ export const TeamQuarterlyReportPage = () => {
   }, [quarter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!teamId) {
-    return <p style={{ color: '#9ca3af' }}>Not assigned to a team.</p>;
+    return <p style={{ color: 'var(--text-muted)' }}>Not assigned to a team.</p>;
   }
 
   return (
@@ -60,17 +60,17 @@ export const TeamQuarterlyReportPage = () => {
       </div>
 
       {error && (
-        <div style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem' }}>
+        <div style={{ color: 'var(--error)', background: 'var(--error-bg)', border: '1px solid var(--error-bg)', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem' }}>
           {error}
         </div>
       )}
 
-      {loading && <p style={{ color: '#9ca3af' }}>Loading…</p>}
+      {loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
 
       {!loading && !selectedReport && (
         <>
           {reports.length === 0 ? (
-            <p style={{ color: '#9ca3af' }}>No finalized reports for {quarter}.</p>
+            <p style={{ color: 'var(--text-muted)' }}>No finalized reports for {quarter}.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {reports.map((r) => (
@@ -82,8 +82,8 @@ export const TeamQuarterlyReportPage = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '1rem 1.25rem',
-                    background: 'white',
-                    border: '1px solid #e5e7eb',
+                    background: 'var(--bg)',
+                    border: '1px solid var(--border-subtle)',
                     borderRadius: '8px',
                     cursor: 'pointer',
                     textAlign: 'left',
@@ -91,10 +91,10 @@ export const TeamQuarterlyReportPage = () => {
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: 600, color: '#111827', fontSize: '1rem' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-h)', fontSize: '1rem' }}>
                       Team Member
                     </div>
-                    <div style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: '0.125rem' }}>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.125rem' }}>
                       {r.finalized_at ? `Finalized ${new Date(r.finalized_at).toLocaleDateString()}` : ''}
                     </div>
                   </div>
@@ -110,7 +110,7 @@ export const TeamQuarterlyReportPage = () => {
         <div>
           <button
             onClick={() => setSelectedReport(null)}
-            style={{ marginBottom: '1rem', fontSize: '0.875rem', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
           >
             ← Back to list
           </button>

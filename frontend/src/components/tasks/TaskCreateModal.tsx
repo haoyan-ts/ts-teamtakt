@@ -198,8 +198,8 @@ export const TaskCreateModal = ({
             )}
           </div>
           {autofilling && <p style={s.autofillNote}>Fetching GitHub Issue…</p>}
-          {autofillMsg && <p style={{ ...s.autofillNote, color: '#2b6cb0' }}>{autofillMsg}</p>}
-          {autofillError && <p style={{ ...s.autofillNote, color: '#e53e3e' }}>{autofillError}</p>}
+          {autofillMsg && <p style={{ ...s.autofillNote, color: 'var(--primary)' }}>{autofillMsg}</p>}
+          {autofillError && <p style={{ ...s.autofillNote, color: 'var(--error)' }}>{autofillError}</p>}
 
           {/* Title */}
           <div style={s.fieldRow}>
@@ -316,7 +316,7 @@ export const TaskCreateModal = ({
                   Cancel
                 </button>
               </div>
-              {projectError && <p style={{ color: '#e53e3e', fontSize: '0.75rem', margin: '0.3rem 0 0' }}>{projectError}</p>}
+              {projectError && <p style={{ color: 'var(--error)', fontSize: '0.75rem', margin: '0.3rem 0 0' }}>{projectError}</p>}
             </div>
           )}
 
@@ -391,7 +391,7 @@ const modalStyles: Record<string, React.CSSProperties> = {
     zIndex: 1000,
   },
   panel: {
-    background: '#fff',
+    background: 'var(--bg)',
     borderRadius: '10px',
     padding: '1.5rem',
     width: '100%',
@@ -412,7 +412,7 @@ const modalStyles: Record<string, React.CSSProperties> = {
     border: 'none',
     fontSize: '1rem',
     cursor: 'pointer',
-    color: '#718096',
+    color: 'var(--text-secondary)',
   },
   fieldRow: {
     display: 'flex',
@@ -424,22 +424,26 @@ const modalStyles: Record<string, React.CSSProperties> = {
   label: {
     fontSize: '0.85rem',
     fontWeight: 600,
-    color: '#4a5568',
+    color: 'var(--text-body)',
     minWidth: '7rem',
   },
   input: {
     flex: 1,
     padding: '0.35rem 0.6rem',
-    border: '1px solid #cbd5e0',
+    border: '1px solid var(--border-strong)',
     borderRadius: '5px',
     fontSize: '0.875rem',
     minWidth: '160px',
+    background: 'var(--bg)',
+    color: 'var(--text-h)',
   },
   select: {
     padding: '0.35rem 0.5rem',
-    border: '1px solid #cbd5e0',
+    border: '1px solid var(--border-strong)',
     borderRadius: '5px',
     fontSize: '0.875rem',
+    background: 'var(--bg)',
+    color: 'var(--text-h)',
   },
   lockedUrl: {
     display: 'flex',
@@ -447,9 +451,9 @@ const modalStyles: Record<string, React.CSSProperties> = {
     gap: '0.4rem',
     flex: 1,
     fontSize: '0.875rem',
-    color: '#4a5568',
-    background: '#f7fafc',
-    border: '1px solid #e2e8f0',
+    color: 'var(--text-body)',
+    background: 'var(--bg-tertiary)',
+    border: '1px solid var(--border)',
     borderRadius: '5px',
     padding: '0.35rem 0.6rem',
   },
@@ -457,7 +461,7 @@ const modalStyles: Record<string, React.CSSProperties> = {
   inlineBtn: {
     padding: '0.2rem 0.5rem',
     background: 'none',
-    border: '1px solid #cbd5e0',
+    border: '1px solid var(--border-strong)',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '0.8rem',
@@ -465,13 +469,13 @@ const modalStyles: Record<string, React.CSSProperties> = {
   inlineForm: {
     marginBottom: '0.75rem',
     padding: '0.75rem',
-    background: '#f7fafc',
-    border: '1px solid #e2e8f0',
+    background: 'var(--bg-tertiary)',
+    border: '1px solid var(--border)',
     borderRadius: '6px',
   },
   createBtn: {
     padding: '0.3rem 0.75rem',
-    background: '#3182ce',
+    background: 'var(--primary)',
     color: '#fff',
     border: 'none',
     borderRadius: '4px',
@@ -481,15 +485,15 @@ const modalStyles: Record<string, React.CSSProperties> = {
   },
   cancelBtn: {
     padding: '0.35rem 0.9rem',
-    background: '#edf2f7',
-    border: '1px solid #e2e8f0',
+    background: 'var(--bg-tertiary)',
+    border: '1px solid var(--border)',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '0.875rem',
   },
   autofillNote: {
     fontSize: '0.8rem',
-    color: '#718096',
+    color: 'var(--text-secondary)',
     margin: '-0.25rem 0 0.5rem',
     fontStyle: 'italic',
   },
@@ -501,7 +505,7 @@ const modalStyles: Record<string, React.CSSProperties> = {
   },
   saveBtn: {
     padding: '0.4rem 1.1rem',
-    background: '#48bb78',
+    background: 'var(--success)',
     color: '#fff',
     border: 'none',
     borderRadius: '6px',
@@ -510,7 +514,7 @@ const modalStyles: Record<string, React.CSSProperties> = {
     fontSize: '0.875rem',
   },
   errorMsg: {
-    color: '#e53e3e',
+    color: 'var(--error)',
     fontSize: '0.85rem',
     margin: '0.25rem 0 0.5rem',
   },

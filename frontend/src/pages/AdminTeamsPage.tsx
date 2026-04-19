@@ -22,7 +22,7 @@ function ConfirmDialog({
 }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: '#fff', borderRadius: '8px', padding: '1.5rem', maxWidth: '400px' }}>
+      <div style={{ background: 'var(--bg)', borderRadius: '8px', padding: '1.5rem', maxWidth: '400px' }}>
         <p style={{ margin: '0 0 1rem' }}>{message}</p>
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
           <button onClick={onCancel} style={cancelBtn}>Cancel</button>
@@ -65,7 +65,7 @@ function CreateTeamModal({
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: '#fff', borderRadius: '8px', padding: '1.5rem', width: '360px' }}>
+      <div style={{ background: 'var(--bg)', borderRadius: '8px', padding: '1.5rem', width: '360px' }}>
         <h3 style={{ margin: '0 0 1rem' }}>Create Team</h3>
         <input
           style={{ ...inputStyle, display: 'block', width: '100%', boxSizing: 'border-box', marginBottom: '0.5rem' }}
@@ -75,7 +75,7 @@ function CreateTeamModal({
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           autoFocus
         />
-        {error && <p style={{ color: '#e53e3e', fontSize: '0.8rem', margin: '0 0 0.5rem' }}>{error}</p>}
+        {error && <p style={{ color: 'var(--error)', fontSize: '0.8rem', margin: '0 0 0.5rem' }}>{error}</p>}
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
           <button onClick={onClose} style={cancelBtn}>Cancel</button>
           <button onClick={submit} disabled={saving} style={primaryBtn}>
@@ -144,12 +144,12 @@ export const AdminTeamsPage = () => {
         <button style={primaryBtn} onClick={() => setShowCreate(true)}>Create Team</button>
       </div>
 
-      {error && <p style={{ color: '#e53e3e', marginBottom: '1rem' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--error)', marginBottom: '1rem' }}>{error}</p>}
 
       {loading ? (
         <p>Loading…</p>
       ) : teams.length === 0 ? (
-        <p style={{ color: '#718096' }}>No teams yet. Create one to get started.</p>
+        <p style={{ color: 'var(--text-secondary)' }}>No teams yet. Create one to get started.</p>
       ) : (
         <div style={sectionStyle}>
           <table style={tableStyle}>
@@ -191,30 +191,31 @@ export const AdminTeamsPage = () => {
 // Styles
 // ---------------------------------------------------------------------------
 const sectionStyle: React.CSSProperties = {
-  border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', background: '#fff',
+  border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem', background: 'var(--bg)',
 };
 const tableStyle: React.CSSProperties = {
   width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem',
 };
 const th: React.CSSProperties = {
-  textAlign: 'left', padding: '0.3rem 0.5rem', fontWeight: 600, borderBottom: '2px solid #e2e8f0',
+  textAlign: 'left', padding: '0.3rem 0.5rem', fontWeight: 600, borderBottom: '2px solid var(--border)',
 };
 const td: React.CSSProperties = { padding: '0.4rem 0.5rem', verticalAlign: 'middle' };
 const inputStyle: React.CSSProperties = {
-  border: '1px solid #e2e8f0', borderRadius: '4px', padding: '0.3rem 0.5rem',
+  border: '1px solid var(--border)', borderRadius: '4px', padding: '0.3rem 0.5rem',
+  background: 'var(--bg)', color: 'var(--text-h)',
 };
 const primaryBtn: React.CSSProperties = {
-  padding: '0.35rem 0.75rem', background: '#3182ce', color: '#fff', border: 'none',
+  padding: '0.35rem 0.75rem', background: 'var(--primary)', color: '#fff', border: 'none',
   borderRadius: '4px', cursor: 'pointer', fontWeight: 500,
 };
 const tinyBtn: React.CSSProperties = {
-  padding: '0.2rem 0.5rem', background: '#edf2f7', border: '1px solid #e2e8f0',
+  padding: '0.2rem 0.5rem', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
   borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem',
 };
 const dangerTinyBtn: React.CSSProperties = {
-  ...tinyBtn, background: '#fff5f5', border: '1px solid #fed7d7', color: '#c53030',
+  ...tinyBtn, background: 'var(--error-bg)', border: '1px solid var(--error-bg)', color: 'var(--error)',
 };
 const cancelBtn: React.CSSProperties = { ...tinyBtn, padding: '0.4rem 1rem' };
 const dangerBtn: React.CSSProperties = {
-  ...primaryBtn, background: '#e53e3e', padding: '0.4rem 1rem',
+  ...primaryBtn, background: 'var(--error)', padding: '0.4rem 1rem',
 };

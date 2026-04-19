@@ -32,10 +32,11 @@ export const QuarterSelector = ({ value, onChange }: QuarterSelectorProps) => {
       onChange={(e) => onChange(e.target.value)}
       style={{
         padding: '0.375rem 0.75rem',
-        border: '1px solid #e5e7eb',
+        border: '1px solid var(--border-subtle)',
         borderRadius: '6px',
         fontSize: '0.875rem',
-        background: 'white',
+        background: 'var(--bg)',
+        color: 'var(--text-h)',
       }}
     >
       {options.map((q) => (

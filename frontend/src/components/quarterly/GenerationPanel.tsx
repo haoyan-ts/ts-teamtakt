@@ -33,8 +33,8 @@ export const GenerationPanel = ({ quarter, existing, onGenerated }: GenerationPa
 
   return (
     <div style={{
-      background: 'white',
-      border: '1px solid #e5e7eb',
+      background: 'var(--bg)',
+      border: '1px solid var(--border-subtle)',
       borderRadius: '10px',
       padding: '1.25rem',
       display: 'flex',
@@ -48,11 +48,11 @@ export const GenerationPanel = ({ quarter, existing, onGenerated }: GenerationPa
       <GuidanceInput value={guidance} onChange={setGuidance} disabled={isGenerating || busy} />
 
       {error && (
-        <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>{error}</div>
+        <div style={{ color: 'var(--error)', fontSize: '0.875rem' }}>{error}</div>
       )}
 
       {isGenerating && (
-        <div style={{ color: '#854d0e', background: '#fef9c3', borderRadius: '6px', padding: '0.625rem', fontSize: '0.875rem' }}>
+        <div style={{ color: 'var(--warning)', background: 'var(--warning-bg)', borderRadius: '6px', padding: '0.625rem', fontSize: '0.875rem' }}>
           Generation in progress — this may take a minute. Refresh to check status.
         </div>
       )}
@@ -65,7 +65,7 @@ export const GenerationPanel = ({ quarter, existing, onGenerated }: GenerationPa
           padding: '0.5rem 1.25rem',
           border: 'none',
           borderRadius: '6px',
-          background: busy || isGenerating ? '#bfdbfe' : '#2563eb',
+          background: busy || isGenerating ? 'var(--primary-bg)' : 'var(--primary)',
           color: 'white',
           cursor: busy || isGenerating ? 'not-allowed' : 'pointer',
           fontWeight: 600,

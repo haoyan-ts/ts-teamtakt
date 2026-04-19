@@ -42,17 +42,19 @@ export const TeamBalanceSettingsPage = () => {
 
   const inputStyle: React.CSSProperties = {
     width: '80px',
-    border: '1px solid #cbd5e0',
+    border: '1px solid var(--border-strong)',
     borderRadius: 4,
     padding: '2px 6px',
     fontSize: '0.9rem',
+    background: 'var(--bg)',
+    color: 'var(--text-h)',
   };
 
   return (
     <div style={{ maxWidth: '500px', margin: '0 auto' }}>
       <h2>Balance Targets</h2>
-      <p style={{ fontSize: '0.85rem', color: '#718096' }}>
-        Set target percentage for each category. Total: <strong style={{ color: total === 100 ? '#38a169' : '#e53e3e' }}>{total}%</strong>
+      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+        Set target percentage for each category. Total: <strong style={{ color: total === 100 ? 'var(--success)' : 'var(--error)' }}>{total}%</strong>
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
         {Object.entries(targets).map(([cat, val]) => (
@@ -66,21 +68,21 @@ export const TeamBalanceSettingsPage = () => {
               onChange={(e) => setTargets((t) => ({ ...t, [cat]: Number(e.target.value) }))}
               style={inputStyle}
             />
-            <span style={{ fontSize: '0.85rem', color: '#718096' }}>%</span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>%</span>
           </div>
         ))}
       </div>
-      {error && <p style={{ color: '#e53e3e', fontSize: '0.85rem' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--error)', fontSize: '0.85rem' }}>{error}</p>}
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <button
           onClick={handleSave}
           disabled={saving}
-          style={{ padding: '0.4rem 1.2rem', background: '#3182ce', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+          style={{ padding: '0.4rem 1.2rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
-        {saved && <span style={{ color: '#38a169', fontSize: '0.85rem', alignSelf: 'center' }}>Saved ✓</span>}
-        <a href="/team" style={{ alignSelf: 'center', fontSize: '0.85rem', color: '#718096' }}>← Back</a>
+        {saved && <span style={{ color: 'var(--success)', fontSize: '0.85rem', alignSelf: 'center' }}>Saved ✓</span>}
+        <a href="/team" style={{ alignSelf: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>← Back</a>
       </div>
     </div>
   );

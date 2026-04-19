@@ -41,7 +41,7 @@ export const TeamRequestsPage = () => {
     <div style={{ maxWidth: '700px', margin: '0 auto' }}>
       <h2 style={{ marginBottom: '1rem' }}>Team Join Requests</h2>
 
-      {error && <div style={{ color: '#e53e3e', marginBottom: '1rem' }}>{error}</div>}
+      {error && <div style={{ color: 'var(--error)', marginBottom: '1rem' }}>{error}</div>}
       {loading ? (
         <p>Loading…</p>
       ) : requests.length === 0 ? (
@@ -53,7 +53,7 @@ export const TeamRequestsPage = () => {
               <div>
                 <strong>User ID:</strong> {req.user_id}
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#718096', marginTop: '0.2rem' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                 Requested: {req.requested_at ? new Date(req.requested_at).toLocaleString() : '—'}
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
@@ -84,21 +84,21 @@ export const TeamRequestsPage = () => {
 // Styles
 // ---------------------------------------------------------------------------
 const reqCard: React.CSSProperties = {
-  border: '1px solid #e2e8f0',
+  border: '1px solid var(--border)',
   borderRadius: '8px',
   padding: '0.75rem 1rem',
   marginBottom: '0.75rem',
-  background: '#fff',
+  background: 'var(--bg)',
 };
 const emptyCard: React.CSSProperties = {
   ...reqCard,
-  color: '#a0aec0',
+  color: 'var(--text-muted)',
   fontStyle: 'italic',
   textAlign: 'center',
 };
 const approveBtn: React.CSSProperties = {
   padding: '0.35rem 0.9rem',
-  background: '#48bb78',
+  background: 'var(--success)',
   color: '#fff',
   border: 'none',
   borderRadius: '4px',
@@ -107,5 +107,5 @@ const approveBtn: React.CSSProperties = {
 };
 const rejectBtn: React.CSSProperties = {
   ...approveBtn,
-  background: '#e53e3e',
+  background: 'var(--error)',
 };

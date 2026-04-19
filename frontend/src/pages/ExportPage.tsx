@@ -58,15 +58,15 @@ export const ExportPage = () => {
   const label: React.CSSProperties = { fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' };
   const radioBtn = (active: boolean): React.CSSProperties => ({
     padding: '0.35rem 0.8rem',
-    border: `1px solid ${active ? '#3182ce' : '#cbd5e0'}`,
+    border: `1px solid ${active ? 'var(--primary)' : 'var(--border-strong)'}`,
     borderRadius: 6,
     cursor: 'pointer',
-    background: active ? '#ebf8ff' : '#fff',
-    color: active ? '#2b6cb0' : '#4a5568',
+    background: active ? 'var(--bg-info)' : 'var(--bg)',
+    color: active ? 'var(--primary)' : 'var(--text-body)',
     fontSize: '0.85rem',
     fontWeight: active ? 600 : 400,
   });
-  const input: React.CSSProperties = { border: '1px solid #cbd5e0', borderRadius: 4, padding: '4px 8px', fontSize: '0.85rem' };
+  const input: React.CSSProperties = { border: '1px solid var(--border-strong)', borderRadius: 4, padding: '4px 8px', fontSize: '0.85rem', background: 'var(--bg)', color: 'var(--text-h)' };
 
   return (
     <div style={{ maxWidth: 540, margin: '0 auto' }}>
@@ -115,14 +115,14 @@ export const ExportPage = () => {
         </div>
       )}
 
-      {error && <p style={{ color: '#e53e3e', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--error)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{error}</p>}
 
       <button
         onClick={handleDownload}
         disabled={downloading}
         style={{
           padding: '0.5rem 1.5rem',
-          background: downloading ? '#a0aec0' : '#3182ce',
+          background: downloading ? 'var(--text-muted)' : 'var(--primary)',
           color: '#fff',
           border: 'none',
           borderRadius: 6,
@@ -132,7 +132,7 @@ export const ExportPage = () => {
         {downloading ? 'Preparing…' : '↓ Download'}
       </button>
 
-      <div style={{ marginTop: '1.5rem', fontSize: '0.8rem', color: '#a0aec0', lineHeight: 1.5 }}>
+      <div style={{ marginTop: '1.5rem', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
         <strong>Notes:</strong><br />
         • CSV: UTF-8 BOM, one row per task entry.<br />
         • XLSX my/team: Sheet 1 = Daily Records, Sheet 2 = Task Entries.<br />
