@@ -26,6 +26,12 @@ export interface BlockerType {
   is_active: boolean;
 }
 
+export interface AbsenceType {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -103,7 +109,7 @@ export interface Absence {
   id: string;
   user_id: string;
   record_date: string;
-  absence_type: 'holiday' | 'exchanged_holiday' | 'illness' | 'other';
+  absence_type: AbsenceType;
   note: string | null;
   created_at: string;
 }

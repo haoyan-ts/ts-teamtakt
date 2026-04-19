@@ -11,10 +11,12 @@ import {
 } from '../api/dailyRecords';
 import { getActiveTasks, getTask } from '../api/tasks';
 import { getCategories, getSelfAssessmentTags, getBlockerTypes } from '../api/categories';
+import { getAbsenceTypes } from '../api/absenceTypes';
 import { getProjects } from '../api/projects';
 import { WorkLogRow } from '../components/tasks/WorkLogRow';
 import { TaskCreateModal } from '../components/tasks/TaskCreateModal';
 import type {
+  AbsenceType,
   Category,
   SelfAssessmentTag,
   BlockerType,
@@ -144,6 +146,7 @@ export const DailyFormPage = () => {
   const [tags, setTags] = useState<SelfAssessmentTag[]>([]);
   const [blockerTypes, setBlockerTypes] = useState<BlockerType[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [absenceTypes, setAbsenceTypes] = useState<AbsenceType[]>([]);
 
   // Record state
   const [existingRecord, setExistingRecord] = useState<DailyRecord | null>(null);
@@ -189,7 +192,8 @@ export const DailyFormPage = () => {
     setExistingAbsence(null);
     setUnlockGrant(null);
     setIsAbsenceMode(false);
-    setAbsenceType('holiday');
+    setAbsenceTypes([]);
+    setAbsenceType('');
     setWorkLogs([]);
     setDayLoad(3);
     setDayNote('');
@@ -199,12 +203,13 @@ export const DailyFormPage = () => {
     isDirty.current = false;
     (async () => {
       try {
-        const [cats, tagList, btList, projs, records, absences, grants, activeTasks] =
+        const [cats, tagList, btList, projs, absenceTypeList, records, absences, grants, activeTasks] =
           await Promise.all([
             getCategories(),
             getSelfAssessmentTags(),
             getBlockerTypes(),
             getProjects(),
+            getAbsenceTypes(),
             getDailyRecords({ date: recordDate }),
             getAbsences({ start_date: recordDate, end_date: recordDate }),
             getUnlockGrants({ record_date: recordDate }),
@@ -214,6 +219,8 @@ export const DailyFormPage = () => {
         setTags(tagList);
         setBlockerTypes(btList);
         setProjects(projs);
+        setAbsenceTypes(absenceTypeList);
+        setAbsenceType(absenceTypeList[0]?.id ?? '');
 
         if (records.length > 0) {
           const rec = records[0];
@@ -272,7 +279,7 @@ export const DailyFormPage = () => {
         if (absences.length > 0) {
           setExistingAbsence(absences[0]);
           setIsAbsenceMode(true);
-          setAbsenceType(absences[0].absence_type);
+          setAbsenceType(absences[0].absence_type.id);
         }
 
         const activeGrant = grants.find((g) => g.revoked_at === null);
@@ -393,7 +400,7 @@ export const DailyFormPage = () => {
     try {
       const abs = await createAbsence({
         record_date: recordDate,
-        absence_type: absenceType,
+        absence_type_id: absenceType,
         form_opened_at: formOpenedAt.current.toISOString(),
       });
       setExistingAbsence(abs);
@@ -564,10 +571,9 @@ export const DailyFormPage = () => {
               onChange={(e) => setAbsenceType(e.target.value)}
               style={{ ...s.select, marginLeft: '0.75rem', width: 'auto' }}
             >
-              <option value="holiday">Public Holiday</option>
-              <option value="exchanged_holiday">Exchanged Holiday</option>
-              <option value="illness">Illness</option>
-              <option value="other">Other</option>
+              {absenceTypes.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
             </select>
             <button
               type="button"
@@ -581,7 +587,7 @@ export const DailyFormPage = () => {
         )}
         {existingAbsence && (
           <span style={{ marginLeft: '0.75rem', color: 'var(--text-secondary)' }}>
-            Type: {existingAbsence.absence_type.replace('_', ' ')}
+            Type: {existingAbsence.absence_type.name}
           </span>
         )}
       </div>
@@ -784,7 +790,7 @@ export const DailyFormPage = () => {
         <div style={s.absenceSummary}>
           <p>
             This day is recorded as an absence (
-            <strong>{existingAbsence.absence_type.replace('_', ' ')}</strong>).
+            <strong>{existingAbsence.absence_type.name}</strong>).
           </p>
           {isEditable && (
             <button
