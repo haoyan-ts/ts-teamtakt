@@ -12,6 +12,8 @@ import {
   createSelfAssessmentTag,
   updateSelfAssessmentTag,
 } from '../api/categories';
+import { getAdminSettings, updateAdminSettings } from '../api/adminSettings';
+import type { AdminSettingsData } from '../api/adminSettings';
 import type { Category, BlockerType, SelfAssessmentTag } from '../types/dailyRecord';
 
 // ---------------------------------------------------------------------------
@@ -319,12 +321,79 @@ function TagsSection() {
 }
 
 // ---------------------------------------------------------------------------
+// Output language section
+// ---------------------------------------------------------------------------
+
+const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'ja', label: '日本語' },
+  { value: 'ko', label: '한국어' },
+  { value: 'zh', label: '中文' },
+];
+
+function AdminSettingsSection() {
+  const [settings, setSettings] = useState<AdminSettingsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const reload = () =>
+    getAdminSettings()
+      .then(setSettings)
+      .finally(() => setLoading(false));
+
+  useEffect(() => { reload(); }, []);
+
+  const handleChange = async (lang: string) => {
+    setSaving(true);
+    try {
+      const updated = await updateAdminSettings({ output_language: lang });
+      setSettings(updated);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <p>Loading…</p>;
+
+  return (
+    <section style={sectionStyle}>
+      <h3 style={sectionTitle}>Global Settings</h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <label style={{ fontWeight: 500, fontSize: '0.9rem' }}>Output Language</label>
+        <select
+          disabled={saving}
+          value={settings?.output_language ?? ''}
+          onChange={(e) => handleChange(e.target.value)}
+          style={{
+            border: '1px solid var(--border)',
+            borderRadius: '4px',
+            padding: '0.3rem 0.5rem',
+            background: 'var(--bg)',
+            color: 'var(--text-h)',
+            cursor: saving ? 'wait' : 'pointer',
+          }}
+        >
+          {LANGUAGE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {saving && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Saving…</span>}
+      </div>
+      <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+        Applies to weekly emails and quarterly reports. UI language is set per user.
+      </p>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
 export const AdminListsPage = () => (
   <div style={{ maxWidth: '800px', margin: '0 auto' }}>
     <h2 style={{ marginBottom: '1rem' }}>Controlled Lists (Admin)</h2>
+    <AdminSettingsSection />
     <CategoriesSection />
     <BlockerTypesSection />
     <TagsSection />
