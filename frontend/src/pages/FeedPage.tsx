@@ -23,22 +23,18 @@ export const FeedPage = () => {
       connect(token, scope);
     }
     return () => { disconnect(); };
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  // connect/disconnect are stable refs from zustand; scope intentionally omitted
+  // to avoid reconnect on scope change (scope is handled by setWsScope)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
-  // Refresh feed on WS record events
-  useEffect(() => {
-    if (lastEvent?.type === 'record.created' || lastEvent?.type === 'record.updated') {
-      loadItems(true);
-    }
-  }, [lastEvent]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadItems = useCallback(async (reset = false) => {
+  const loadItems = useCallback(async (reset = false, currentCursor?: string) => {
     if (loadingRef.current) return;
     loadingRef.current = true;
     setLoading(true);
     setError(null);
     try {
-      const newCursor = reset ? undefined : cursor;
+      const newCursor = reset ? undefined : currentCursor;
       const data = await getFeed({ scope, cursor: newCursor, limit: 20 });
       if (reset) {
         setItems(data);
@@ -53,7 +49,14 @@ export const FeedPage = () => {
       setLoading(false);
       loadingRef.current = false;
     }
-  }, [scope, cursor]);
+  }, [scope]);
+
+  // Refresh feed on WS record events
+  useEffect(() => {
+    if (lastEvent?.type === 'record.created' || lastEvent?.type === 'record.updated') {
+      loadItems(true);
+    }
+  }, [lastEvent, loadItems]);
 
   // Reload when scope changes
   useEffect(() => {
@@ -62,7 +65,7 @@ export const FeedPage = () => {
     setHasMore(true);
     setWsScope(scope);
     loadItems(true);
-  }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scope, setWsScope, loadItems]);
 
   return (
     <div style={{ maxWidth: '700px', margin: '0 auto' }}>
@@ -110,7 +113,7 @@ export const FeedPage = () => {
       {!loading && hasMore && items.length > 0 && (
         <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
           <button
-            onClick={() => loadItems()}
+            onClick={() => loadItems(false, cursor)}
             style={{
               padding: '0.5rem 1.5rem',
               background: 'var(--bg)',

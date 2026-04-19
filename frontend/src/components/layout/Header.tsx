@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { authApi } from '../../api/auth';
 import { NotificationBell } from './NotificationBell';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../context/useTheme';
 
 const LOCALES = ['en', 'ja', 'zh', 'ko'] as const;
 const LOCALE_LABELS: Record<string, string> = { en: 'EN', ja: 'JA', zh: 'ZH', ko: 'KO' };

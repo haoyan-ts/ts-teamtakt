@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { getJoinRequests, resolveJoinRequest, type JoinRequest } from '../api/teams';
 
@@ -11,16 +11,16 @@ export const TeamRequestsPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<string | null>(null);
 
-  const reload = () => {
+  const reload = useCallback(() => {
     if (!teamId) return;
     setLoading(true);
     getJoinRequests(teamId)
       .then(setRequests)
       .catch(() => setError('Failed to load join requests.'))
       .finally(() => setLoading(false));
-  };
+  }, [teamId]);
 
-  useEffect(() => { reload(); }, [teamId]);
+  useEffect(() => { reload(); }, [reload]);
 
   const handle = async (reqId: string, action: 'approve' | 'reject') => {
     if (!teamId) return;

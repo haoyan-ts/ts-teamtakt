@@ -330,7 +330,7 @@ export const DashboardPage = () => {
       })
       .catch(() => setError('Failed to load dashboard data.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [fourWeeksAgo, today]);
 
   if (loading) return <div>Loading dashboard…</div>;
   if (error) return <div style={{ color: 'var(--error)' }}>{error}</div>;

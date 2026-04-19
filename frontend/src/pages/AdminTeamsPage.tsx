@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   listTeams,
@@ -99,14 +99,18 @@ export const AdminTeamsPage = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const reload = () => {
+  const reload = useCallback(() => {
     setLoading(true);
     listTeams()
       .then(setTeams)
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { reload(); }, []);
+  useEffect(() => {
+    listTeams()
+      .then(setTeams)
+      .finally(() => setLoading(false));
+  }, []);
 
   const dissolve = async () => {
     if (!dissolveTarget) return;

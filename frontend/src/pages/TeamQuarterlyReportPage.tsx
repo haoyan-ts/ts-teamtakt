@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { QuarterlyReport } from '../api/quarterlyReports';
 import { listTeamQuarterlyReports } from '../api/quarterlyReports';
-import { QuarterSelector, currentQuarter } from '../components/quarterly/QuarterSelector';
+import { QuarterSelector } from '../components/quarterly/QuarterSelector';
+import { currentQuarter } from '../components/quarterly/quarterUtils';
 import { ReportStatusBadge } from '../components/quarterly/ReportStatusBadge';
 import { ReportSection } from '../components/quarterly/ReportSection';
 import { useAuth } from '../hooks/useAuth';
@@ -46,7 +47,7 @@ export const TeamQuarterlyReportPage = () => {
     if (quarter !== paramQuarter) {
       navigate(`/team/quarterly/${quarter}`, { replace: true });
     }
-  }, [quarter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [quarter, fetchReports, navigate, paramQuarter]);
 
   if (!teamId) {
     return <p style={{ color: 'var(--text-muted)' }}>Not assigned to a team.</p>;

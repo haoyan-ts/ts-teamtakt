@@ -6,7 +6,8 @@ import {
   updateQuarterlyReport,
   finalizeQuarterlyReport,
 } from '../api/quarterlyReports';
-import { QuarterSelector, currentQuarter } from '../components/quarterly/QuarterSelector';
+import { QuarterSelector } from '../components/quarterly/QuarterSelector';
+import { currentQuarter } from '../components/quarterly/quarterUtils';
 import { ReportStatusBadge } from '../components/quarterly/ReportStatusBadge';
 import { ReportSection } from '../components/quarterly/ReportSection';
 import { GenerationPanel } from '../components/quarterly/GenerationPanel';
@@ -49,7 +50,7 @@ export const QuarterlyReportPage = () => {
     if (quarter !== paramQuarter) {
       navigate(`/reports/quarterly/${quarter}`, { replace: true });
     }
-  }, [quarter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [quarter, fetchReport, navigate, paramQuarter]);
 
   const handleQuarterChange = (q: string) => {
     setQuarter(q);

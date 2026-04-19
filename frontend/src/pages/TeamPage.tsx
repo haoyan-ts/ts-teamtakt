@@ -273,8 +273,8 @@ function CarryoverPanel({ entries, threshold }: { entries: CarryoverAgingEntry[]
 // ---------------------------------------------------------------------------
 
 function ProjectEffortPanel({ entries }: { entries: ProjectEffortEntry[] }) {
-  if (entries.length === 0) return <p style={emptyText}>No project effort data.</p>;
   const [expanded, setExpanded] = useState<string | null>(null);
+  if (entries.length === 0) return <p style={emptyText}>No project effort data.</p>;
   const data = entries.map((e) => ({ name: e.name, effort: e.total_effort, id: e.project_id }));
   return (
     <div>
@@ -378,10 +378,9 @@ export const TeamPage = () => {
     fragmentation: true, carryover: true, projects: true,
   });
 
-  const params = { start_date: startDate, end_date: endDate };
-
   useEffect(() => {
     if (!teamId) return;
+    const params = { start_date: startDate, end_date: endDate };
     setLoads({ balance: true, overload: true, blockers: true, fragmentation: true, carryover: true, projects: true });
 
     getCategoryBalance(teamId, params)
@@ -418,7 +417,6 @@ export const TeamPage = () => {
     import('../api/teams').then(({ getTeamSettings }) => {
       getTeamSettings(teamId).then((s) => setAgingThreshold(s.carryover_aging_days)).catch(() => {});
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId, startDate, endDate]);
 
   if (!teamId) {

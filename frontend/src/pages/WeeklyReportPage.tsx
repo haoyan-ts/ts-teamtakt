@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -54,20 +54,20 @@ function EmailEditor({
   const [error, setError] = useState('');
   const [cooldown, setCooldown] = useState(false);
 
-  const loadDraft = async () => {
-    const d = await getEmailDraft(weekStart);
-    if (d) { setDraft(d); checkCooldown(d); }
-    setLoading(false);
-  };
-
-  const checkCooldown = (d: WeeklyEmailDraft) => {
+  const checkCooldown = useCallback((d: WeeklyEmailDraft) => {
     if (d.status === 'sent' && d.last_sent_at) {
       const elapsed = (Date.now() - new Date(d.last_sent_at).getTime()) / 1000;
       setCooldown(elapsed < 300);
     }
-  };
+  }, []);
 
-  useEffect(() => { loadDraft(); }, [weekStart]);
+  const loadDraft = useCallback(async () => {
+    const d = await getEmailDraft(weekStart);
+    if (d) { setDraft(d); checkCooldown(d); }
+    setLoading(false);
+  }, [weekStart, checkCooldown]);
+
+  useEffect(() => { loadDraft(); }, [loadDraft]);
 
   const handleGenerate = async () => {
     setGenerating(true);

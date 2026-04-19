@@ -8,13 +8,12 @@ export const LoginPage = () => {
   const { t } = useTranslation();
   const { setToken, fetchMe, token } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+
+  const tokenParam = new URLSearchParams(window.location.search).get('token');
+  const [loading, setLoading] = useState(!!tokenParam);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tokenParam = params.get('token');
     if (tokenParam) {
-      setLoading(true);
       setToken(tokenParam);
       fetchMe().then(() => {
         navigate('/', { replace: true });
@@ -22,6 +21,8 @@ export const LoginPage = () => {
     } else if (token) {
       navigate('/', { replace: true });
     }
+  // fetchMe and setToken are stable refs; token only used for redirect on first render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {

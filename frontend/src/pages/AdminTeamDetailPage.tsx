@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getTeamMembers,
@@ -96,14 +96,18 @@ function MembersSection({ teamId }: { teamId: string }) {
   const [removeTarget, setRemoveTarget] = useState<TeamMember | null>(null);
   const [error, setError] = useState('');
 
-  const reload = () => {
+  const reload = useCallback(() => {
     setLoading(true);
     getTeamMembers(teamId)
       .then(setMembers)
       .finally(() => setLoading(false));
-  };
+  }, [teamId]);
 
-  useEffect(() => { reload(); }, [teamId]);
+  useEffect(() => {
+    getTeamMembers(teamId)
+      .then(setMembers)
+      .finally(() => setLoading(false));
+  }, [teamId]);
 
   const toggleLeader = async (member: TeamMember) => {
     setError('');
@@ -194,16 +198,24 @@ function AssignUserSection({ teamId, onAssigned }: { teamId: string; onAssigned:
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     const [users, currentMembers] = await Promise.all([
       listUsers(),
       getTeamMembers(teamId),
     ]);
     setAllUsers(users);
     setMembers(new Set(currentMembers.map((m) => m.user_id)));
-  };
+  }, [teamId]);
 
-  useEffect(() => { reload(); }, [teamId]);
+  useEffect(() => {
+    Promise.all([
+      listUsers(),
+      getTeamMembers(teamId),
+    ]).then(([users, currentMembers]) => {
+      setAllUsers(users);
+      setMembers(new Set(currentMembers.map((m) => m.user_id)));
+    });
+  }, [teamId]);
 
   const assign = async () => {
     if (!selected) return;

@@ -9,14 +9,15 @@ export const TeamMembersPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const teamId = user?.team?.id;
+
   useEffect(() => {
-    if (!user?.team?.id) return;
-    setLoading(true);
-    getTeamMembers(user.team.id)
+    if (!teamId) return;
+    getTeamMembers(teamId)
       .then(setMembers)
       .catch(() => setError('Failed to load team members.'))
       .finally(() => setLoading(false));
-  }, [user?.team?.id]);
+  }, [teamId]);
 
   if (!user?.team) {
     return <p style={{ color: 'var(--text-secondary)' }}>You are not currently assigned to a team.</p>;
