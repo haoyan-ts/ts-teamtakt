@@ -70,7 +70,7 @@ const CATEGORY_PALETTE = [
   '#f6ad55', // amber
   '#667eea', // indigo
 ];
-const CATEGORY_FALLBACK_COLOR = '#a0aec0'; // gray — for unknown category
+const CATEGORY_FALLBACK_COLOR = 'var(--text-muted)'; // gray — for unknown category
 
 function getColorMap(categories: Category[]): Map<string, string> {
   const map = new Map<string, string>();
@@ -626,7 +626,7 @@ export const DailyFormPage = () => {
                       background: color,
                       flexShrink: 0,
                     }} />
-                    <span style={{ fontWeight: 600, fontSize: '0.85rem', color: '#4a5568' }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-body)' }}>
                       {catName}
                     </span>
                   </div>
@@ -736,7 +736,7 @@ export const DailyFormPage = () => {
         <div style={s.modalOverlay}>
           <div style={s.modalBox}>
             <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Confirm Check</h3>
-            <p style={{ margin: '0 0 1.25rem', color: '#4a5568', fontSize: '0.9rem' }}>
+            <p style={{ margin: '0 0 1.25rem', color: 'var(--text-body)', fontSize: '0.9rem' }}>
               Submit today’s record? The form will be locked until you click Re-edit.
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
@@ -928,7 +928,7 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 1000,
   },
   modalBox: {
-    background: '#fff',
+    background: 'var(--bg)',
     borderRadius: '10px',
     padding: '1.5rem',
     width: '360px',
