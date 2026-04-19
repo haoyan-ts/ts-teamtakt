@@ -9,7 +9,7 @@ import {
   getAbsences,
   getUnlockGrants,
 } from '../api/dailyRecords';
-import { getActiveTasks } from '../api/tasks';
+import { getActiveTasks, getTask } from '../api/tasks';
 import { getCategories, getSelfAssessmentTags, getBlockerTypes } from '../api/categories';
 import { getProjects } from '../api/projects';
 import { WorkLogRow } from '../components/tasks/WorkLogRow';
@@ -55,6 +55,29 @@ function computeEditDeadlineJST(recordDate: string): Date {
       saturdayLocal.getDate(),
     ) - 9 * 60 * 60 * 1000
   );
+}
+
+// ---------------------------------------------------------------------------
+// Category color palette (cycles for large category lists)
+// ---------------------------------------------------------------------------
+const CATEGORY_PALETTE = [
+  '#4299e1', // blue
+  '#48bb78', // green
+  '#ed8936', // orange
+  '#9f7aea', // purple
+  '#e53e3e', // red
+  '#38b2ac', // teal
+  '#f6ad55', // amber
+  '#667eea', // indigo
+];
+const CATEGORY_FALLBACK_COLOR = '#a0aec0'; // gray — for unknown category
+
+function getColorMap(categories: Category[]): Map<string, string> {
+  const map = new Map<string, string>();
+  categories.forEach((cat, i) => {
+    map.set(cat.id, CATEGORY_PALETTE[i % CATEGORY_PALETTE.length]);
+  });
+  return map;
 }
 
 function getEditWindowState(
@@ -138,6 +161,8 @@ export const DailyFormPage = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false);
+  const [showConfirmCheck, setShowConfirmCheck] = useState(false);
 
   // Task create modal
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -147,7 +172,10 @@ export const DailyFormPage = () => {
     () => getEditWindowState(recordDate, formOpenedAt.current),
     [recordDate]
   );
-  const isEditable = windowState !== 'locked' || !!unlockGrant;
+  const isEditable = (windowState !== 'locked' || !!unlockGrant) && !checked;
+
+  // Category → accent color map (stable across renders, cycles through palette)
+  const categoryColorMap = useMemo(() => getColorMap(categories), [categories]);
 
   // Load reference data + existing record
   useEffect(() => {
@@ -163,17 +191,21 @@ export const DailyFormPage = () => {
     setDayLoad(3);
     setDayNote('');
     setSuccessMsg(null);
-    Promise.all([
-      getCategories(),
-      getSelfAssessmentTags(),
-      getBlockerTypes(),
-      getProjects(),
-      getDailyRecords({ date: recordDate }),
-      getAbsences({ start_date: recordDate, end_date: recordDate }),
-      getUnlockGrants({ record_date: recordDate }),
-      getActiveTasks(),
-    ])
-      .then(([cats, tagList, btList, projs, records, absences, grants, activeTasks]) => {
+    setChecked(false);
+    setShowConfirmCheck(false);
+    (async () => {
+      try {
+        const [cats, tagList, btList, projs, records, absences, grants, activeTasks] =
+          await Promise.all([
+            getCategories(),
+            getSelfAssessmentTags(),
+            getBlockerTypes(),
+            getProjects(),
+            getDailyRecords({ date: recordDate }),
+            getAbsences({ start_date: recordDate, end_date: recordDate }),
+            getUnlockGrants({ record_date: recordDate }),
+            getActiveTasks(),
+          ]);
         setCategories(cats);
         setTags(tagList);
         setBlockerTypes(btList);
@@ -182,30 +214,53 @@ export const DailyFormPage = () => {
         if (records.length > 0) {
           const rec = records[0];
           setExistingRecord(rec);
+          setChecked(true); // already submitted — start in locked state
           setDayLoad(rec.day_load ?? 3);
           setDayNote(rec.day_note ?? '');
 
-          const logsByTaskId = new Map(
-            rec.daily_work_logs.map((l) => [l.task_id, l])
-          );
-          const rows: DailyWorkLogFormEntry[] = activeTasks.map((task) => {
-            const existing = logsByTaskId.get(task.id);
-            if (existing) {
-              return {
+          const activeTasksById = new Map(activeTasks.map((t) => [t.id, t]));
+
+          // Fetch tasks that are in the saved record but no longer in activeTasks
+          // (e.g. soft-deleted tasks with is_active=false).
+          const orphanedIds = rec.daily_work_logs
+            .map((l) => l.task_id)
+            .filter((id) => !activeTasksById.has(id));
+          const orphanedTasks = (
+            await Promise.all(
+              orphanedIds.map((id) => getTask(id).catch(() => null))
+            )
+          ).filter((t): t is Task => t !== null);
+          const orphanedTasksById = new Map(orphanedTasks.map((t) => [t.id, t]));
+
+          const allTasksById = new Map([...activeTasksById, ...orphanedTasksById]);
+
+          // Part A: rows from saved logs (in sort_order), including orphaned tasks.
+          const savedLogRows: DailyWorkLogFormEntry[] = rec.daily_work_logs
+            .slice()
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .flatMap((log) => {
+              const task = allTasksById.get(log.task_id);
+              if (!task) return []; // task no longer fetchable — skip gracefully
+              return [{
                 _key: newKey(),
                 task,
-                task_id: existing.task_id,
-                effort: existing.effort,
-                work_note: existing.work_note,
-                blocker_type_id: existing.blocker_type_id,
-                blocker_text: existing.blocker_text,
-                sort_order: existing.sort_order,
-                self_assessment_tags: existing.self_assessment_tags,
-              };
-            }
-            return taskToBlankLog(task);
-          });
-          setWorkLogs(rows);
+                task_id: log.task_id,
+                effort: log.effort,
+                work_note: log.work_note,
+                blocker_type_id: log.blocker_type_id,
+                blocker_text: log.blocker_text,
+                sort_order: log.sort_order,
+                self_assessment_tags: log.self_assessment_tags,
+              }];
+            });
+
+          // Part B: active tasks not already in the saved record — append as blank rows.
+          const loggedTaskIds = new Set(rec.daily_work_logs.map((l) => l.task_id));
+          const newBlankRows = activeTasks
+            .filter((t) => !loggedTaskIds.has(t.id))
+            .map(taskToBlankLog);
+
+          setWorkLogs([...savedLogRows, ...newBlankRows]);
         } else {
           setWorkLogs(activeTasks.map(taskToBlankLog));
         }
@@ -218,9 +273,12 @@ export const DailyFormPage = () => {
 
         const activeGrant = grants.find((g) => g.revoked_at === null);
         setUnlockGrant(activeGrant ?? null);
-      })
-      .catch(() => setError('Failed to load form data.'))
-      .finally(() => setLoading(false));
+      } catch {
+        setError('Failed to load form data.');
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [recordDate]);
 
   // Work log manipulation
@@ -244,13 +302,59 @@ export const DailyFormPage = () => {
     });
   }, []);
 
-  const handleTaskDone = useCallback((index: number) => {
-    setWorkLogs((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+  // Silently persist the DailyRecord after a task mutation.
+  // Accepts an explicit snapshot so callers pass the already-updated logs
+  // rather than racing against the async state update.
+  // Gated on validatePrimaryTags — silently skips if tags are incomplete.
+  const autoSaveRecord = useCallback(async (logsSnapshot: DailyWorkLogFormEntry[]) => {
+    if (!isEditable || saving) return;
+    if (validatePrimaryTags(logsSnapshot) !== null) return;
+    const payload = {
+      day_load: dayLoad,
+      day_note: dayNote || null,
+      form_opened_at: formOpenedAt.current.toISOString(),
+      daily_work_logs: logsSnapshot.map((l, i) => ({
+        task_id: l.task_id,
+        effort: l.effort,
+        work_note: l.work_note,
+        blocker_type_id: l.blocker_type_id,
+        blocker_text: l.blocker_text,
+        sort_order: i,
+        self_assessment_tags: l.self_assessment_tags,
+      })),
+    };
+    try {
+      if (existingRecord) {
+        await updateDailyRecord(existingRecord.id, payload);
+      } else {
+        const created = await createDailyRecord({
+          record_date: recordDate,
+          ...payload,
+        });
+        setExistingRecord(created);
+      }
+    } catch (e) {
+      console.warn('[autoSave] DailyRecord auto-save failed:', e);
+    }
+  }, [isEditable, saving, dayLoad, dayNote, existingRecord, recordDate]);
 
   const handleTaskCreated = useCallback((task: Task) => {
-    setWorkLogs((prev) => [...prev, taskToBlankLog(task)]);
-  }, []);
+    const next = [...workLogs, taskToBlankLog(task)];
+    setWorkLogs(next);
+    // Silently skipped: new row has no tags yet, validatePrimaryTags will fail
+    void autoSaveRecord(next);
+  }, [workLogs, autoSaveRecord]);
+
+  const handleTaskUpdated = useCallback(
+    (index: number, updated: Task) => {
+      const next = workLogs.map((l, i) =>
+        i === index ? { ...l, task: updated, task_id: updated.id } : l
+      );
+      setWorkLogs(next);
+      void autoSaveRecord(next);
+    },
+    [workLogs, autoSaveRecord]
+  );
 
   // Toggle absence mode
   const toggleAbsence = async () => {
@@ -309,6 +413,14 @@ export const DailyFormPage = () => {
       return;
     }
 
+    // Show confirmation modal before saving
+    setShowConfirmCheck(true);
+  };
+
+  const confirmCheck = async () => {
+    setShowConfirmCheck(false);
+    if (!isEditable) return;
+
     setSaving(true);
     setError(null);
     setSuccessMsg(null);
@@ -331,15 +443,15 @@ export const DailyFormPage = () => {
     try {
       if (existingRecord) {
         await updateDailyRecord(existingRecord.id, payload);
-        setSuccessMsg('Record updated.');
       } else {
         const created = await createDailyRecord({
           record_date: recordDate,
           ...payload,
         });
         setExistingRecord(created);
-        setSuccessMsg('Record saved.');
       }
+      setSuccessMsg('Record checked.');
+      setChecked(true);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
@@ -372,11 +484,15 @@ export const DailyFormPage = () => {
         <button type="button" onClick={() => goToDate(-1)} style={s.navBtn}>
           ◀
         </button>
-        <h2 style={s.dateTitle}>{recordDate}</h2>
+        <input
+          type="date"
+          value={recordDate}
+          onChange={(e) => { if (e.target.value) navigate(`/daily/${e.target.value}`); }}
+          style={s.datePicker}
+        />
         <button
           type="button"
           onClick={() => goToDate(1)}
-          disabled={recordDate >= todayISO}
           style={s.navBtn}
         >
           ▶
@@ -475,32 +591,69 @@ export const DailyFormPage = () => {
             </p>
           )}
 
-          {workLogs.map((log, index) => (
-            <WorkLogRow
-              key={log._key}
-              log={log}
-              index={index}
-              totalLogs={workLogs.length}
-              tags={tags}
-              blockerTypes={blockerTypes}
-              isEditable={isEditable}
-              onChange={updateLog}
-              onRemove={removeLog}
-              onMoveUp={(i) => moveLog(i, 'up')}
-              onMoveDown={(i) => moveLog(i, 'down')}
-              onTaskDone={handleTaskDone}
-            />
-          ))}
-
-          <TaskCreateModal
-            open={showTaskModal}
-            onClose={() => setShowTaskModal(false)}
-            onCreated={handleTaskCreated}
-            categories={categories}
-            projects={projects}
-            blockerTypes={blockerTypes}
-            onProjectCreated={(project) => setProjects((prev) => [...prev, project])}
-          />
+          {(() => {
+            // Build ordered list of distinct category IDs (first-seen order)
+            const seenCatIds: string[] = [];
+            for (const log of workLogs) {
+              const catId = log.task.category_id ?? '__unknown__';
+              if (!seenCatIds.includes(catId)) seenCatIds.push(catId);
+            }
+            return seenCatIds.map((catId) => {
+              const group = workLogs.filter(
+                (l) => (l.task.category_id ?? '__unknown__') === catId
+              );
+              const catName =
+                catId === '__unknown__'
+                  ? 'Other'
+                  : (categories.find((c) => c.id === catId)?.name ?? 'Other');
+              const color =
+                catId === '__unknown__'
+                  ? CATEGORY_FALLBACK_COLOR
+                  : (categoryColorMap.get(catId) ?? CATEGORY_FALLBACK_COLOR);
+              return (
+                <div key={catId}>
+                  {/* Category group header */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    margin: '1rem 0 0.4rem',
+                  }}>
+                    <span style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '3px',
+                      background: color,
+                      flexShrink: 0,
+                    }} />
+                    <span style={{ fontWeight: 600, fontSize: '0.85rem', color: '#4a5568' }}>
+                      {catName}
+                    </span>
+                  </div>
+                  {group.map((log) => {
+                    const index = workLogs.indexOf(log);
+                    return (
+                      <WorkLogRow
+                        key={log._key}
+                        log={log}
+                        index={index}
+                        totalLogs={workLogs.length}
+                        tags={tags}
+                        blockerTypes={blockerTypes}
+                        isEditable={isEditable && log.task.is_active}
+                        onChange={updateLog}
+                        onRemove={removeLog}
+                        onMoveUp={(i) => moveLog(i, 'up')}
+                        onMoveDown={(i) => moveLog(i, 'down')}
+                        onTaskUpdated={handleTaskUpdated}
+                        accentColor={color}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            });
+          })()}
 
           {/* Day load (private) */}
           <div style={s.metaSection}>
@@ -541,15 +694,69 @@ export const DailyFormPage = () => {
 
           {/* Submit */}
           <div style={s.submitRow}>
-            <button
-              type="submit"
-              disabled={saving || !isEditable}
-              style={s.saveBtn}
-            >
-              {saving ? 'Saving…' : existingRecord ? 'Update Record' : 'Save Record'}
-            </button>
+            {checked ? (
+              <>
+                <span style={s.checkedBadge}>✓ Checked</span>
+                {windowState !== 'locked' && (
+                  <button
+                    type="button"
+                    onClick={() => setChecked(false)}
+                    style={{ ...s.navBtn, marginLeft: '0.75rem' }}
+                  >
+                    Re-edit
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                type="submit"
+                disabled={saving || !isEditable}
+                style={s.saveBtn}
+              >
+                {saving ? 'Checking…' : 'Check'}
+              </button>
+            )}
           </div>
         </form>
+      )}
+
+      {/* Task create modal — rendered outside <form> to avoid nested form HTML */}
+      <TaskCreateModal
+        open={showTaskModal}
+        onClose={() => setShowTaskModal(false)}
+        onCreated={handleTaskCreated}
+        categories={categories}
+        projects={projects}
+        blockerTypes={blockerTypes}
+        onProjectCreated={(project) => setProjects((prev) => [...prev, project])}
+      />
+
+      {/* Check confirmation modal */}
+      {showConfirmCheck && (
+        <div style={s.modalOverlay}>
+          <div style={s.modalBox}>
+            <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Confirm Check</h3>
+            <p style={{ margin: '0 0 1.25rem', color: '#4a5568', fontSize: '0.9rem' }}>
+              Submit today’s record? The form will be locked until you click Re-edit.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowConfirmCheck(false)}
+                style={s.navBtn}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmCheck}
+                style={s.saveBtn}
+              >
+                Confirm Check
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Absence confirmed — show summary */}
@@ -586,6 +793,15 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '1rem',
   },
   dateTitle: { margin: 0, fontSize: '1.25rem', fontWeight: 700 },
+  datePicker: {
+    fontSize: '1rem',
+    fontWeight: 700,
+    border: '1px solid #cbd5e0',
+    borderRadius: '4px',
+    padding: '0.15rem 0.4rem',
+    cursor: 'pointer',
+    background: 'none',
+  },
   navBtn: {
     padding: '0.25rem 0.5rem',
     background: 'none',
@@ -692,5 +908,31 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     fontWeight: 600,
     fontSize: '0.9rem',
+  },
+  checkedBadge: {
+    padding: '0.4rem 1rem',
+    background: '#c6f6d5',
+    color: '#276749',
+    borderRadius: '6px',
+    fontWeight: 600,
+    fontSize: '0.9rem',
+    border: '1px solid #9ae6b4',
+  },
+  modalOverlay: {
+    position: 'fixed' as const,
+    inset: 0,
+    background: 'rgba(0,0,0,0.4)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  modalBox: {
+    background: '#fff',
+    borderRadius: '10px',
+    padding: '1.5rem',
+    width: '360px',
+    maxWidth: '90vw',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
   },
 };

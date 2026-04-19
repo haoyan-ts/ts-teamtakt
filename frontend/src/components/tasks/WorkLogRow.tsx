@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { updateTask } from '../../api/tasks';
 import type {
   DailyWorkLogFormEntry,
   SelfAssessmentTag,
   BlockerType,
+  Task,
 } from '../../types/dailyRecord';
 
 interface WorkLogRowProps {
@@ -17,8 +18,10 @@ interface WorkLogRowProps {
   onRemove: (index: number) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
-  /** Called after task status is updated to 'done' so parent can remove the row */
-  onTaskDone: (index: number) => void;
+  /** Called after task fields (status/title/description) are updated via API */
+  onTaskUpdated: (index: number, updated: Task) => void;
+  /** Optional left-border accent color for category color-grouping */
+  accentColor?: string;
 }
 
 export const WorkLogRow = ({
@@ -32,13 +35,31 @@ export const WorkLogRow = ({
   onRemove,
   onMoveUp,
   onMoveDown,
-  onTaskDone,
+  onTaskUpdated,
+  accentColor,
 }: WorkLogRowProps) => {
   const [showBlocker, setShowBlocker] = useState(
     log.task.status === 'blocked' || !!log.blocker_type_id
   );
-  const [markingDone, setMarkingDone] = useState(false);
-  const [doneError, setDoneError] = useState<string | null>(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(log.task.title);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const [showDesc, setShowDesc] = useState(!!log.task.description);
+  const [descDraft, setDescDraft] = useState(log.task.description ?? '');
+
+  // Keep drafts in sync when parent updates the task object
+  useEffect(() => {
+    if (!editingTitle) setTitleDraft(log.task.title);
+  }, [log.task.title, editingTitle]);
+
+  useEffect(() => {
+    setDescDraft(log.task.description ?? '');
+    if (log.task.description) setShowDesc(true);
+  }, [log.task.description]);
 
   const handleTagToggle = (tagId: string) => {
     const existing = log.self_assessment_tags.find(
@@ -76,19 +97,48 @@ export const WorkLogRow = ({
     });
   };
 
-  const handleMarkDone = async () => {
-    if (!window.confirm(`Mark "${log.task.title}" as done? This cannot be undone from this form.`)) {
+  const handleStatusChange = async (newStatus: Task['status']) => {
+    setStatusUpdating(true);
+    setUpdateError(null);
+    try {
+      const updated = await updateTask(log.task.id, { status: newStatus });
+      onTaskUpdated(index, updated);
+    } catch {
+      setUpdateError('Failed to update task status.');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleTitleSave = async () => {
+    const trimmed = titleDraft.trim();
+    if (!trimmed || trimmed === log.task.title) {
+      setEditingTitle(false);
+      setTitleDraft(log.task.title);
       return;
     }
-    setMarkingDone(true);
-    setDoneError(null);
+    setUpdateError(null);
     try {
-      await updateTask(log.task.id, { status: 'done' });
-      onTaskDone(index);
+      const updated = await updateTask(log.task.id, { title: trimmed });
+      onTaskUpdated(index, updated);
     } catch {
-      setDoneError('Failed to mark task as done.');
-    } finally {
-      setMarkingDone(false);
+      setUpdateError('Failed to update task title.');
+      setTitleDraft(log.task.title);
+    }
+    setEditingTitle(false);
+  };
+
+  const handleDescSave = async () => {
+    const trimmed = descDraft.trim();
+    const currentDesc = log.task.description ?? '';
+    if (trimmed === currentDesc) return;
+    setUpdateError(null);
+    try {
+      const updated = await updateTask(log.task.id, { description: trimmed || null });
+      onTaskUpdated(index, updated);
+    } catch {
+      setUpdateError('Failed to update task description.');
+      setDescDraft(currentDesc);
     }
   };
 
@@ -102,18 +152,62 @@ export const WorkLogRow = ({
   const s = rowStyles;
 
   return (
-    <div style={s.card}>
+    <div style={{ ...s.card, ...(accentColor ? { borderLeft: `4px solid ${accentColor}` } : {}) }}>
       {/* Header: task name + status + actions */}
       <div style={s.header}>
         <div style={s.taskMeta}>
-          <span
+          <select
+            value={log.task.status}
+            onChange={(e) => handleStatusChange(e.target.value as Task['status'])}
+            disabled={!isEditable || statusUpdating}
             style={{
+<<<<<<< HEAD
               ...s.statusDot,
               background: statusColor[log.task.status] ?? 'var(--text-muted)',
+=======
+              ...s.statusSelect,
+              borderColor: statusColor[log.task.status] ?? '#a0aec0',
+              color: statusColor[log.task.status] ?? '#a0aec0',
+>>>>>>> 490d516 (fix(daily-form): show tasks without GitHub issue in daily work log)
             }}
-            title={`Status: ${log.task.status}`}
-          />
-          <span style={s.taskTitle}>{log.task.title}</span>
+            title="Task status"
+          >
+            <option value="todo">todo</option>
+            <option value="running">running</option>
+            <option value="done">done</option>
+            <option value="blocked">blocked</option>
+          </select>
+          {editingTitle ? (
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={handleTitleSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); titleInputRef.current?.blur(); }
+                if (e.key === 'Escape') { setEditingTitle(false); setTitleDraft(log.task.title); }
+              }}
+              style={s.titleInput}
+              autoFocus
+            />
+          ) : (
+            <>
+              <span style={s.taskTitle} title={log.task.title}>
+                {log.task.title}
+              </span>
+              {isEditable && (
+                <button
+                  type="button"
+                  onClick={() => setEditingTitle(true)}
+                  style={s.editTitleBtn}
+                  title="Edit title"
+                >
+                  ✏
+                </button>
+              )}
+            </>
+          )}
           {log.task.github_issue_url && (
             <a
               href={log.task.github_issue_url}
@@ -199,41 +293,81 @@ export const WorkLogRow = ({
             );
             const selected = !!ref;
             const isPrimary = ref?.is_primary ?? false;
-            return (
-              <span key={tag.id} style={s.tagWrapper}>
+
+            // When read-only, only render selected tags
+            if (!isEditable && !selected) return null;
+
+            if (isPrimary) {
+              // Primary: solid filled highlight
+              return (
                 <button
+                  key={tag.id}
                   type="button"
-                  onClick={() => handleTagToggle(tag.id)}
+                  onClick={() => isEditable && handleTagToggle(tag.id)}
                   disabled={!isEditable}
                   style={{
+<<<<<<< HEAD
                     ...s.tagBtn,
                     background: selected ? 'var(--primary)' : 'var(--border)',
                     color: selected ? '#fff' : 'var(--text-body)',
                     opacity: !isEditable ? 0.6 : 1,
                     cursor: !isEditable ? 'default' : 'pointer',
+=======
+                    ...s.tagChip,
+                    background: '#3182ce',
+                    color: '#fff',
+                    border: '1px solid #3182ce',
+                    cursor: isEditable ? 'pointer' : 'default',
+>>>>>>> 490d516 (fix(daily-form): show tasks without GitHub issue in daily work log)
                   }}
+                  title="Primary tag — click to deselect"
                 >
-                  {tag.name}
+                  ★ {tag.name}
                 </button>
-                {selected && !isPrimary && (
-                  <button
-                    type="button"
-                    onClick={() => handleSetPrimary(tag.id)}
-                    disabled={!isEditable}
-                    style={{
-                      ...s.primaryBtn,
-                      opacity: !isEditable ? 0.4 : 1,
-                      cursor: !isEditable ? 'default' : 'pointer',
-                    }}
-                    title="Set as primary"
-                  >
-                    ★
-                  </button>
-                )}
-                {selected && isPrimary && (
-                  <span style={s.primaryIndicator} title="Primary tag">★</span>
-                )}
-              </span>
+              );
+            }
+
+            if (selected) {
+              // Selected non-primary: outline/wireframe, star inside to promote
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => isEditable && handleSetPrimary(tag.id)}
+                  onContextMenu={(e) => { e.preventDefault(); if (isEditable) handleTagToggle(tag.id); }}
+                  disabled={!isEditable}
+                  style={{
+                    ...s.tagChip,
+                    background: 'transparent',
+                    color: '#3182ce',
+                    border: '1px solid #3182ce',
+                    cursor: isEditable ? 'pointer' : 'default',
+                  }}
+                  title={isEditable ? 'Click to set as primary · right-click to deselect' : tag.name}
+                >
+                  ☆ {tag.name}
+                </button>
+              );
+            }
+
+            // Unselected: gray chip
+            return (
+              <button
+                key={tag.id}
+                type="button"
+                onClick={() => handleTagToggle(tag.id)}
+                disabled={!isEditable}
+                style={{
+                  ...s.tagChip,
+                  background: '#e2e8f0',
+                  color: '#718096',
+                  border: '1px solid #e2e8f0',
+                  cursor: 'pointer',
+                }}
+                title="Click to select"
+              >
+                {tag.name}
+              </button>
             );
           })}
         </div>
@@ -299,20 +433,44 @@ export const WorkLogRow = ({
         </div>
       )}
 
-      {/* Mark done */}
-      {isEditable && log.task.status !== 'done' && (
-        <div style={{ marginTop: '0.5rem' }}>
-          <button
-            type="button"
-            onClick={handleMarkDone}
-            disabled={markingDone}
-            style={s.doneBtn}
-          >
-            {markingDone ? 'Marking…' : '✓ Mark task done'}
-          </button>
-          {doneError && <span style={s.doneError}>{doneError}</span>}
+      {/* Description (collapsible) */}
+      {!showDesc && isEditable && (
+        <button
+          type="button"
+          onClick={() => setShowDesc(true)}
+          style={s.blockerToggle}
+        >
+          + Edit description
+        </button>
+      )}
+      {showDesc && (
+        <div style={s.descSection}>
+          <div style={{ ...s.fieldRow, alignItems: 'flex-start' }}>
+            <label style={s.label}>Description</label>
+            <textarea
+              value={descDraft}
+              onChange={(e) => setDescDraft(e.target.value)}
+              onBlur={handleDescSave}
+              rows={2}
+              style={{ ...s.input, resize: 'vertical' }}
+              disabled={!isEditable}
+              placeholder="Task description"
+            />
+            {isEditable && (
+              <button
+                type="button"
+                onClick={() => { setShowDesc(false); setDescDraft(log.task.description ?? ''); }}
+                style={{ ...s.iconBtn, alignSelf: 'flex-start' }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
       )}
+
+      {/* Inline update error */}
+      {updateError && <p style={s.updateError}>{updateError}</p>}
     </div>
   );
 };
@@ -332,10 +490,34 @@ const rowStyles: Record<string, React.CSSProperties> = {
     marginBottom: '0.75rem',
   },
   taskMeta: { display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 },
-  statusDot: {
-    width: '10px',
-    height: '10px',
-    borderRadius: '50%',
+  statusSelect: {
+    padding: '0.15rem 0.35rem',
+    border: '1px solid',
+    borderRadius: '4px',
+    fontSize: '0.78rem',
+    fontWeight: 600,
+    background: '#fff',
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+  titleInput: {
+    fontWeight: 600,
+    fontSize: '0.95rem',
+    border: '1px solid #3182ce',
+    borderRadius: '4px',
+    padding: '0.1rem 0.35rem',
+    flex: 1,
+    minWidth: '100px',
+    outline: 'none',
+  },
+  editTitleBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    color: '#a0aec0',
+    padding: '0 0.1rem',
+    lineHeight: 1,
     flexShrink: 0,
   },
   taskTitle: {
@@ -392,14 +574,14 @@ const rowStyles: Record<string, React.CSSProperties> = {
   },
   effortHint: { fontSize: '0.78rem', color: 'var(--text-secondary)' },
   tagGroup: { display: 'flex', flexWrap: 'wrap', gap: '0.35rem' },
-  tagWrapper: { display: 'inline-flex', alignItems: 'center' },
-  tagBtn: {
-    padding: '0.2rem 0.55rem',
-    border: 'none',
-    borderRadius: '4px',
+  tagChip: {
+    padding: '0.2rem 0.6rem',
+    borderRadius: '999px',
     fontSize: '0.8rem',
     fontWeight: 500,
+    transition: 'opacity 0.1s',
   },
+<<<<<<< HEAD
   primaryBtn: {
     background: 'none',
     border: 'none',
@@ -410,6 +592,9 @@ const rowStyles: Record<string, React.CSSProperties> = {
   },
   primaryIndicator: { color: 'var(--warning)', fontSize: '0.9rem', padding: '0 0.15rem' },
   tagError: { color: 'var(--error)', fontSize: '0.75rem', margin: '-0.1rem 0 0.5rem' },
+=======
+  tagError: { color: '#e53e3e', fontSize: '0.75rem', margin: '-0.1rem 0 0.5rem' },
+>>>>>>> 490d516 (fix(daily-form): show tasks without GitHub issue in daily work log)
   blockerSection: {
     background: 'var(--error-bg)',
     border: '1px solid var(--error-bg)',
@@ -426,6 +611,7 @@ const rowStyles: Record<string, React.CSSProperties> = {
     padding: '0.1rem 0',
     marginBottom: '0.4rem',
   },
+<<<<<<< HEAD
   privateLabel: { color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.75rem' },
   doneBtn: {
     padding: '0.25rem 0.7rem',
@@ -438,4 +624,15 @@ const rowStyles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
   },
   doneError: { color: 'var(--error)', fontSize: '0.8rem', marginLeft: '0.5rem' },
+=======
+  privateLabel: { color: '#a0aec0', fontWeight: 400, fontSize: '0.75rem' },
+  descSection: {
+    background: '#f0f4f8',
+    border: '1px solid #e2e8f0',
+    borderRadius: '6px',
+    padding: '0.6rem',
+    marginBottom: '0.5rem',
+  },
+  updateError: { color: '#e53e3e', fontSize: '0.78rem', margin: '0.25rem 0 0' },
+>>>>>>> 490d516 (fix(daily-form): show tasks without GitHub issue in daily work log)
 };

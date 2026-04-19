@@ -35,10 +35,15 @@ export async function getTasks(params?: {
   return res.data;
 }
 
+export async function getTask(id: string): Promise<Task> {
+  const res = await client.get<Task>(`/tasks/${id}`);
+  return res.data;
+}
+
 /** Active tasks = status is not 'done' and is_active=true for the current user. */
 export async function getActiveTasks(): Promise<Task[]> {
-  const res = await client.get<Task[]>('/tasks', { params: { active: true } });
-  return res.data;
+  const res = await client.get<Task[]>('/tasks', { params: { is_active: true } });
+  return res.data.filter((t) => t.status !== 'done');
 }
 
 export async function createTask(payload: CreateTaskPayload): Promise<Task> {
@@ -50,7 +55,7 @@ export async function updateTask(
   id: string,
   payload: UpdateTaskPayload
 ): Promise<Task> {
-  const res = await client.patch<Task>(`/tasks/${id}`, payload);
+  const res = await client.put<Task>(`/tasks/${id}`, payload);
   return res.data;
 }
 
