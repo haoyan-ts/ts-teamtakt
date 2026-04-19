@@ -54,7 +54,7 @@ export async function getDailyRecords(params: {
 
 export async function createAbsence(payload: {
   record_date: string;
-  absence_type: string;
+  absence_type_id: string;
   note?: string | null;
   form_opened_at: string;
 }): Promise<Absence> {
@@ -74,7 +74,7 @@ export async function deleteAbsence(
 export async function updateAbsence(
   id: string,
   payload: {
-    absence_type?: string;
+    absence_type_id?: string;
     note?: string | null;
     form_opened_at: string;
   }

@@ -12,7 +12,8 @@
   "auth": {
     "signIn": "Microsoftでサインイン",
     "signOut": "サインアウト",
-    "signingIn": "サインイン中..."
+    "signingIn": "サインイン中...",
+    "adminLogin": "管理者ログイン"
   },
   "onboarding": {
     "title": "チームに参加",
@@ -34,5 +35,57 @@
     "saving": "保存中…",
     "saved": "保存しました ✓",
     "saveError": "保存に失敗しました。もう一度お試しください。"
+  },
+  "adminLists": {
+    "pageTitle": "管理リスト（管理者）",
+    "back": "← 戻る",
+    "unsavedWarning": "未保存の変更があります。このまま離れますか？",
+    "loading": "読み込み中…",
+    "confirm": {
+      "message": "無効化すると、このカテゴリは新規入力フォームに表示されなくなります。過去の記録には影響しません。",
+      "cancel": "キャンセル",
+      "confirm": "確認"
+    },
+    "categories": {
+      "title": "カテゴリ",
+      "colName": "名前",
+      "colSubTypes": "サブタイプ",
+      "colActive": "有効",
+      "deactivate": "無効化",
+      "activate": "有効化",
+      "newSubTypePlaceholder": "新しいサブタイプ",
+      "addSubType": "追加",
+      "newCategoryPlaceholder": "新しいカテゴリ名",
+      "addCategory": "カテゴリを追加",
+      "loading": "カテゴリを読み込み中…"
+    },
+    "blockerTypes": {
+      "title": "ブロッカータイプ",
+      "deactivate": "無効化",
+      "activate": "有効化",
+      "newPlaceholder": "新しいブロッカータイプ",
+      "add": "追加"
+    },
+    "tags": {
+      "title": "自己評価タグ",
+      "save": "保存",
+      "deactivate": "無効化",
+      "activate": "有効化",
+      "newPlaceholder": "新しいタグ名",
+      "add": "タグを追加"
+    },
+    "settings": {
+      "title": "グローバル設定",
+      "outputLanguageLabel": "出力言語",
+      "saving": "保存中…",
+      "description": "週次メールおよび四半期レポートに適用されます。UI言語はユーザーごとに設定されます。"
+    },
+    "absenceTypes": {
+      "title": "欠勤タイプ",
+      "deactivate": "無効化",
+      "activate": "有効化",
+      "newPlaceholder": "新しい欠勤タイプ",
+      "add": "追加"
+    }
   }
 }

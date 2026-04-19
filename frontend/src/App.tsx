@@ -3,6 +3,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { AppShell } from './components/layout/AppShell';
 import { LoginPage } from './pages/LoginPage';
+import { LocalLoginPage } from './pages/LocalLoginPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DailyFormPage } from './pages/DailyFormPage';
@@ -33,6 +34,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/admin-login" element={<LocalLoginPage />} />
         <Route path="/onboarding" element={<ProtectedRoute allowLobby><OnboardingPage /></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
           <Route index element={<DashboardPage />} />

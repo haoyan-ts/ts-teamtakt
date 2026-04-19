@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
     ADMIN_EMAIL: str | None = None
+    # Required in non-local environments; app refuses to start if unset or weak
+    ADMIN_PASSWORD: str | None = None
     OPENAI_API_KEY: str | None = None
     OPENAI_API_BASE: str | None = None
     GITHUB_TOKEN: str | None = None

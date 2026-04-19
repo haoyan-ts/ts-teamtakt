@@ -12,7 +12,8 @@
   "auth": {
     "signIn": "使用Microsoft登录",
     "signOut": "退出登录",
-    "signingIn": "登录中..."
+    "signingIn": "登录中...",
+    "adminLogin": "管理员登录"
   },
   "onboarding": {
     "title": "加入团队",

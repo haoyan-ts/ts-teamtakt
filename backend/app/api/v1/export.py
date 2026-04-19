@@ -490,7 +490,7 @@ async def export_bulk(
                 str(a.id),
                 str(a.user_id),
                 str(a.record_date),
-                a.absence_type,
+                a.absence_type.name,
                 a.note or "",
             ]
             for a in absences

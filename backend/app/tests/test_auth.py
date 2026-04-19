@@ -251,3 +251,89 @@ async def test_patch_me_invalid_locale(client, mocker):
 async def test_patch_me_no_token(client):
     resp = await client.patch("/api/v1/users/me", json={"display_name": "X"})
     assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Local login tests
+# ---------------------------------------------------------------------------
+
+
+async def _create_local_user(
+    db_session,
+    email: str,
+    password: str,
+    *,
+    allow_local_login: bool = True,
+    is_admin: bool = False,
+) -> None:
+    from uuid import uuid4
+
+    from app.core.security import hash_password
+    from app.db.models.user import User
+
+    user = User(
+        id=uuid4(),
+        email=email,
+        display_name="Test",
+        is_admin=is_admin,
+        allow_local_login=allow_local_login,
+        password_hash=hash_password(password),
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+
+async def test_local_login_success(client, db_session):
+    await _create_local_user(
+        db_session, "local-ok@example.com", "GoodPass1!", is_admin=True
+    )
+
+    resp = await client.post(
+        "/api/v1/auth/local-login",
+        json={"email": "local-ok@example.com", "password": "GoodPass1!"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+    # Token must work on /me
+    resp2 = await client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {data['access_token']}"},
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["email"] == "local-ok@example.com"
+
+
+async def test_local_login_wrong_password(client, db_session):
+    await _create_local_user(db_session, "local-wp@example.com", "CorrectPass1!")
+
+    resp = await client.post(
+        "/api/v1/auth/local-login",
+        json={"email": "local-wp@example.com", "password": "WrongPass!"},
+    )
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Invalid credentials"
+
+
+async def test_local_login_account_not_allowed(client, db_session):
+    await _create_local_user(
+        db_session, "sso-only@example.com", "AnyPass1!", allow_local_login=False
+    )
+
+    resp = await client.post(
+        "/api/v1/auth/local-login",
+        json={"email": "sso-only@example.com", "password": "AnyPass1!"},
+    )
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Invalid credentials"
+
+
+async def test_local_login_nonexistent_user(client):
+    resp = await client.post(
+        "/api/v1/auth/local-login",
+        json={"email": "nobody@example.com", "password": "DoesntMatter!"},
+    )
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Invalid credentials"

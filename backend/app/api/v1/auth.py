@@ -4,15 +4,17 @@ import secrets
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from jose import jwt as jose_jwt
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.social import limiter
 from app.config import settings
 from app.core.deps import get_current_user
-from app.core.security import create_access_token
+from app.core.security import create_access_token, verify_password
 from app.db.engine import get_db
 from app.db.models.team import Team, TeamMembership
 from app.db.models.user import User
@@ -121,6 +123,41 @@ async def callback(
 @router.post("/logout")
 async def logout():
     return {"message": "Logged out"}
+
+
+class LocalLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+_INVALID_CREDENTIALS = HTTPException(
+    status_code=401,
+    detail="Invalid credentials",
+    headers={"WWW-Authenticate": "Bearer"},
+)
+
+
+@router.post("/local-login")
+@limiter.limit("5/15minute")
+async def local_login(
+    request: Request,
+    body: LocalLoginRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+
+    # Generic rejection — never reveal whether the email exists or why login failed
+    if user is None or not user.allow_local_login or user.password_hash is None:
+        raise _INVALID_CREDENTIALS
+
+    if not verify_password(body.password, user.password_hash):
+        raise _INVALID_CREDENTIALS
+
+    access_token = create_access_token(
+        {"sub": str(user.id), "is_leader": user.is_leader, "is_admin": user.is_admin}
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.get("/me")

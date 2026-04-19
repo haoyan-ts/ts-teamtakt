@@ -12,7 +12,8 @@
   "auth": {
     "signIn": "Sign in with Microsoft",
     "signOut": "Sign out",
-    "signingIn": "Signing in..."
+    "signingIn": "Signing in...",
+    "adminLogin": "Admin login"
   },
   "onboarding": {
     "title": "Join a Team",
@@ -34,5 +35,57 @@
     "saving": "Saving…",
     "saved": "Saved ✓",
     "saveError": "Save failed. Please try again."
+  },
+  "adminLists": {
+    "pageTitle": "Controlled Lists (Admin)",
+    "back": "← Back",
+    "unsavedWarning": "You have unsaved changes. Leave anyway?",
+    "loading": "Loading…",
+    "confirm": {
+      "message": "Deactivating will hide this category from new forms. Historical records are unaffected.",
+      "cancel": "Cancel",
+      "confirm": "Confirm"
+    },
+    "categories": {
+      "title": "Categories",
+      "colName": "Name",
+      "colSubTypes": "Sub-types",
+      "colActive": "Active",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "newSubTypePlaceholder": "New sub-type",
+      "addSubType": "Add",
+      "newCategoryPlaceholder": "New category name",
+      "addCategory": "Add Category",
+      "loading": "Loading categories…"
+    },
+    "blockerTypes": {
+      "title": "Blocker Types",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "newPlaceholder": "New blocker type",
+      "add": "Add"
+    },
+    "tags": {
+      "title": "Self-Assessment Tags",
+      "save": "Save",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "newPlaceholder": "New tag name",
+      "add": "Add Tag"
+    },
+    "settings": {
+      "title": "Global Settings",
+      "outputLanguageLabel": "Output Language",
+      "saving": "Saving…",
+      "description": "Applies to weekly emails and quarterly reports. UI language is set per user."
+    },
+    "absenceTypes": {
+      "title": "Absence Types",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "newPlaceholder": "New absence type",
+      "add": "Add"
+    }
   }
 }
