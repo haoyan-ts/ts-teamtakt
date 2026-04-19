@@ -140,6 +140,51 @@ async def list_teams(
     return responses
 
 
+@router.get("/{team_id}", response_model=TeamResponse)
+async def get_team(
+    team_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Team).where(Team.id == team_id))
+    team = result.scalar_one_or_none()
+    if team is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
+        )
+
+    await _require_team_member_or_admin(team_id, current_user, db)
+
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(TeamMembership)
+        .where(
+            TeamMembership.team_id == team.id,
+            TeamMembership.left_at.is_(None),
+        )
+    )
+    member_count = count_result.scalar() or 0
+
+    leaders_result = await db.execute(
+        select(User)
+        .join(TeamMembership, User.id == TeamMembership.user_id)
+        .where(
+            TeamMembership.team_id == team.id,
+            TeamMembership.left_at.is_(None),
+            User.is_leader,
+        )
+    )
+    leaders = [u.display_name for u in leaders_result.scalars().all()]
+
+    return TeamResponse(
+        id=team.id,
+        name=team.name,
+        created_at=team.created_at,
+        member_count=member_count,
+        leaders=leaders,
+    )
+
+
 @router.delete("/{team_id}", status_code=status.HTTP_200_OK)
 async def delete_team(
     team_id: uuid.UUID,

@@ -328,6 +328,87 @@ async def test_delete_absence(client, db_session):
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# 11. GET /absences/{absence_id} — detail endpoint
+# ---------------------------------------------------------------------------
+
+
+async def test_owner_gets_absence_detail(client, db_session):
+    user, tok = await make_user(db_session, "abs11@t.com")
+    team = await make_team(db_session, "abs11_team")
+    await make_membership(db_session, user.id, team.id)
+
+    target_date = date.today()
+    absence = Absence(
+        user_id=user.id,
+        record_date=target_date,
+        absence_type="holiday",
+    )
+    db_session.add(absence)
+    await db_session.commit()
+    await db_session.refresh(absence)
+
+    resp = await client.get(f"/api/v1/absences/{absence.id}", headers=auth(tok))
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == str(absence.id)
+    assert data["record_date"] == str(target_date)
+
+
+async def test_leader_gets_team_member_absence_detail(client, db_session):
+    leader, leader_tok = await make_user(db_session, "abs12l@t.com", is_leader=True)
+    member, _ = await make_user(db_session, "abs12m@t.com")
+    team = await make_team(db_session, "abs12_team")
+    await make_membership(db_session, leader.id, team.id)
+    await make_membership(db_session, member.id, team.id)
+
+    absence = Absence(
+        user_id=member.id,
+        record_date=date.today() - timedelta(days=1),
+        absence_type="illness",
+    )
+    db_session.add(absence)
+    await db_session.commit()
+    await db_session.refresh(absence)
+
+    resp = await client.get(f"/api/v1/absences/{absence.id}", headers=auth(leader_tok))
+    assert resp.status_code == 200
+    assert resp.json()["id"] == str(absence.id)
+
+
+async def test_get_absence_detail_not_found(client, db_session):
+    user, tok = await make_user(db_session, "abs13@t.com")
+    team = await make_team(db_session, "abs13_team")
+    await make_membership(db_session, user.id, team.id)
+    import uuid
+
+    resp = await client.get(f"/api/v1/absences/{uuid.uuid4()}", headers=auth(tok))
+    assert resp.status_code == 404
+
+
+async def test_outsider_cannot_get_absence_detail(client, db_session):
+    owner, _ = await make_user(db_session, "abs14o@t.com")
+    outsider, outsider_tok = await make_user(db_session, "abs14x@t.com")
+    owner_team = await make_team(db_session, "abs14o_team")
+    outsider_team = await make_team(db_session, "abs14x_team")
+    await make_membership(db_session, owner.id, owner_team.id)
+    await make_membership(db_session, outsider.id, outsider_team.id)
+
+    absence = Absence(
+        user_id=owner.id,
+        record_date=date.today() - timedelta(days=2),
+        absence_type="other",
+    )
+    db_session.add(absence)
+    await db_session.commit()
+    await db_session.refresh(absence)
+
+    resp = await client.get(
+        f"/api/v1/absences/{absence.id}", headers=auth(outsider_tok)
+    )
+    assert resp.status_code == 403
+
+
 async def test_missing_days_basic(client, db_session):
     user, tok = await make_user(db_session, "abs10@t.com")
     team = await make_team(db_session, "abs10_team")

@@ -268,3 +268,91 @@ async def test_non_leader_cannot_promote(client, db_session):
         f"/api/v1/projects/{project_id}/promote", headers=auth(tok)
     )
     assert promote_resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# 9. GET /projects/{project_id} — detail endpoint
+# ---------------------------------------------------------------------------
+
+
+async def test_owner_gets_personal_project_detail(client, db_session):
+    member, tok = await make_user(db_session, "p09_member@t.com")
+    team = await make_team(db_session, "p09_Team")
+    await make_membership(db_session, member.id, team.id)
+
+    create_resp = await client.post(
+        "/api/v1/projects",
+        json={"name": "p09_Personal", "scope": "personal"},
+        headers=auth(tok),
+    )
+    project_id = create_resp.json()["id"]
+
+    resp = await client.get(f"/api/v1/projects/{project_id}", headers=auth(tok))
+    assert resp.status_code == 200
+    assert resp.json()["id"] == project_id
+    assert resp.json()["scope"] == "personal"
+
+
+async def test_member_gets_team_project_detail(client, db_session):
+    member, tok = await make_user(db_session, "p10_member@t.com")
+    team = await make_team(db_session, "p10_Team")
+    await make_membership(db_session, member.id, team.id)
+
+    create_resp = await client.post(
+        "/api/v1/projects",
+        json={"name": "p10_TeamProj", "scope": "team"},
+        headers=auth(tok),
+    )
+    project_id = create_resp.json()["id"]
+
+    resp = await client.get(f"/api/v1/projects/{project_id}", headers=auth(tok))
+    assert resp.status_code == 200
+    assert resp.json()["scope"] == "team"
+
+
+async def test_any_user_gets_cross_team_project_detail(client, db_session):
+    leader, leader_tok = await make_user(db_session, "p11_leader@t.com", is_leader=True)
+    other, other_tok = await make_user(db_session, "p11_other@t.com")
+    team = await make_team(db_session, "p11_Team")
+    other_team = await make_team(db_session, "p11_OtherTeam")
+    await make_membership(db_session, leader.id, team.id)
+    await make_membership(db_session, other.id, other_team.id)
+
+    create_resp = await client.post(
+        "/api/v1/projects",
+        json={"name": "p11_CrossTeam", "scope": "cross_team"},
+        headers=auth(leader_tok),
+    )
+    project_id = create_resp.json()["id"]
+
+    resp = await client.get(f"/api/v1/projects/{project_id}", headers=auth(other_tok))
+    assert resp.status_code == 200
+    assert resp.json()["scope"] == "cross_team"
+
+
+async def test_get_project_detail_not_found(client, db_session):
+    member, tok = await make_user(db_session, "p12_member@t.com")
+    team = await make_team(db_session, "p12_Team")
+    await make_membership(db_session, member.id, team.id)
+    import uuid
+
+    resp = await client.get(f"/api/v1/projects/{uuid.uuid4()}", headers=auth(tok))
+    assert resp.status_code == 404
+
+
+async def test_non_owner_cannot_get_personal_project_detail(client, db_session):
+    owner, owner_tok = await make_user(db_session, "p13_owner@t.com")
+    other, other_tok = await make_user(db_session, "p13_other@t.com")
+    team = await make_team(db_session, "p13_Team")
+    await make_membership(db_session, owner.id, team.id)
+    await make_membership(db_session, other.id, team.id)
+
+    create_resp = await client.post(
+        "/api/v1/projects",
+        json={"name": "p13_Personal", "scope": "personal"},
+        headers=auth(owner_tok),
+    )
+    project_id = create_resp.json()["id"]
+
+    resp = await client.get(f"/api/v1/projects/{project_id}", headers=auth(other_tok))
+    assert resp.status_code == 403
