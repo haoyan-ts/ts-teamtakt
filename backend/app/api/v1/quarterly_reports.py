@@ -26,11 +26,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user
 from app.db.engine import async_session_factory, get_db
 from app.db.models.admin_settings import AdminSettings
-from app.db.models.category import Category, CategorySubType
+from app.db.models.category import Category
 from app.db.models.daily_record import DailyRecord
 from app.db.models.project import Project
 from app.db.models.quarterly_report import QuarterlyReport, QuarterlyReportStatus
-from app.db.models.task import DailyWorkLog, DailyWorkLogSelfAssessmentTag, Task
+from app.db.models.task import DailyWorkLog, Task
 from app.db.models.team import TeamMembership
 from app.db.models.user import User
 from app.db.schemas.quarterly_report import (
@@ -141,7 +141,6 @@ async def _pre_aggregate(
         .where(DailyWorkLog.daily_record_id.in_(record_ids))
     )
     log_task_pairs = log_result.all()
-    work_logs = [log for log, _ in log_task_pairs]
 
     # Name lookups
     proj_result = await db.execute(select(Project.id, Project.name))
@@ -149,26 +148,6 @@ async def _pre_aggregate(
 
     cat_result = await db.execute(select(Category.id, Category.name))
     cat_names: dict[uuid.UUID, str] = {row.id: row.name for row in cat_result.all()}
-
-    sub_result = await db.execute(select(CategorySubType.id, CategorySubType.name))
-    sub_names: dict[uuid.UUID, str] = {row.id: row.name for row in sub_result.all()}
-
-    # Primary tags only (per invariant)
-    log_ids = [log.id for log in work_logs]
-    if log_ids:
-        tag_result = await db.execute(
-            select(DailyWorkLogSelfAssessmentTag).where(
-                DailyWorkLogSelfAssessmentTag.daily_work_log_id.in_(log_ids),
-                DailyWorkLogSelfAssessmentTag.is_primary.is_(True),
-            )
-        )
-        primary_tags = tag_result.scalars().all()
-    else:
-        primary_tags = []
-
-    tag_by_log: dict[uuid.UUID, uuid.UUID] = {
-        t.daily_work_log_id: t.self_assessment_tag_id for t in primary_tags
-    }
 
     # Aggregation
     proj_effort: dict[str, int] = defaultdict(int)
@@ -180,8 +159,6 @@ async def _pre_aggregate(
 
     day_notes_by_proj: dict[str, list[str]] = defaultdict(list)
     blocker_texts_by_proj: dict[str, list[str]] = defaultdict(list)
-
-    rec_by_id = {r.id: r for r in records}
 
     for log, task in log_task_pairs:
         proj = proj_names.get(task.project_id, "?")
