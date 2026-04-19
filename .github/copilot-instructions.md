@@ -60,6 +60,7 @@ Rules that MUST be followed in every coding task. Violating any of these is a bu
 - Backend: Python FastAPI. Use **uv** for dependency management (not pip, poetry, pipenv).
 - Frontend: React + TypeScript + Vite + React Router. Use **yarn** (not npm, pnpm).
 - Monorepo: `backend/` and `frontend/` directories at repo root.
+- All GitHub operations (create/view issues, PRs, labels, milestones, releases, etc.) use **`gh` CLI** (not the GitHub REST API directly, not `curl`, not the GitHub web UI).
 
 ## Code Style
 
