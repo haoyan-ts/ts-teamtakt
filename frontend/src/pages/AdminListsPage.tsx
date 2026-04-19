@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   getCategories,
@@ -16,6 +17,12 @@ import {
 import { getAdminSettings, updateAdminSettings } from '../api/adminSettings';
 import type { AdminSettingsData } from '../api/adminSettings';
 import type { Category, BlockerType, SelfAssessmentTag } from '../types/dailyRecord';
+import {
+  getAbsenceTypes,
+  createAbsenceType,
+  updateAbsenceType,
+} from '../api/absenceTypes';
+import type { AbsenceType } from '../types/dailyRecord';
 
 // ---------------------------------------------------------------------------
 // Confirmation dialog helper (inline, no library)
@@ -30,6 +37,7 @@ function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -45,8 +53,8 @@ function ConfirmDialog({
       <div style={{ background: 'var(--bg)', borderRadius: '8px', padding: '1.5rem', maxWidth: '400px' }}>
         <p style={{ margin: '0 0 1rem' }}>{message}</p>
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-          <button onClick={onCancel} style={cancelBtn}>Cancel</button>
-          <button onClick={onConfirm} style={dangerBtn}>Confirm</button>
+          <button onClick={onCancel} style={cancelBtn}>{t('adminLists.confirm.cancel')}</button>
+          <button onClick={onConfirm} style={dangerBtn}>{t('adminLists.confirm.confirm')}</button>
         </div>
       </div>
     </div>
@@ -58,6 +66,7 @@ function ConfirmDialog({
 // ---------------------------------------------------------------------------
 
 function CategoriesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => void }) {
+  const { t } = useTranslation();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [newCatName, setNewCatName] = useState('');
@@ -109,24 +118,24 @@ function CategoriesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) 
     reload();
   };
 
-  if (loading) return <p>Loading categories…</p>;
+  if (loading) return <p>{t('adminLists.categories.loading')}</p>;
 
   return (
     <section style={sectionStyle}>
       {confirm && (
         <ConfirmDialog
-          message="Deactivating will hide this category from new forms. Historical records are unaffected."
+          message={t('adminLists.confirm.message')}
           onConfirm={confirmDeactivate}
           onCancel={() => setConfirm(null)}
         />
       )}
-      <h3 style={sectionTitle}>Categories</h3>
+      <h3 style={sectionTitle}>{t('adminLists.categories.title')}</h3>
       <table style={tableStyle}>
         <thead>
           <tr>
-            <th style={th}>Name</th>
-            <th style={th}>Sub-types</th>
-            <th style={th}>Active</th>
+            <th style={th}>{t('adminLists.categories.colName')}</th>
+            <th style={th}>{t('adminLists.categories.colSubTypes')}</th>
+            <th style={th}>{t('adminLists.categories.colActive')}</th>
           </tr>
         </thead>
         <tbody>
@@ -142,7 +151,7 @@ function CategoriesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) 
                         style={tinyBtn}
                         onClick={() => toggleSubActive(st.id, st.is_active)}
                       >
-                        {st.is_active ? 'Deactivate' : 'Activate'}
+                        {st.is_active ? t('adminLists.categories.deactivate') : t('adminLists.categories.activate')}
                       </button>
                     </li>
                   ))}
@@ -150,18 +159,18 @@ function CategoriesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) 
                 <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.3rem' }}>
                   <input
                     style={smallInput}
-                    placeholder="New sub-type"
+                    placeholder={t('adminLists.categories.newSubTypePlaceholder')}
                     value={newSubNames[cat.id] ?? ''}
                     onChange={(e) =>
                       setNewSubNames((prev) => ({ ...prev, [cat.id]: e.target.value }))
                     }
                   />
-                  <button style={tinyBtn} onClick={() => addSubType(cat.id)}>Add</button>
+                  <button style={tinyBtn} onClick={() => addSubType(cat.id)}>{t('adminLists.categories.addSubType')}</button>
                 </div>
               </td>
               <td style={td}>
                 <button style={tinyBtn} onClick={() => toggleActive(cat)}>
-                  {cat.is_active ? 'Deactivate' : 'Activate'}
+                  {cat.is_active ? t('adminLists.categories.deactivate') : t('adminLists.categories.activate')}
                 </button>
               </td>
             </tr>
@@ -171,12 +180,12 @@ function CategoriesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) 
       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
         <input
           style={inputStyle}
-          placeholder="New category name"
+          placeholder={t('adminLists.categories.newCategoryPlaceholder')}
           value={newCatName}
           onChange={(e) => { setNewCatName(e.target.value); onDirtyChange(!!e.target.value.trim()); }}
           onKeyDown={(e) => e.key === 'Enter' && addCategory()}
         />
-        <button style={primaryBtn} onClick={addCategory}>Add Category</button>
+        <button style={primaryBtn} onClick={addCategory}>{t('adminLists.categories.addCategory')}</button>
       </div>
     </section>
   );
@@ -187,6 +196,7 @@ function CategoriesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) 
 // ---------------------------------------------------------------------------
 
 function BlockerTypesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => void }) {
+  const { t } = useTranslation();
   const [types, setTypes] = useState<BlockerType[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
@@ -210,11 +220,11 @@ function BlockerTypesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean
     reload();
   };
 
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <p>{t('adminLists.loading')}</p>;
 
   return (
     <section style={sectionStyle}>
-      <h3 style={sectionTitle}>Blocker Types</h3>
+      <h3 style={sectionTitle}>{t('adminLists.blockerTypes.title')}</h3>
       <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
         {types.map((bt) => (
           <li
@@ -230,7 +240,7 @@ function BlockerTypesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean
           >
             <span style={{ flex: 1 }}>{bt.name}</span>
             <button style={tinyBtn} onClick={() => toggle(bt)}>
-              {bt.is_active ? 'Deactivate' : 'Activate'}
+              {bt.is_active ? t('adminLists.blockerTypes.deactivate') : t('adminLists.blockerTypes.activate')}
             </button>
           </li>
         ))}
@@ -238,12 +248,12 @@ function BlockerTypesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean
       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
         <input
           style={inputStyle}
-          placeholder="New blocker type"
+          placeholder={t('adminLists.blockerTypes.newPlaceholder')}
           value={newName}
           onChange={(e) => { setNewName(e.target.value); onDirtyChange(!!e.target.value.trim()); }}
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
-        <button style={primaryBtn} onClick={add}>Add</button>
+        <button style={primaryBtn} onClick={add}>{t('adminLists.blockerTypes.add')}</button>
       </div>
     </section>
   );
@@ -254,6 +264,7 @@ function BlockerTypesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean
 // ---------------------------------------------------------------------------
 
 function TagsSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => void }) {
+  const { t } = useTranslation();
   const [tags, setTags] = useState<SelfAssessmentTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [editNames, setEditNames] = useState<Record<string, string>>({});
@@ -283,11 +294,11 @@ function TagsSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => voi
     reload();
   };
 
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <p>{t('adminLists.loading')}</p>;
 
   return (
     <section style={sectionStyle}>
-      <h3 style={sectionTitle}>Self-Assessment Tags</h3>
+      <h3 style={sectionTitle}>{t('adminLists.tags.title')}</h3>
       <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
         {tags.map((tag) => (
           <li
@@ -300,9 +311,9 @@ function TagsSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => voi
               value={editNames[tag.id] ?? tag.name}
               onChange={(e) => setEditNames((prev) => ({ ...prev, [tag.id]: e.target.value }))}
             />
-            <button style={tinyBtn} onClick={() => save(tag)}>Save</button>
+            <button style={tinyBtn} onClick={() => save(tag)}>{t('adminLists.tags.save')}</button>
             <button style={tinyBtn} onClick={() => toggle(tag)}>
-              {tag.is_active ? 'Deactivate' : 'Activate'}
+              {tag.is_active ? t('adminLists.tags.deactivate') : t('adminLists.tags.activate')}
             </button>
           </li>
         ))}
@@ -310,12 +321,79 @@ function TagsSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => voi
       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
         <input
           style={inputStyle}
-          placeholder="New tag name"
+          placeholder={t('adminLists.tags.newPlaceholder')}
           value={newTagName}
           onChange={(e) => { setNewTagName(e.target.value); onDirtyChange(!!e.target.value.trim()); }}
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
-        <button style={primaryBtn} onClick={add}>Add Tag</button>
+        <button style={primaryBtn} onClick={add}>{t('adminLists.tags.add')}</button>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Absence types section
+// ---------------------------------------------------------------------------
+
+function AbsenceTypesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => void }) {
+  const { t } = useTranslation();
+  const [types, setTypes] = useState<AbsenceType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState('');
+
+  const reload = () =>
+    getAbsenceTypes(true).then(setTypes).finally(() => setLoading(false));
+
+  useEffect(() => { reload(); }, []);
+
+  const add = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    await createAbsenceType({ name });
+    setNewName('');
+    reload();
+  };
+
+  const toggle = async (at: AbsenceType) => {
+    await updateAbsenceType(at.id, { is_active: !at.is_active });
+    reload();
+  };
+
+  if (loading) return <p>{t('adminLists.loading')}</p>;
+
+  return (
+    <section style={sectionStyle}>
+      <h3 style={sectionTitle}>{t('adminLists.absenceTypes.title')}</h3>
+      <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+        {types.map((at) => (
+          <li
+            key={at.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.35rem 0',
+              borderBottom: '1px solid var(--border-subtle)',
+              opacity: at.is_active ? 1 : 0.5,
+            }}
+          >
+            <span style={{ flex: 1 }}>{at.name}</span>
+            <button style={tinyBtn} onClick={() => toggle(at)}>
+              {at.is_active ? t('adminLists.absenceTypes.deactivate') : t('adminLists.absenceTypes.activate')}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+        <input
+          style={inputStyle}
+          placeholder={t('adminLists.absenceTypes.newPlaceholder')}
+          value={newName}
+          onChange={(e) => { setNewName(e.target.value); onDirtyChange(!!e.target.value.trim()); }}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+        />
+        <button style={primaryBtn} onClick={add}>{t('adminLists.absenceTypes.add')}</button>
       </div>
     </section>
   );
@@ -333,6 +411,7 @@ const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
 ];
 
 function AdminSettingsSection() {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<AdminSettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -354,13 +433,13 @@ function AdminSettingsSection() {
     }
   };
 
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <p>{t('adminLists.loading')}</p>;
 
   return (
     <section style={sectionStyle}>
-      <h3 style={sectionTitle}>Global Settings</h3>
+      <h3 style={sectionTitle}>{t('adminLists.settings.title')}</h3>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <label style={{ fontWeight: 500, fontSize: '0.9rem' }}>Output Language</label>
+        <label style={{ fontWeight: 500, fontSize: '0.9rem' }}>{t('adminLists.settings.outputLanguageLabel')}</label>
         <select
           disabled={saving}
           value={settings?.output_language ?? ''}
@@ -378,10 +457,10 @@ function AdminSettingsSection() {
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
-        {saving && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Saving…</span>}
+        {saving && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('adminLists.settings.saving')}</span>}
       </div>
       <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-        Applies to weekly emails and quarterly reports. UI language is set per user.
+        {t('adminLists.settings.description')}
       </p>
     </section>
   );
@@ -392,14 +471,16 @@ function AdminSettingsSection() {
 // ---------------------------------------------------------------------------
 
 export const AdminListsPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [catDirty, setCatDirty] = useState(false);
   const [blockerDirty, setBlockerDirty] = useState(false);
   const [tagDirty, setTagDirty] = useState(false);
-  const isDirty = catDirty || blockerDirty || tagDirty;
+  const [absenceDirty, setAbsenceDirty] = useState(false);
+  const isDirty = catDirty || blockerDirty || tagDirty || absenceDirty;
 
   const handleBack = () => {
-    if (isDirty && !window.confirm('You have unsaved changes. Leave anyway?')) return;
+    if (isDirty && !window.confirm(t('adminLists.unsavedWarning'))) return;
     navigate('/');
   };
 
@@ -409,12 +490,13 @@ export const AdminListsPage = () => {
         onClick={handleBack}
         style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, fontSize: '0.85rem', marginBottom: '1rem', display: 'block' }}
       >
-        ← Back
+        {t('adminLists.back')}
       </button>
-      <h2 style={{ marginBottom: '1rem' }}>Controlled Lists (Admin)</h2>
+      <h2 style={{ marginBottom: '1rem' }}>{t('adminLists.pageTitle')}</h2>
       <AdminSettingsSection />
       <CategoriesSection onDirtyChange={setCatDirty} />
       <BlockerTypesSection onDirtyChange={setBlockerDirty} />
+      <AbsenceTypesSection onDirtyChange={setAbsenceDirty} />
       <TagsSection onDirtyChange={setTagDirty} />
     </div>
   );
