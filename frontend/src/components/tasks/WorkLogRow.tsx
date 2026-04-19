@@ -161,14 +161,9 @@ export const WorkLogRow = ({
             onChange={(e) => handleStatusChange(e.target.value as Task['status'])}
             disabled={!isEditable || statusUpdating}
             style={{
-<<<<<<< HEAD
-              ...s.statusDot,
-              background: statusColor[log.task.status] ?? 'var(--text-muted)',
-=======
               ...s.statusSelect,
-              borderColor: statusColor[log.task.status] ?? '#a0aec0',
-              color: statusColor[log.task.status] ?? '#a0aec0',
->>>>>>> 490d516 (fix(daily-form): show tasks without GitHub issue in daily work log)
+              borderColor: statusColor[log.task.status] ?? 'var(--text-muted)',
+              color: statusColor[log.task.status] ?? 'var(--text-muted)',
             }}
             title="Task status"
           >
@@ -306,19 +301,11 @@ export const WorkLogRow = ({
                   onClick={() => isEditable && handleTagToggle(tag.id)}
                   disabled={!isEditable}
                   style={{
-<<<<<<< HEAD
-                    ...s.tagBtn,
-                    background: selected ? 'var(--primary)' : 'var(--border)',
-                    color: selected ? '#fff' : 'var(--text-body)',
-                    opacity: !isEditable ? 0.6 : 1,
-                    cursor: !isEditable ? 'default' : 'pointer',
-=======
                     ...s.tagChip,
-                    background: '#3182ce',
+                    background: 'var(--primary)',
                     color: '#fff',
-                    border: '1px solid #3182ce',
+                    border: '1px solid var(--primary)',
                     cursor: isEditable ? 'pointer' : 'default',
->>>>>>> 490d516 (fix(daily-form): show tasks without GitHub issue in daily work log)
                   }}
                   title="Primary tag — click to deselect"
                 >
@@ -339,8 +326,8 @@ export const WorkLogRow = ({
                   style={{
                     ...s.tagChip,
                     background: 'transparent',
-                    color: '#3182ce',
-                    border: '1px solid #3182ce',
+                    color: 'var(--primary)',
+                    border: '1px solid var(--primary)',
                     cursor: isEditable ? 'pointer' : 'default',
                   }}
                   title={isEditable ? 'Click to set as primary · right-click to deselect' : tag.name}
@@ -359,9 +346,9 @@ export const WorkLogRow = ({
                 disabled={!isEditable}
                 style={{
                   ...s.tagChip,
-                  background: '#e2e8f0',
-                  color: '#718096',
-                  border: '1px solid #e2e8f0',
+                  background: 'var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border-subtle)',
                   cursor: 'pointer',
                 }}
                 title="Click to select"
@@ -496,14 +483,14 @@ const rowStyles: Record<string, React.CSSProperties> = {
     borderRadius: '4px',
     fontSize: '0.78rem',
     fontWeight: 600,
-    background: '#fff',
+    background: 'var(--bg)',
     cursor: 'pointer',
     flexShrink: 0,
   },
   titleInput: {
     fontWeight: 600,
     fontSize: '0.95rem',
-    border: '1px solid #3182ce',
+    border: '1px solid var(--primary)',
     borderRadius: '4px',
     padding: '0.1rem 0.35rem',
     flex: 1,
@@ -515,7 +502,7 @@ const rowStyles: Record<string, React.CSSProperties> = {
     border: 'none',
     cursor: 'pointer',
     fontSize: '0.8rem',
-    color: '#a0aec0',
+    color: 'var(--text-muted)',
     padding: '0 0.1rem',
     lineHeight: 1,
     flexShrink: 0,
@@ -581,20 +568,7 @@ const rowStyles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     transition: 'opacity 0.1s',
   },
-<<<<<<< HEAD
-  primaryBtn: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: 'var(--warning)',
-    fontSize: '0.9rem',
-    padding: '0 0.15rem',
-  },
-  primaryIndicator: { color: 'var(--warning)', fontSize: '0.9rem', padding: '0 0.15rem' },
   tagError: { color: 'var(--error)', fontSize: '0.75rem', margin: '-0.1rem 0 0.5rem' },
-=======
-  tagError: { color: '#e53e3e', fontSize: '0.75rem', margin: '-0.1rem 0 0.5rem' },
->>>>>>> 490d516 (fix(daily-form): show tasks without GitHub issue in daily work log)
   blockerSection: {
     background: 'var(--error-bg)',
     border: '1px solid var(--error-bg)',
@@ -611,28 +585,13 @@ const rowStyles: Record<string, React.CSSProperties> = {
     padding: '0.1rem 0',
     marginBottom: '0.4rem',
   },
-<<<<<<< HEAD
   privateLabel: { color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.75rem' },
-  doneBtn: {
-    padding: '0.25rem 0.7rem',
-    background: 'var(--success)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    fontWeight: 500,
-  },
-  doneError: { color: 'var(--error)', fontSize: '0.8rem', marginLeft: '0.5rem' },
-=======
-  privateLabel: { color: '#a0aec0', fontWeight: 400, fontSize: '0.75rem' },
   descSection: {
-    background: '#f0f4f8',
-    border: '1px solid #e2e8f0',
+    background: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: '6px',
     padding: '0.6rem',
     marginBottom: '0.5rem',
   },
-  updateError: { color: '#e53e3e', fontSize: '0.78rem', margin: '0.25rem 0 0' },
->>>>>>> 490d516 (fix(daily-form): show tasks without GitHub issue in daily work log)
+  updateError: { color: 'var(--error)', fontSize: '0.78rem', margin: '0.25rem 0 0' },
 };
