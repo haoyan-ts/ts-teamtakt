@@ -102,4 +102,6 @@ def apply_visibility_filter(
     filtered_logs = [
         log.model_copy(update={"blocker_text": None}) for log in record.daily_work_logs
     ]
-    return record.model_copy(update={"day_load": None, "daily_work_logs": filtered_logs})
+    return record.model_copy(
+        update={"day_load": None, "daily_work_logs": filtered_logs}
+    )

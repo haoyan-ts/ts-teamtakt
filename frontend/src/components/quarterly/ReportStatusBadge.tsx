@@ -5,9 +5,9 @@ interface ReportStatusBadgeProps {
 }
 
 const CONFIG: Record<ReportStatus, { label: string; bg: string; color: string }> = {
-  generating: { label: 'Generating…', bg: '#fef9c3', color: '#854d0e' },
-  draft:       { label: 'Draft',       bg: '#e0f2fe', color: '#075985' },
-  finalized:   { label: 'Finalized',   bg: '#dcfce7', color: '#166534' },
+  generating: { label: 'Generating…', bg: 'var(--warning-bg)', color: 'var(--warning)' },
+  draft:       { label: 'Draft',       bg: 'var(--bg-info)',    color: 'var(--primary)' },
+  finalized:   { label: 'Finalized',   bg: 'var(--success-bg)', color: 'var(--success)' },
 };
 
 export const ReportStatusBadge = ({ status }: ReportStatusBadgeProps) => {

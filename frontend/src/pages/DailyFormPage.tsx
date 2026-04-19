@@ -392,17 +392,17 @@ export const DailyFormPage = () => {
 
       {/* Edit window banner */}
       {windowState === 'grace' && (
-        <div style={{ ...s.banner, background: '#f6ad55' }}>
+        <div style={{ ...s.banner, background: 'var(--warning-bg)', border: '1px solid var(--warning)', color: 'var(--text-h)' }}>
           ⚠ Grace period — submit before the edit window closes.
         </div>
       )}
       {windowState === 'locked' && !unlockGrant && (
-        <div style={{ ...s.banner, background: '#fc8181' }}>
+        <div style={{ ...s.banner, background: 'var(--error-bg)', border: '1px solid var(--error)', color: 'var(--error)' }}>
           🔒 Edit window closed. Contact your leader to request an unlock.
         </div>
       )}
       {windowState === 'locked' && unlockGrant && (
-        <div style={{ ...s.banner, background: '#68d391' }}>
+        <div style={{ ...s.banner, background: 'var(--success-bg)', border: '1px solid var(--success)', color: 'var(--success)' }}>
           🔓 Unlock granted by your leader.
         </div>
       )}
@@ -415,8 +415,8 @@ export const DailyFormPage = () => {
           disabled={!!existingRecord}
           style={{
             ...s.absenceToggle,
-            background: isAbsenceMode ? '#3182ce' : '#e2e8f0',
-            color: isAbsenceMode ? '#fff' : '#2d3748',
+            background: isAbsenceMode ? 'var(--primary)' : 'var(--border)',
+            color: isAbsenceMode ? '#fff' : 'var(--text-h)',
           }}
         >
           {isAbsenceMode ? '✓ Marked as Absence' : 'Mark as Absence'}
@@ -444,7 +444,7 @@ export const DailyFormPage = () => {
           </>
         )}
         {existingAbsence && (
-          <span style={{ marginLeft: '0.75rem', color: '#718096' }}>
+          <span style={{ marginLeft: '0.75rem', color: 'var(--text-secondary)' }}>
             Type: {existingAbsence.absence_type.replace('_', ' ')}
           </span>
         )}
@@ -470,7 +470,7 @@ export const DailyFormPage = () => {
           </p>
 
           {workLogs.length === 0 && (
-            <p style={{ color: '#718096', fontStyle: 'italic', marginBottom: '1rem' }}>
+            <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '1rem' }}>
               No active tasks. Create a task or skip rows for tasks not touched today.
             </p>
           )}
@@ -563,7 +563,7 @@ export const DailyFormPage = () => {
             <button
               type="button"
               onClick={toggleAbsence}
-              style={{ ...s.navBtn, marginTop: '0.5rem', color: '#e53e3e' }}
+              style={{ ...s.navBtn, marginTop: '0.5rem', color: 'var(--error)' }}
             >
               Remove absence
             </button>
@@ -589,9 +589,10 @@ const styles: Record<string, React.CSSProperties> = {
   navBtn: {
     padding: '0.25rem 0.5rem',
     background: 'none',
-    border: '1px solid #cbd5e0',
+    border: '1px solid var(--border-strong)',
     borderRadius: '4px',
     cursor: 'pointer',
+    color: 'var(--text-h)',
   },
   banner: {
     padding: '0.5rem 1rem',
@@ -614,8 +615,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
   },
   absenceSummary: {
-    background: '#ebf8ff',
-    border: '1px solid #bee3f8',
+    background: 'var(--bg-info)',
+    border: '1px solid var(--border)',
     borderRadius: '6px',
     padding: '1rem',
   },
@@ -626,10 +627,10 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '0.5rem',
   },
   sectionTitle: { margin: 0, fontSize: '1rem', fontWeight: 600 },
-  sectionHint: { color: '#718096', fontSize: '0.8rem', margin: '0 0 0.75rem' },
+  sectionHint: { color: 'var(--text-secondary)', fontSize: '0.8rem', margin: '0 0 0.75rem' },
   addTaskBtn: {
     padding: '0.3rem 0.75rem',
-    background: '#48bb78',
+    background: 'var(--success)',
     color: '#fff',
     border: 'none',
     borderRadius: '6px',
@@ -638,7 +639,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   iconBtn: {
     background: 'none',
-    border: '1px solid #cbd5e0',
+    border: '1px solid var(--border-strong)',
     borderRadius: '4px',
     padding: '0.1rem 0.4rem',
     cursor: 'pointer',
@@ -651,36 +652,40 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '0.4rem',
     marginBottom: '0.5rem',
   },
-  label: { fontSize: '0.8rem', color: '#4a5568', minWidth: '7rem' },
+  label: { fontSize: '0.8rem', color: 'var(--text-body)', minWidth: '7rem' },
   input: {
-    border: '1px solid #cbd5e0',
+    border: '1px solid var(--border-strong)',
     borderRadius: '4px',
     padding: '0.3rem 0.5rem',
     fontSize: '0.875rem',
     flex: 1,
     minWidth: '12rem',
+    background: 'var(--bg)',
+    color: 'var(--text-h)',
   },
   select: {
-    border: '1px solid #cbd5e0',
+    border: '1px solid var(--border-strong)',
     borderRadius: '4px',
     padding: '0.3rem 0.5rem',
     fontSize: '0.875rem',
+    background: 'var(--bg)',
+    color: 'var(--text-h)',
   },
   metaSection: {
-    background: '#f7fafc',
-    border: '1px solid #e2e8f0',
+    background: 'var(--bg-tertiary)',
+    border: '1px solid var(--border)',
     borderRadius: '8px',
     padding: '1rem',
     marginTop: '1rem',
     marginBottom: '1rem',
   },
-  privateLabel: { color: '#718096', fontStyle: 'italic', fontSize: '0.75rem' },
-  errorMsg: { color: '#e53e3e', marginBottom: '0.5rem' },
-  successMsg: { color: '#38a169', marginBottom: '0.5rem' },
+  privateLabel: { color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.75rem' },
+  errorMsg: { color: 'var(--error)', marginBottom: '0.5rem' },
+  successMsg: { color: 'var(--success)', marginBottom: '0.5rem' },
   submitRow: { display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' },
   saveBtn: {
     padding: '0.5rem 1.5rem',
-    background: '#3182ce',
+    background: 'var(--primary)',
     color: '#fff',
     border: 'none',
     borderRadius: '6px',

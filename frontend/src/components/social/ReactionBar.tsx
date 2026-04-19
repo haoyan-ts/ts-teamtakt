@@ -52,15 +52,15 @@ export const ReactionBar = ({ recordId, reactions, onUpdated }: ReactionBarProps
             gap: '0.25rem',
             padding: '0.2rem 0.5rem',
             borderRadius: '999px',
-            border: g.reacted_by_me ? '1.5px solid #2563eb' : '1.5px solid #e5e7eb',
-            background: g.reacted_by_me ? '#eff6ff' : '#f9fafb',
+            border: g.reacted_by_me ? '1.5px solid var(--primary)' : '1.5px solid var(--border-subtle)',
+            background: g.reacted_by_me ? 'var(--primary-bg)' : 'var(--bg-secondary)',
             cursor: pending || rateLimited ? 'not-allowed' : 'pointer',
             fontSize: '0.9rem',
             opacity: pending === g.emoji ? 0.6 : 1,
           }}
         >
           <span>{g.emoji}</span>
-          <span style={{ fontSize: '0.75rem', color: '#374151' }}>{g.count}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-body)' }}>{g.count}</span>
         </button>
       ))}
 
@@ -76,7 +76,7 @@ export const ReactionBar = ({ recordId, reactions, onUpdated }: ReactionBarProps
             alignItems: 'center',
             padding: '0.2rem 0.4rem',
             borderRadius: '999px',
-            border: '1.5px dashed #d1d5db',
+            border: '1.5px dashed var(--border)',
             background: 'transparent',
             cursor: pending || rateLimited ? 'not-allowed' : 'pointer',
             fontSize: '0.85rem',

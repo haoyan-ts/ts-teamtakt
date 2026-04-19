@@ -20,14 +20,14 @@ const thStyle: React.CSSProperties = {
   padding: '0.4rem 0.75rem',
   fontWeight: 600,
   fontSize: '0.83rem',
-  color: '#4a5568',
+  color: 'var(--text-body)',
   textAlign: 'center',
-  borderBottom: '2px solid #e2e8f0',
+  borderBottom: '2px solid var(--border)',
 };
 const tdStyle: React.CSSProperties = {
   padding: '0.5rem 0.75rem',
   fontSize: '0.85rem',
-  borderBottom: '1px solid #f7fafc',
+  borderBottom: '1px solid var(--bg-tertiary)',
 };
 
 function Toggle({ checked, disabled, onChange }: { checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }) {
@@ -99,15 +99,15 @@ export const NotificationPreferencesPage = () => {
         </tbody>
       </table>
       <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        {error && <span style={{ color: '#e53e3e', fontSize: '0.85rem' }}>{error}</span>}
+        {error && <span style={{ color: 'var(--error)', fontSize: '0.85rem' }}>{error}</span>}
         <button
           onClick={handleSave}
           disabled={saving}
-          style={{ padding: '0.4rem 1.2rem', background: '#3182ce', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+          style={{ padding: '0.4rem 1.2rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
-        {saved && <span style={{ color: '#38a169', fontSize: '0.85rem' }}>Saved ✓</span>}
+        {saved && <span style={{ color: 'var(--success)', fontSize: '0.85rem' }}>Saved ✓</span>}
       </div>
     </div>
   );

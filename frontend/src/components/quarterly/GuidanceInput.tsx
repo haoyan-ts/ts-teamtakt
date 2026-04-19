@@ -10,7 +10,7 @@ export const GuidanceInput = ({ value, onChange, disabled = false }: GuidanceInp
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-      <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>
+      <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-body)' }}>
         Guidance for AI (optional)
       </label>
       <textarea
@@ -23,7 +23,7 @@ export const GuidanceInput = ({ value, onChange, disabled = false }: GuidanceInp
         style={{
           width: '100%',
           padding: '0.5rem',
-          border: '1px solid #e5e7eb',
+          border: '1px solid var(--border-subtle)',
           borderRadius: '6px',
           fontFamily: 'inherit',
           fontSize: '0.875rem',
@@ -32,7 +32,7 @@ export const GuidanceInput = ({ value, onChange, disabled = false }: GuidanceInp
           opacity: disabled ? 0.6 : 1,
         }}
       />
-      <span style={{ fontSize: '0.75rem', color: remaining < 200 ? '#dc2626' : '#9ca3af', alignSelf: 'flex-end' }}>
+      <span style={{ fontSize: '0.75rem', color: remaining < 200 ? 'var(--error)' : 'var(--text-muted)', alignSelf: 'flex-end' }}>
         {remaining} characters remaining
       </span>
     </div>

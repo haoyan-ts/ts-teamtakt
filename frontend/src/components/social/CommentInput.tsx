@@ -47,16 +47,18 @@ export const CommentInput = ({
         style={{
           width: '100%',
           padding: '0.5rem',
-          border: '1px solid #e5e7eb',
+          border: '1px solid var(--border-subtle)',
           borderRadius: '6px',
           fontFamily: 'inherit',
           fontSize: '0.875rem',
           resize: 'vertical',
           boxSizing: 'border-box',
+          background: 'var(--bg)',
+          color: 'var(--text-h)',
         }}
       />
       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
-        <span style={{ fontSize: '0.75rem', color: body.length > 3800 ? '#dc2626' : '#9ca3af' }}>
+        <span style={{ fontSize: '0.75rem', color: body.length > 3800 ? 'var(--error)' : 'var(--text-muted)' }}>
           {body.length}/4000
         </span>
         {onCancel && (
@@ -64,9 +66,9 @@ export const CommentInput = ({
             onClick={onCancel}
             style={{
               padding: '0.375rem 0.75rem',
-              border: '1px solid #e5e7eb',
+              border: '1px solid var(--border-subtle)',
               borderRadius: '6px',
-              background: 'white',
+              background: 'var(--bg)',
               cursor: 'pointer',
               fontSize: '0.875rem',
             }}
@@ -81,7 +83,7 @@ export const CommentInput = ({
             padding: '0.375rem 0.75rem',
             border: 'none',
             borderRadius: '6px',
-            background: body.trim() ? '#2563eb' : '#bfdbfe',
+            background: body.trim() ? 'var(--primary)' : 'var(--primary-bg)',
             color: 'white',
             cursor: body.trim() && !submitting ? 'pointer' : 'not-allowed',
             fontSize: '0.875rem',

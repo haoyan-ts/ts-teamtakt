@@ -221,10 +221,7 @@ async def blocker_summary(
             DailyRecord.record_date >= start_date,
             DailyRecord.record_date <= end_date,
         )
-        .where(
-            (DailyWorkLog.blocker_type_id.isnot(None))
-            | (Task.status == "blocked")
-        )
+        .where((DailyWorkLog.blocker_type_id.isnot(None)) | (Task.status == "blocked"))
     )
     rows = r.all()
 

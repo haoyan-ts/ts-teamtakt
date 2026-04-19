@@ -203,7 +203,9 @@ def _build_csv_flat(
                 task = task_map.get(log.task_id)
                 if task is None:
                     continue
-                log_part = _log_row(log, task, maps, include_private=include_private)[2:]
+                log_part = _log_row(log, task, maps, include_private=include_private)[
+                    2:
+                ]
                 writer.writerow([str(log.id), str(rec.id)] + rec_row + log_part)
 
     return buf.getvalue().encode("utf-8-sig")  # BOM for Excel compatibility
@@ -275,9 +277,13 @@ async def export_my_records(
     maps = await _build_lookup_maps(db)
 
     if format == "csv":
-        content = _build_csv_flat(records, work_logs, task_map, maps, include_private=True)
+        content = _build_csv_flat(
+            records, work_logs, task_map, maps, include_private=True
+        )
     else:
-        content = _build_xlsx_two_sheet(records, work_logs, task_map, maps, include_private=True)
+        content = _build_xlsx_two_sheet(
+            records, work_logs, task_map, maps, include_private=True
+        )
 
     return _streaming_response(content, format, "my-records")
 
@@ -321,9 +327,13 @@ async def export_team_records(
     maps = await _build_lookup_maps(db)
 
     if format == "csv":
-        content = _build_csv_flat(records, work_logs, task_map, maps, include_private=True)
+        content = _build_csv_flat(
+            records, work_logs, task_map, maps, include_private=True
+        )
     else:
-        content = _build_xlsx_two_sheet(records, work_logs, task_map, maps, include_private=True)
+        content = _build_xlsx_two_sheet(
+            records, work_logs, task_map, maps, include_private=True
+        )
 
     return _streaming_response(content, format, f"team-{team_id}-records")
 
@@ -355,7 +365,9 @@ async def export_bulk(
     if format == "csv":
         task_map = {t.id: t for t in tasks}
         maps = await _build_lookup_maps(db)
-        content = _build_csv_flat(records, work_logs, task_map, maps, include_private=True)
+        content = _build_csv_flat(
+            records, work_logs, task_map, maps, include_private=True
+        )
         return _streaming_response(content, "csv", "bulk-export")
 
     wb = openpyxl.Workbook()
@@ -368,9 +380,25 @@ async def export_bulk(
 
     _sheet(
         "Users",
-        ["id", "email", "display_name", "is_leader", "is_admin", "preferred_locale", "created_at"],
         [
-            [str(u.id), u.email, u.display_name, u.is_leader, u.is_admin, u.preferred_locale, str(u.created_at)]
+            "id",
+            "email",
+            "display_name",
+            "is_leader",
+            "is_admin",
+            "preferred_locale",
+            "created_at",
+        ],
+        [
+            [
+                str(u.id),
+                u.email,
+                u.display_name,
+                u.is_leader,
+                u.is_admin,
+                u.preferred_locale,
+                str(u.created_at),
+            ]
             for u in users
         ],
     )
@@ -383,32 +411,73 @@ async def export_bulk(
         "DailyRecords",
         ["id", "user_id", "record_date", "day_load", "day_note", "created_at"],
         [
-            [str(r.id), str(r.user_id), str(r.record_date), r.day_load, r.day_note or "", str(r.created_at)]
+            [
+                str(r.id),
+                str(r.user_id),
+                str(r.record_date),
+                r.day_load,
+                r.day_note or "",
+                str(r.created_at),
+            ]
             for r in records
         ],
     )
     _sheet(
         "Tasks",
-        ["id", "title", "assignee_id", "project_id", "category_id", "sub_type_id", "status", "estimated_effort", "github_issue_url", "created_at", "closed_at", "is_active"],
+        [
+            "id",
+            "title",
+            "assignee_id",
+            "project_id",
+            "category_id",
+            "sub_type_id",
+            "status",
+            "estimated_effort",
+            "github_issue_url",
+            "created_at",
+            "closed_at",
+            "is_active",
+        ],
         [
             [
-                str(t.id), t.title, str(t.assignee_id), str(t.project_id),
-                str(t.category_id), str(t.sub_type_id) if t.sub_type_id else "",
-                t.status, t.estimated_effort or "", t.github_issue_url or "",
-                str(t.created_at), str(t.closed_at) if t.closed_at else "", t.is_active,
+                str(t.id),
+                t.title,
+                str(t.assignee_id),
+                str(t.project_id),
+                str(t.category_id),
+                str(t.sub_type_id) if t.sub_type_id else "",
+                t.status,
+                t.estimated_effort or "",
+                t.github_issue_url or "",
+                str(t.created_at),
+                str(t.closed_at) if t.closed_at else "",
+                t.is_active,
             ]
             for t in tasks
         ],
     )
     _sheet(
         "DailyWorkLogs",
-        ["id", "task_id", "daily_record_id", "effort", "work_note", "blocker_type_id", "blocker_text", "sort_order"],
+        [
+            "id",
+            "task_id",
+            "daily_record_id",
+            "effort",
+            "work_note",
+            "blocker_type_id",
+            "blocker_text",
+            "sort_order",
+        ],
         [
             [
-                str(log.id), str(log.task_id), str(log.daily_record_id),
-                log.effort, log.work_note or "",
+                str(log.id),
+                str(log.task_id),
+                str(log.daily_record_id),
+                log.effort,
+                log.work_note or "",
                 str(log.blocker_type_id) if log.blocker_type_id else "",
-                log.blocker_text or "", log.sort_order,
+                log.blocker_text or "",
+                log.sort_order,
             ]
             for log in work_logs
         ],
@@ -416,7 +485,16 @@ async def export_bulk(
     _sheet(
         "Absences",
         ["id", "user_id", "record_date", "absence_type", "note"],
-        [[str(a.id), str(a.user_id), str(a.record_date), a.absence_type, a.note or ""] for a in absences],
+        [
+            [
+                str(a.id),
+                str(a.user_id),
+                str(a.record_date),
+                a.absence_type,
+                a.note or "",
+            ]
+            for a in absences
+        ],
     )
     _sheet(
         "Categories",
@@ -427,7 +505,14 @@ async def export_bulk(
         "Projects",
         ["id", "name", "scope", "team_id", "is_active", "created_at"],
         [
-            [str(p.id), p.name, p.scope, str(p.team_id) if p.team_id else "", p.is_active, str(p.created_at)]
+            [
+                str(p.id),
+                p.name,
+                p.scope,
+                str(p.team_id) if p.team_id else "",
+                p.is_active,
+                str(p.created_at),
+            ]
             for p in projects
         ],
     )

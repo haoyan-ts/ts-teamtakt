@@ -101,7 +101,7 @@ export const NotificationBell = () => {
         {count > 0 && (
           <span style={{
             position: 'absolute', top: -4, right: -6,
-            background: '#e53e3e', color: '#fff', borderRadius: '50%',
+            background: 'var(--error)', color: '#fff', borderRadius: '50%',
             width: 16, height: 16, fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {count > 9 ? '9+' : count}
@@ -113,19 +113,19 @@ export const NotificationBell = () => {
         <div style={{
           position: 'absolute', top: '2rem', right: 0,
           width: 340, maxHeight: 420, overflowY: 'auto',
-          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
+          background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8,
           boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 1000,
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', borderBottom: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border)' }}>
             <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>Notifications</span>
-            <button onClick={handleMarkAll} style={{ background: 'none', border: 'none', color: '#3182ce', cursor: 'pointer', fontSize: '0.78rem' }}>
+            <button onClick={handleMarkAll} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.78rem' }}>
               Mark all read
             </button>
           </div>
           {loading ? (
-            <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.85rem', color: '#a0aec0' }}>Loading…</div>
+            <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Loading…</div>
           ) : items.length === 0 ? (
-            <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.85rem', color: '#a0aec0' }}>No notifications</div>
+            <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>No notifications</div>
           ) : (
             items.map((n) => (
               <div
@@ -133,9 +133,9 @@ export const NotificationBell = () => {
                 onClick={() => handleClick(n)}
                 style={{
                   padding: '0.6rem 0.75rem',
-                  borderBottom: '1px solid #f7fafc',
+                  borderBottom: '1px solid var(--bg-tertiary)',
                   cursor: navTarget(n) ? 'pointer' : 'default',
-                  background: n.is_read ? '#fff' : '#ebf8ff',
+                  background: n.is_read ? 'var(--bg)' : 'var(--bg-info)',
                   display: 'flex', gap: '0.5rem',
                 }}
               >
@@ -144,8 +144,8 @@ export const NotificationBell = () => {
                   <div style={{ fontSize: '0.83rem', fontWeight: n.is_read ? 400 : 600 }}>
                     {n.title}{n.batch_count > 1 ? ` (×${n.batch_count})` : ''}
                   </div>
-                  {n.body && <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: 1 }}>{n.body}</div>}
-                  <div style={{ fontSize: '0.7rem', color: '#a0aec0', marginTop: 2 }}>{timeAgo(n.created_at)}</div>
+                  {n.body && <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 1 }}>{n.body}</div>}
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>{timeAgo(n.created_at)}</div>
                 </div>
               </div>
             ))

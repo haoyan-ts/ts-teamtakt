@@ -189,7 +189,9 @@ async def test_create_email_draft_requires_report(client, db_session):
     team = await make_team(db_session, "wr06_Team")
     await make_membership(db_session, user.id, team.id)
 
-    with patch("app.services.llm.generate_email_draft", new_callable=AsyncMock) as mock_llm:
+    with patch(
+        "app.services.llm.generate_email_draft", new_callable=AsyncMock
+    ) as mock_llm:
         mock_llm.return_value = {
             "tasks": "T",
             "successes": "S",

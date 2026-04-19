@@ -38,7 +38,7 @@ function ConfirmDialog({
         zIndex: 1000,
       }}
     >
-      <div style={{ background: '#fff', borderRadius: '8px', padding: '1.5rem', maxWidth: '400px' }}>
+      <div style={{ background: 'var(--bg)', borderRadius: '8px', padding: '1.5rem', maxWidth: '400px' }}>
         <p style={{ margin: '0 0 1rem' }}>{message}</p>
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
           <button onClick={onCancel} style={cancelBtn}>Cancel</button>
@@ -220,7 +220,7 @@ function BlockerTypesSection() {
               alignItems: 'center',
               gap: '0.75rem',
               padding: '0.35rem 0',
-              borderBottom: '1px solid #f0f0f0',
+              borderBottom: '1px solid var(--border-subtle)',
               opacity: bt.is_active ? 1 : 0.5,
             }}
           >
@@ -270,7 +270,7 @@ function TagsSection() {
   return (
     <section style={sectionStyle}>
       <h3 style={sectionTitle}>Self-Assessment Tags</h3>
-      <p style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '0.5rem' }}>
+      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
         Fixed 4 tags — edit names only.
       </p>
       <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
@@ -310,11 +310,11 @@ export const AdminListsPage = () => (
 // Styles
 // ---------------------------------------------------------------------------
 const sectionStyle: React.CSSProperties = {
-  border: '1px solid #e2e8f0',
+  border: '1px solid var(--border)',
   borderRadius: '8px',
   padding: '1rem',
   marginBottom: '1rem',
-  background: '#fff',
+  background: 'var(--bg)',
 };
 const sectionTitle: React.CSSProperties = { margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 600 };
 const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' };
@@ -322,14 +322,16 @@ const th: React.CSSProperties = {
   textAlign: 'left',
   padding: '0.3rem 0.5rem',
   fontWeight: 600,
-  borderBottom: '2px solid #e2e8f0',
+  borderBottom: '2px solid var(--border)',
 };
 const td: React.CSSProperties = { padding: '0.4rem 0.5rem', verticalAlign: 'top' };
 const inputStyle: React.CSSProperties = {
-  border: '1px solid #e2e8f0',
+  border: '1px solid var(--border)',
   borderRadius: '4px',
   padding: '0.3rem 0.5rem',
   flex: 1,
+  background: 'var(--bg)',
+  color: 'var(--text-h)',
 };
 const smallInput: React.CSSProperties = {
   ...inputStyle,
@@ -338,7 +340,7 @@ const smallInput: React.CSSProperties = {
 };
 const primaryBtn: React.CSSProperties = {
   padding: '0.35rem 0.75rem',
-  background: '#3182ce',
+  background: 'var(--primary)',
   color: '#fff',
   border: 'none',
   borderRadius: '4px',
@@ -347,8 +349,8 @@ const primaryBtn: React.CSSProperties = {
 };
 const tinyBtn: React.CSSProperties = {
   padding: '0.2rem 0.5rem',
-  background: '#edf2f7',
-  border: '1px solid #e2e8f0',
+  background: 'var(--bg-tertiary)',
+  border: '1px solid var(--border)',
   borderRadius: '4px',
   cursor: 'pointer',
   fontSize: '0.75rem',
@@ -356,6 +358,6 @@ const tinyBtn: React.CSSProperties = {
 const cancelBtn: React.CSSProperties = { ...tinyBtn, padding: '0.4rem 1rem' };
 const dangerBtn: React.CSSProperties = {
   ...primaryBtn,
-  background: '#e53e3e',
+  background: 'var(--error)',
   padding: '0.4rem 1rem',
 };

@@ -47,7 +47,9 @@ async def make_membership(db, user_id, team_id):
     return m
 
 
-async def make_notification(db, user_id, *, is_read=False, trigger_type="edit_window_closing"):
+async def make_notification(
+    db, user_id, *, is_read=False, trigger_type="edit_window_closing"
+):
     n = Notification(
         user_id=user_id,
         trigger_type=trigger_type,

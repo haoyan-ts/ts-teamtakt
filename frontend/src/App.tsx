@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { AppShell } from './components/layout/AppShell';
 import { LoginPage } from './pages/LoginPage';
@@ -25,6 +26,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 
 function App() {
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -53,6 +55,7 @@ function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
+    </ThemeProvider>
   );
 }
 
