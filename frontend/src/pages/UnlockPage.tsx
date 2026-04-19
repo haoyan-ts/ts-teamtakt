@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { getTeamMembers, type TeamMember } from '../api/teams';
 import {
@@ -9,6 +10,7 @@ import {
 } from '../api/reports';
 
 export const UnlockPage = () => {
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const teamId = user?.team?.id ?? null;
 
@@ -85,6 +87,12 @@ export const UnlockPage = () => {
 
   return (
     <div style={{ maxWidth: 700, margin: '0 auto' }}>
+      <button
+        onClick={() => navigate('/team')}
+        style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, fontSize: '0.85rem', marginBottom: '1rem', display: 'block' }}
+      >
+        ← Back
+      </button>
       <h2 style={{ marginBottom: '0.25rem' }}>Unlock Edit Window</h2>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
         Grant a member access to edit a specific past date after the edit window has closed.

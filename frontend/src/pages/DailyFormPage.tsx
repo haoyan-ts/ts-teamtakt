@@ -167,6 +167,9 @@ export const DailyFormPage = () => {
   // Task create modal
   const [showTaskModal, setShowTaskModal] = useState(false);
 
+  // Dirty tracking — set on first user interaction, reset after successful save
+  const isDirty = useRef(false);
+
   // Edit window
   const windowState = useMemo(
     () => getEditWindowState(recordDate, formOpenedAt.current),
@@ -193,6 +196,7 @@ export const DailyFormPage = () => {
     setSuccessMsg(null);
     setChecked(false);
     setShowConfirmCheck(false);
+    isDirty.current = false;
     (async () => {
       try {
         const [cats, tagList, btList, projs, records, absences, grants, activeTasks] =
@@ -284,12 +288,14 @@ export const DailyFormPage = () => {
   // Work log manipulation
   const updateLog = useCallback(
     (index: number, updated: Partial<DailyWorkLogFormEntry>) => {
+      isDirty.current = true;
       setWorkLogs((prev) => prev.map((l, i) => (i === index ? { ...l, ...updated } : l)));
     },
     []
   );
 
   const removeLog = useCallback((index: number) => {
+    isDirty.current = true;
     setWorkLogs((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
@@ -452,6 +458,7 @@ export const DailyFormPage = () => {
       }
       setSuccessMsg('Record checked.');
       setChecked(true);
+      isDirty.current = false;
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
@@ -468,9 +475,15 @@ export const DailyFormPage = () => {
 
   // Navigate dates
   const goToDate = (offset: number) => {
+    if (isDirty.current && !window.confirm('You have unsaved changes. Leave anyway?')) return;
     const d = new Date(recordDate);
     d.setDate(d.getDate() + offset);
     navigate(`/daily/${d.toISOString().slice(0, 10)}`);
+  };
+
+  const handleCancel = () => {
+    if (isDirty.current && !window.confirm('You have unsaved changes. Leave anyway?')) return;
+    navigate('/');
   };
 
   const s = styles;
@@ -503,6 +516,13 @@ export const DailyFormPage = () => {
           style={{ ...s.navBtn, marginLeft: '1rem' }}
         >
           Today
+        </button>
+        <button
+          type="button"
+          onClick={handleCancel}
+          style={{ ...s.navBtn, marginLeft: 'auto', color: 'var(--text-secondary)' }}
+        >
+          ✕ Cancel
         </button>
       </div>
 
@@ -667,7 +687,7 @@ export const DailyFormPage = () => {
                 max={5}
                 step={1}
                 value={dayLoad}
-                onChange={(e) => setDayLoad(Number(e.target.value))}
+                onChange={(e) => { isDirty.current = true; setDayLoad(Number(e.target.value)); }}
                 disabled={!isEditable}
                 style={{ width: '10rem', margin: '0 0.75rem' }}
               />
@@ -679,7 +699,7 @@ export const DailyFormPage = () => {
               <label style={s.label}>Day note</label>
               <textarea
                 value={dayNote}
-                onChange={(e) => setDayNote(e.target.value)}
+                onChange={(e) => { isDirty.current = true; setDayNote(e.target.value); }}
                 disabled={!isEditable}
                 rows={3}
                 style={{ ...s.input, resize: 'vertical' }}

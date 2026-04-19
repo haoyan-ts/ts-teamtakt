@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { getTeamSettings, updateTeamSettings, type TeamSettings } from '../api/teams';
 
 export const TeamBalanceSettingsPage = () => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const teamId = user?.team?.id;
 
   const [settings, setSettings] = useState<TeamSettings | null>(null);
   const [targets, setTargets] = useState<Record<string, number>>({});
+  const [initialTargets, setInitialTargets] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -17,6 +20,7 @@ export const TeamBalanceSettingsPage = () => {
     getTeamSettings(teamId).then((s) => {
       setSettings(s);
       setTargets({ ...s.balance_targets });
+      setInitialTargets({ ...s.balance_targets });
     });
   }, [teamId]);
 
@@ -28,6 +32,7 @@ export const TeamBalanceSettingsPage = () => {
     setError('');
     try {
       await updateTeamSettings(teamId, { balance_targets: targets });
+      setInitialTargets({ ...targets });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
@@ -35,6 +40,13 @@ export const TeamBalanceSettingsPage = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const isDirty = JSON.stringify(targets) !== JSON.stringify(initialTargets);
+
+  const handleBack = () => {
+    if (isDirty && !window.confirm('You have unsaved changes. Leave anyway?')) return;
+    navigate('/team');
   };
 
   if (!teamId) return <div>Not assigned to a team.</div>;
@@ -82,7 +94,7 @@ export const TeamBalanceSettingsPage = () => {
           {saving ? 'Saving…' : 'Save'}
         </button>
         {saved && <span style={{ color: 'var(--success)', fontSize: '0.85rem', alignSelf: 'center' }}>Saved ✓</span>}
-        <a href="/team" style={{ alignSelf: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>← Back</a>
+        <button onClick={handleBack} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem', alignSelf: 'center' }}>← Back</button>
       </div>
     </div>
   );

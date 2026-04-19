@@ -76,11 +76,22 @@ export const QuarterlyReportPage = () => {
     }
   };
 
+  const handleBack = () => {
+    if (isDraft && !window.confirm('You may have unsaved section edits. Leave anyway?')) return;
+    navigate(-1);
+  };
+
   const isDraft = report?.status === 'draft';
   const isFinalized = report?.status === 'finalized';
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <button
+        onClick={handleBack}
+        style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, fontSize: '0.85rem', marginBottom: '1rem', display: 'block' }}
+      >
+        ← Back
+      </button>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Quarterly Report</h1>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>

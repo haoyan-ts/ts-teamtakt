@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { getTeamSettings, updateTeamSettings, type TeamSettings } from '../api/teams';
 
@@ -15,15 +16,19 @@ const FIELDS: { key: keyof ThresholdField; label: string; min: number; max: numb
 ];
 
 export const TeamThresholdSettingsPage = () => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const teamId = user?.team?.id;
 
-  const [values, setValues] = useState<ThresholdField>({
+  const defaultValues: ThresholdField = {
     overload_load_threshold: 4,
     overload_streak_days: 3,
     fragmentation_task_threshold: 8,
     carryover_aging_days: 5,
-  });
+  };
+
+  const [values, setValues] = useState<ThresholdField>(defaultValues);
+  const [initialValues, setInitialValues] = useState<ThresholdField>(defaultValues);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -31,12 +36,14 @@ export const TeamThresholdSettingsPage = () => {
   useEffect(() => {
     if (!teamId) return;
     getTeamSettings(teamId).then((s) => {
-      setValues({
+      const loaded: ThresholdField = {
         overload_load_threshold: s.overload_load_threshold,
         overload_streak_days: s.overload_streak_days,
         fragmentation_task_threshold: s.fragmentation_task_threshold,
         carryover_aging_days: s.carryover_aging_days,
-      });
+      };
+      setValues(loaded);
+      setInitialValues(loaded);
     });
   }, [teamId]);
 
@@ -46,6 +53,7 @@ export const TeamThresholdSettingsPage = () => {
     setError('');
     try {
       await updateTeamSettings(teamId, values);
+      setInitialValues({ ...values });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
@@ -53,6 +61,15 @@ export const TeamThresholdSettingsPage = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const isDirty = (Object.keys(values) as (keyof ThresholdField)[]).some(
+    (k) => values[k] !== initialValues[k]
+  );
+
+  const handleBack = () => {
+    if (isDirty && !window.confirm('You have unsaved changes. Leave anyway?')) return;
+    navigate('/team');
   };
 
   if (!teamId) return <div>Not assigned to a team.</div>;
@@ -96,7 +113,7 @@ export const TeamThresholdSettingsPage = () => {
           {saving ? 'Saving…' : 'Save'}
         </button>
         {saved && <span style={{ color: 'var(--success)', fontSize: '0.85rem', alignSelf: 'center' }}>Saved ✓</span>}
-        <a href="/team" style={{ alignSelf: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>← Back</a>
+        <button onClick={handleBack} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem', alignSelf: 'center' }}>← Back</button>
       </div>
     </div>
   );

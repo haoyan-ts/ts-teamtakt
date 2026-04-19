@@ -266,6 +266,12 @@ export const WeeklyReportPage = () => {
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+      <button
+        onClick={() => navigate('/')}
+        style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, fontSize: '0.85rem', marginBottom: '1rem', display: 'block' }}
+      >
+        ← Back to Dashboard
+      </button>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <h2 style={{ margin: 0 }}>Weekly Report</h2>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>

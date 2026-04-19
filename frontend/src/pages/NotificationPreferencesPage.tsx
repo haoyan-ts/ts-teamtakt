@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   getNotificationPreferences,
   updateNotificationPreferences,
@@ -40,6 +41,7 @@ function Toggle({ checked, disabled, onChange }: { checked: boolean; disabled?: 
 }
 
 export const NotificationPreferencesPage = () => {
+  const navigate = useNavigate();
   const [prefs, setPrefs] = useState<NotificationPreference[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -71,6 +73,12 @@ export const NotificationPreferencesPage = () => {
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+      <button
+        onClick={() => navigate('/')}
+        style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, fontSize: '0.85rem', marginBottom: '1rem', display: 'block' }}
+      >
+        ← Back
+      </button>
       <h2>Notification Preferences</h2>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>

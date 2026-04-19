@@ -32,6 +32,14 @@ export const OnboardingPage = () => {
 
   return (
     <div style={{ maxWidth: '480px', margin: '4rem auto', padding: '2rem', textAlign: 'center' }}>
+      <div style={{ textAlign: 'right', marginBottom: '0.5rem' }}>
+        <button
+          onClick={handleSignOut}
+          style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem' }}
+        >
+          ✕ Cancel
+        </button>
+      </div>
       <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{t('onboarding.title')}</h1>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>{t('onboarding.subtitle')}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
