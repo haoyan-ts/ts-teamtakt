@@ -3,7 +3,7 @@
 from datetime import UTC, date, datetime, timedelta
 
 from app.core.security import create_access_token
-from app.db.models.absence import Absence
+from app.db.models.absence import ABSENCE_TYPE_UUIDS, Absence
 from app.db.models.daily_record import DailyRecord
 from app.db.models.team import Team, TeamMembership, TeamSettings
 from app.db.models.user import User
@@ -71,14 +71,14 @@ async def test_create_absence_ok(client, db_session):
         "/api/v1/absences",
         json={
             "record_date": str(date.today()),
-            "absence_type": "holiday",
+            "absence_type_id": str(ABSENCE_TYPE_UUIDS["holiday"]),
             "form_opened_at": now_iso(),
         },
         headers=auth(tok),
     )
     assert resp.status_code == 201
     data = resp.json()
-    assert data["absence_type"] == "holiday"
+    assert data["absence_type"]["name"] == "holiday"
     assert data["user_id"] == str(user.id)
 
 
@@ -106,7 +106,7 @@ async def test_absence_blocked_by_daily_record(client, db_session):
         "/api/v1/absences",
         json={
             "record_date": str(date.today()),
-            "absence_type": "illness",
+            "absence_type_id": str(ABSENCE_TYPE_UUIDS["illness"]),
             "form_opened_at": now_iso(),
         },
         headers=auth(tok),
@@ -129,7 +129,7 @@ async def test_daily_record_blocked_by_absence(client, db_session):
         "/api/v1/absences",
         json={
             "record_date": str(date.today()),
-            "absence_type": "holiday",
+            "absence_type_id": str(ABSENCE_TYPE_UUIDS["holiday"]),
             "form_opened_at": now_iso(),
         },
         headers=auth(tok),
@@ -166,7 +166,7 @@ async def test_duplicate_absence_rejected(client, db_session):
         "/api/v1/absences",
         json={
             "record_date": target_date,
-            "absence_type": "illness",
+            "absence_type_id": str(ABSENCE_TYPE_UUIDS["illness"]),
             "form_opened_at": now_iso(),
         },
         headers=auth(tok),
@@ -177,7 +177,7 @@ async def test_duplicate_absence_rejected(client, db_session):
         "/api/v1/absences",
         json={
             "record_date": target_date,
-            "absence_type": "other",
+            "absence_type_id": str(ABSENCE_TYPE_UUIDS["other"]),
             "form_opened_at": now_iso(),
         },
         headers=auth(tok),
@@ -200,7 +200,7 @@ async def test_list_absences_own(client, db_session):
     absence = Absence(
         user_id=user.id,
         record_date=target_date,
-        absence_type="holiday",
+        absence_type_id=ABSENCE_TYPE_UUIDS["holiday"],
     )
     db_session.add(absence)
     await db_session.commit()
@@ -224,7 +224,9 @@ async def test_list_absences_leader_access(client, db_session):
     await make_membership(db_session, leader.id, team.id)
 
     absence = Absence(
-        user_id=member.id, record_date=date.today(), absence_type="illness"
+        user_id=member.id,
+        record_date=date.today(),
+        absence_type_id=ABSENCE_TYPE_UUIDS["illness"],
     )
     db_session.add(absence)
     await db_session.commit()
@@ -271,7 +273,7 @@ async def test_update_absence(client, db_session):
         "/api/v1/absences",
         json={
             "record_date": str(date.today()),
-            "absence_type": "holiday",
+            "absence_type_id": str(ABSENCE_TYPE_UUIDS["holiday"]),
             "form_opened_at": now_iso(),
         },
         headers=auth(tok),
@@ -281,11 +283,14 @@ async def test_update_absence(client, db_session):
 
     update_resp = await client.put(
         f"/api/v1/absences/{absence_id}",
-        json={"absence_type": "illness", "form_opened_at": now_iso()},
+        json={
+            "absence_type_id": str(ABSENCE_TYPE_UUIDS["illness"]),
+            "form_opened_at": now_iso(),
+        },
         headers=auth(tok),
     )
     assert update_resp.status_code == 200
-    assert update_resp.json()["absence_type"] == "illness"
+    assert update_resp.json()["absence_type"]["name"] == "illness"
 
 
 # ---------------------------------------------------------------------------
@@ -302,7 +307,7 @@ async def test_delete_absence(client, db_session):
         "/api/v1/absences",
         json={
             "record_date": str(date.today()),
-            "absence_type": "other",
+            "absence_type_id": str(ABSENCE_TYPE_UUIDS["other"]),
             "form_opened_at": now_iso(),
         },
         headers=auth(tok),
@@ -342,7 +347,7 @@ async def test_owner_gets_absence_detail(client, db_session):
     absence = Absence(
         user_id=user.id,
         record_date=target_date,
-        absence_type="holiday",
+        absence_type_id=ABSENCE_TYPE_UUIDS["holiday"],
     )
     db_session.add(absence)
     await db_session.commit()
@@ -365,7 +370,7 @@ async def test_leader_gets_team_member_absence_detail(client, db_session):
     absence = Absence(
         user_id=member.id,
         record_date=date.today() - timedelta(days=1),
-        absence_type="illness",
+        absence_type_id=ABSENCE_TYPE_UUIDS["illness"],
     )
     db_session.add(absence)
     await db_session.commit()
@@ -397,7 +402,7 @@ async def test_outsider_cannot_get_absence_detail(client, db_session):
     absence = Absence(
         user_id=owner.id,
         record_date=date.today() - timedelta(days=2),
-        absence_type="other",
+        absence_type_id=ABSENCE_TYPE_UUIDS["other"],
     )
     db_session.add(absence)
     await db_session.commit()
@@ -435,7 +440,7 @@ async def test_missing_days_basic(client, db_session):
     absence = Absence(
         user_id=user.id,
         record_date=last_wednesday,
-        absence_type="holiday",
+        absence_type_id=ABSENCE_TYPE_UUIDS["holiday"],
     )
     db_session.add(absence)
     await db_session.commit()

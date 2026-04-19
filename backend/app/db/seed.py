@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.security import hash_password
+from app.db.models.absence import ABSENCE_TYPE_UUIDS, AbsenceType
 from app.db.models.admin_settings import AdminSettings
 from app.db.models.category import Category, SelfAssessmentTag
 from app.db.models.user import User
@@ -14,6 +15,11 @@ _ADMIN_PASSWORD_DEV_DEFAULT = "ChangeMe_DevOnly!"  # never use in production
 
 async def seed_initial_data(db: AsyncSession):
     """Insert seed data if not already present."""
+    for name, uid in ABSENCE_TYPE_UUIDS.items():
+        existing = await db.execute(select(AbsenceType).where(AbsenceType.name == name))
+        if not existing.scalar_one_or_none():
+            db.add(AbsenceType(id=uid, name=name, is_active=True))
+
     tags = ["OKR", "Routine", "Team Contribution", "Company Contribution"]
     for name in tags:
         existing = await db.execute(

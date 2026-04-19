@@ -11,7 +11,6 @@ from app.core.deps import get_current_user, require_active_user, require_leader
 from app.core.edit_window import check_edit_window
 from app.db.engine import get_db
 from app.db.models.absence import Absence, UnlockGrant
-from app.db.models.absence import AbsenceType as AbsenceTypeEnum
 from app.db.models.daily_record import DailyRecord
 from app.db.models.team import TeamMembership
 from app.db.models.user import User
@@ -144,7 +143,7 @@ async def create_absence(
     absence = Absence(
         user_id=current_user.id,
         record_date=body.record_date,
-        absence_type=body.absence_type,
+        absence_type_id=body.absence_type_id,
         note=body.note,
     )
     db.add(absence)
@@ -219,8 +218,8 @@ async def update_absence(
         current_user.id, absence.record_date, body.form_opened_at, db
     )
 
-    if body.absence_type is not None:
-        absence.absence_type = AbsenceTypeEnum(body.absence_type)
+    if body.absence_type_id is not None:
+        absence.absence_type_id = body.absence_type_id
     if body.note is not None:
         absence.note = body.note
 
