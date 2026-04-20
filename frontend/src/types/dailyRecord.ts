@@ -101,7 +101,7 @@ export interface DailyRecord {
   id: string;
   user_id: string;
   record_date: string; // ISO date string
-  day_load: number | null;
+  day_load: number | null; // battery %, 0–100; null when visibility-stripped
   day_note: string | null;
   form_opened_at: string;
   created_at: string;

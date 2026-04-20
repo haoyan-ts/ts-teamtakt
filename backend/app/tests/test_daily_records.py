@@ -52,7 +52,7 @@ def auth(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-async def insert_record(db, user_id, record_date, day_load=3):
+async def insert_record(db, user_id, record_date, day_load=80):
     """Directly insert a DailyRecord bypassing the API (for past/locked dates)."""
     record = DailyRecord(
         user_id=user_id,
@@ -80,14 +80,14 @@ async def test_create_daily_record_ok(client, db_session):
         "/api/v1/daily-records",
         json={
             "record_date": str(date.today()),
-            "day_load": 4,
+            "day_load": 80,
             "form_opened_at": datetime.now(UTC).isoformat(),
             "daily_work_logs": [],
         },
         headers=auth(tok),
     )
     assert resp.status_code == 201
-    assert resp.json()["day_load"] == 4
+    assert resp.json()["day_load"] == 80
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ async def test_duplicate_daily_record_rejected(client, db_session):
             "/api/v1/daily-records",
             json={
                 "record_date": str(date.today()),
-                "day_load": 2,
+                "day_load": 50,
                 "form_opened_at": datetime.now(UTC).isoformat(),
                 "daily_work_logs": [],
             },
@@ -127,7 +127,7 @@ async def test_visibility_owner_sees_day_load(client, db_session):
 
     # Use a distinct past date (directly inserted to bypass edit-window)
     rec_date = date.today() - timedelta(days=7)
-    await insert_record(db_session, user.id, rec_date, day_load=5)
+    await insert_record(db_session, user.id, rec_date, day_load=75)
 
     resp = await client.get(
         f"/api/v1/daily-records?user_id={user.id}",
@@ -136,7 +136,7 @@ async def test_visibility_owner_sees_day_load(client, db_session):
     assert resp.status_code == 200
     records = resp.json()
     target = next(r for r in records if r["record_date"] == str(rec_date))
-    assert target["day_load"] == 5
+    assert target["day_load"] == 75
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +152,7 @@ async def test_visibility_leader_sees_day_load(client, db_session):
     await make_membership(db_session, leader.id, team.id)
 
     rec_date = date.today() - timedelta(days=8)
-    await insert_record(db_session, member.id, rec_date, day_load=4)
+    await insert_record(db_session, member.id, rec_date, day_load=80)
 
     resp = await client.get(
         f"/api/v1/daily-records?user_id={member.id}",
@@ -161,7 +161,7 @@ async def test_visibility_leader_sees_day_load(client, db_session):
     assert resp.status_code == 200
     records = resp.json()
     target = next(r for r in records if r["record_date"] == str(rec_date))
-    assert target["day_load"] == 4  # leader has full visibility
+    assert target["day_load"] == 80  # leader has full visibility
 
 
 # ---------------------------------------------------------------------------
@@ -217,7 +217,7 @@ async def test_visibility_admin_full_access(client, db_session):
     await make_membership(db_session, admin.id, admin_team.id)
 
     rec_date = date.today() - timedelta(days=9)
-    await insert_record(db_session, member.id, rec_date, day_load=2)
+    await insert_record(db_session, member.id, rec_date, day_load=50)
 
     resp = await client.get(
         f"/api/v1/daily-records?user_id={member.id}",
@@ -226,7 +226,7 @@ async def test_visibility_admin_full_access(client, db_session):
     assert resp.status_code == 200
     records = resp.json()
     target = next(r for r in records if r["record_date"] == str(rec_date))
-    assert target["day_load"] == 2
+    assert target["day_load"] == 50
 
 
 # ---------------------------------------------------------------------------
@@ -240,13 +240,13 @@ async def test_owner_gets_record_detail(client, db_session):
     await make_membership(db_session, user.id, team.id)
 
     rec_date = date.today() - timedelta(days=10)
-    record = await insert_record(db_session, user.id, rec_date, day_load=4)
+    record = await insert_record(db_session, user.id, rec_date, day_load=80)
 
     resp = await client.get(f"/api/v1/daily-records/{record.id}", headers=auth(tok))
     assert resp.status_code == 200
     data = resp.json()
     assert data["id"] == str(record.id)
-    assert data["day_load"] == 4
+    assert data["day_load"] == 80
 
 
 async def test_leader_gets_record_detail_with_day_load(client, db_session):
@@ -257,13 +257,13 @@ async def test_leader_gets_record_detail_with_day_load(client, db_session):
     await make_membership(db_session, member.id, team.id)
 
     rec_date = date.today() - timedelta(days=11)
-    record = await insert_record(db_session, member.id, rec_date, day_load=5)
+    record = await insert_record(db_session, member.id, rec_date, day_load=75)
 
     resp = await client.get(
         f"/api/v1/daily-records/{record.id}", headers=auth(leader_tok)
     )
     assert resp.status_code == 200
-    assert resp.json()["day_load"] == 5
+    assert resp.json()["day_load"] == 75
 
 
 async def test_get_record_detail_not_found(client, db_session):
@@ -343,7 +343,7 @@ async def test_work_log_non_fibonacci_effort_rejected(client, db_session):
             "/api/v1/daily-records",
             json={
                 "record_date": str(date.today()),
-                "day_load": 3,
+                "day_load": 80,
                 "form_opened_at": datetime.now(UTC).isoformat(),
                 "daily_work_logs": [_work_log_payload(fake_task_id, invalid)],
             },
@@ -365,7 +365,7 @@ async def test_work_log_effort_eight_accepted_schema(client, db_session):
         "/api/v1/daily-records",
         json={
             "record_date": str(date.today()),
-            "day_load": 3,
+            "day_load": 80,
             "form_opened_at": datetime.now(UTC).isoformat(),
             "daily_work_logs": [_work_log_payload(fake_task_id, 8)],
         },
@@ -388,7 +388,7 @@ async def test_work_log_invalid_energy_type_rejected(client, db_session):
         "/api/v1/daily-records",
         json={
             "record_date": str(date.today()),
-            "day_load": 3,
+            "day_load": 80,
             "form_opened_at": datetime.now(UTC).isoformat(),
             "daily_work_logs": [
                 _work_log_payload(fake_task_id, 3, energy_type="unknown_type")
@@ -413,7 +413,7 @@ async def test_work_log_valid_energy_type_accepted_schema(client, db_session):
             "/api/v1/daily-records",
             json={
                 "record_date": str(date.today()),
-                "day_load": 3,
+                "day_load": 80,
                 "form_opened_at": datetime.now(UTC).isoformat(),
                 "daily_work_logs": [
                     _work_log_payload(fake_task_id, 3, energy_type=energy)
@@ -424,3 +424,86 @@ async def test_work_log_valid_energy_type_accepted_schema(client, db_session):
         assert (
             resp.status_code != 422
         ), f"energy_type={energy!r} should pass schema validation"
+
+
+# ---------------------------------------------------------------------------
+# day_load battery % boundary validation
+# ---------------------------------------------------------------------------
+
+
+async def test_day_load_zero_accepted(client, db_session):
+    """day_load=0 (0% battery) must be accepted."""
+    user, tok = await make_user(db_session, "dl_boundary01@t.com")
+    team = await make_team(db_session, "dl_boundary01_team")
+    await make_membership(db_session, user.id, team.id)
+
+    resp = await client.post(
+        "/api/v1/daily-records",
+        json={
+            "record_date": str(date.today()),
+            "day_load": 0,
+            "form_opened_at": datetime.now(UTC).isoformat(),
+            "daily_work_logs": [],
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 201
+    assert resp.json()["day_load"] == 0
+
+
+async def test_day_load_hundred_accepted(client, db_session):
+    """day_load=100 (100% battery) must be accepted."""
+    user, tok = await make_user(db_session, "dl_boundary02@t.com")
+    team = await make_team(db_session, "dl_boundary02_team")
+    await make_membership(db_session, user.id, team.id)
+
+    resp = await client.post(
+        "/api/v1/daily-records",
+        json={
+            "record_date": str(date.today()),
+            "day_load": 100,
+            "form_opened_at": datetime.now(UTC).isoformat(),
+            "daily_work_logs": [],
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 201
+    assert resp.json()["day_load"] == 100
+
+
+async def test_day_load_negative_rejected(client, db_session):
+    """day_load=-1 must be rejected with 422."""
+    user, tok = await make_user(db_session, "dl_boundary03@t.com")
+    team = await make_team(db_session, "dl_boundary03_team")
+    await make_membership(db_session, user.id, team.id)
+
+    resp = await client.post(
+        "/api/v1/daily-records",
+        json={
+            "record_date": str(date.today()),
+            "day_load": -1,
+            "form_opened_at": datetime.now(UTC).isoformat(),
+            "daily_work_logs": [],
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 422
+
+
+async def test_day_load_over_hundred_rejected(client, db_session):
+    """day_load=101 must be rejected with 422."""
+    user, tok = await make_user(db_session, "dl_boundary04@t.com")
+    team = await make_team(db_session, "dl_boundary04_team")
+    await make_membership(db_session, user.id, team.id)
+
+    resp = await client.post(
+        "/api/v1/daily-records",
+        json={
+            "record_date": str(date.today()),
+            "day_load": 101,
+            "form_opened_at": datetime.now(UTC).isoformat(),
+            "daily_work_logs": [],
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 422

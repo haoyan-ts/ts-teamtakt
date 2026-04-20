@@ -65,7 +65,7 @@ const TodayStatusCard = ({ records, isAbsent, today }: TodayStatusCardProps) => 
     bgColor = 'var(--bg-info)';
     borderColor = 'var(--border)';
   } else if (todayRecord) {
-    label = `${todayRecord.daily_work_logs.length} tasks — day load ${todayRecord.day_load ?? '?'}/5`;
+    label = `${todayRecord.daily_work_logs.length} tasks — battery ${todayRecord.day_load !== null ? todayRecord.day_load + '%' : '—'}`;
     bgColor = 'var(--success-bg)';
     borderColor = 'var(--border)';
   }
@@ -202,7 +202,7 @@ const LoadTrendCard = ({ records }: LoadTrendCardProps) => {
 
   return (
     <div style={cardStyle}>
-      <h3 style={cardTitle}>Personal Load Trend</h3>
+      <h3 style={cardTitle}>Personal Battery Trend</h3>
       {withLoad.length === 0 ? (
         <p style={emptyText}>Not enough data yet.</p>
       ) : (
@@ -210,7 +210,7 @@ const LoadTrendCard = ({ records }: LoadTrendCardProps) => {
           <LineChart data={withLoad}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-            <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} />
+            <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} />
             <Tooltip />
             <Legend />
             <Line
@@ -226,7 +226,7 @@ const LoadTrendCard = ({ records }: LoadTrendCardProps) => {
                     cx={cx}
                     cy={cy}
                     r={4}
-                    fill={(payload?.load ?? 0) >= 4 ? '#e53e3e' : '#3182ce'}
+                    fill={(payload?.load ?? 100) <= 25 ? '#e53e3e' : '#3182ce'}
                     stroke="none"
                   />
                 );
@@ -235,7 +235,7 @@ const LoadTrendCard = ({ records }: LoadTrendCardProps) => {
           </LineChart>
         </ResponsiveContainer>
       )}
-      <p style={{ ...metaText, marginTop: '0.25rem' }}>Red dots indicate day load ≥ 4</p>
+      <p style={{ ...metaText, marginTop: '0.25rem' }}>Red dots indicate battery ≤ 25%</p>
     </div>
   );
 };

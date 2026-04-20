@@ -158,7 +158,7 @@ export const DailyFormPage = () => {
   const [isAbsenceMode, setIsAbsenceMode] = useState(false);
   const [absenceType, setAbsenceType] = useState<string>('holiday');
   const [workLogs, setWorkLogs] = useState<DailyWorkLogFormEntry[]>([]);
-  const [dayLoad, setDayLoad] = useState(3);
+  const [dayLoad, setDayLoad] = useState(50);
   const [dayNote, setDayNote] = useState('');
 
   const [loading, setLoading] = useState(true);
@@ -196,7 +196,7 @@ export const DailyFormPage = () => {
     setAbsenceTypes([]);
     setAbsenceType('');
     setWorkLogs([]);
-    setDayLoad(3);
+    setDayLoad(50);
     setDayNote('');
     setSuccessMsg(null);
     setChecked(false);
@@ -227,7 +227,7 @@ export const DailyFormPage = () => {
           const rec = records[0];
           setExistingRecord(rec);
           setChecked(true); // already submitted — start in locked state
-          setDayLoad(rec.day_load ?? 3);
+          setDayLoad(rec.day_load ?? 50);
           setDayNote(rec.day_note ?? '');
 
           const activeTasksById = new Map(activeTasks.map((t) => [t.id, t]));
@@ -685,23 +685,33 @@ export const DailyFormPage = () => {
             });
           })()}
 
-          {/* Day load (private) */}
+          {/* Battery % (private) */}
           <div style={s.metaSection}>
             <div style={s.fieldRow}>
               <label style={s.label}>
-                Day load (1–5) <span style={s.privateLabel}>[private]</span>
+                Battery % <span style={s.privateLabel}>[private]</span>
               </label>
-              <input
-                type="range"
-                min={1}
-                max={5}
-                step={1}
-                value={dayLoad}
-                onChange={(e) => { isDirty.current = true; setDayLoad(Number(e.target.value)); }}
-                disabled={!isEditable}
-                style={{ width: '10rem', margin: '0 0.75rem' }}
-              />
-              <span style={{ fontWeight: 600, minWidth: '1.5rem' }}>{dayLoad}</span>
+              <div style={{ display: 'flex', gap: '0.4rem', margin: '0 0.75rem' }}>
+                {[0, 25, 50, 75, 100].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    disabled={!isEditable}
+                    onClick={() => { isDirty.current = true; setDayLoad(pct); }}
+                    style={{
+                      padding: '0.25rem 0.6rem',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border)',
+                      cursor: isEditable ? 'pointer' : 'not-allowed',
+                      background: dayLoad === pct ? 'var(--accent)' : 'var(--bg-secondary)',
+                      color: dayLoad === pct ? '#fff' : 'var(--text-body)',
+                      fontWeight: dayLoad === pct ? 700 : 400,
+                    }}
+                  >
+                    {pct}%
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Day note */}
