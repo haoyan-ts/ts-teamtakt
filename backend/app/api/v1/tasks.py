@@ -87,6 +87,7 @@ async def create_task(
         estimated_effort=body.estimated_effort,
         blocker_type_id=body.blocker_type_id,
         github_issue_url=body.github_issue_url,
+        insight=body.insight,
         closed_at=closed_at,
     )
     db.add(task)
