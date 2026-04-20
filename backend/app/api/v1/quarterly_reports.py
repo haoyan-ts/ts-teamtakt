@@ -355,7 +355,7 @@ async def update_quarterly_report(
         )
     if report.status != QuarterlyReportStatus.draft:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Only draft reports can be edited.",
         )
 
@@ -390,7 +390,7 @@ async def finalize_quarterly_report(
         )
     if report.status != QuarterlyReportStatus.draft:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Only draft reports can be finalized.",
         )
 
@@ -424,7 +424,7 @@ async def regenerate_quarterly_report(
         )
     if report.status == QuarterlyReportStatus.finalized:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Finalized reports cannot be regenerated.",
         )
 

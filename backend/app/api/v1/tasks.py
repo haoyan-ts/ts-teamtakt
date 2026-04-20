@@ -172,7 +172,7 @@ async def update_task(
     if body.github_issue_url is not None and task.github_issue_url is not None:
         if body.github_issue_url != task.github_issue_url:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="github_issue_url is immutable after it has been set.",
             )
 
