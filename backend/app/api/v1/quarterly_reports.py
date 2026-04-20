@@ -175,7 +175,9 @@ async def _pre_aggregate(
             blocker_texts_by_proj[proj].append(log.blocker_text)
 
     # Collect day insights per project (one note per record, deduped)
-    record_day_insights: dict[uuid.UUID, str | None] = {r.id: r.day_insight for r in records}
+    record_day_insights: dict[uuid.UUID, str | None] = {
+        r.id: r.day_insight for r in records
+    }
     record_proj: dict[uuid.UUID, set[str]] = defaultdict(set)
     for log, task in log_task_pairs:
         if log.daily_record_id in record_day_insights:
