@@ -310,7 +310,7 @@ export const WeeklyReportPage = () => {
           <div style={{ ...card, gridColumn: '1 / -1', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
             {[
               { label: 'Days Reported', value: report.data.days_reported },
-              { label: 'Avg Load', value: report.data.avg_day_load?.toFixed(1) ?? '—' },
+              { label: 'Avg Battery %', value: report.data.avg_day_load != null ? report.data.avg_day_load.toFixed(1) + '%' : '—' },
               { label: 'Carry-overs', value: report.data.carry_over_count },
               { label: 'Blockers', value: report.data.blocker_count },
             ].map((kpi) => (

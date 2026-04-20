@@ -150,7 +150,7 @@ export const MonthlyReportPage = () => {
           <div style={{ ...card, gridColumn: '1 / -1', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
             {[
               { label: 'Days Reported', value: data.days_reported },
-              { label: 'Avg Load', value: data.avg_day_load?.toFixed(1) ?? '—' },
+              { label: 'Avg Battery %', value: data.avg_day_load != null ? data.avg_day_load.toFixed(1) + '%' : '—' },
               { label: 'Total Carry-overs', value: data.carry_over_count },
               { label: 'Total Blockers', value: data.blocker_count },
               { label: 'Weeks with Data', value: reports.length },
@@ -164,14 +164,14 @@ export const MonthlyReportPage = () => {
 
           {/* Week-by-week load trend */}
           <div style={{ ...card, gridColumn: '1 / -1' }}>
-            <h3 style={cardTitle}>Load Trend by Week</h3>
+            <h3 style={cardTitle}>Battery % Trend by Week</h3>
             <ResponsiveContainer width="100%" height={160}>
               <BarChart
                 data={reports.map((r) => ({ week: r.week_start.slice(5), load: r.data.avg_day_load?.toFixed(2) ?? 0 }))}
                 margin={{ left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                <YAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
                 <Tooltip />
                 <Bar dataKey="load" fill="#3182ce" />
               </BarChart>

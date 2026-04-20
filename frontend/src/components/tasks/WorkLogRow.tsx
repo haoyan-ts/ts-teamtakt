@@ -6,6 +6,7 @@ import type {
   BlockerType,
   Task,
 } from '../../types/dailyRecord';
+import { ENERGY_TYPE_META, ENERGY_TYPES, FIBONACCI } from './energyTypeMeta';
 
 interface WorkLogRowProps {
   log: DailyWorkLogFormEntry;
@@ -247,14 +248,14 @@ export const WorkLogRow = ({
 
       {/* Actual effort */}
       <div style={s.fieldRow}>
-        <label style={s.label}>Effort today (1–5) *</label>
+        <label style={s.label}>Effort today (1–8) *</label>
         <select
-          value={log.effort}
+          value={FIBONACCI.includes(log.effort as typeof FIBONACCI[number]) ? log.effort : ''}
           onChange={(e) => onChange(index, { effort: Number(e.target.value) })}
           style={{ ...s.select, width: '5rem' }}
           disabled={!isEditable}
         >
-          {[1, 2, 3, 4, 5].map((n) => (
+          {FIBONACCI.map((n) => (
             <option key={n} value={n}>{n}</option>
           ))}
         </select>
@@ -263,15 +264,52 @@ export const WorkLogRow = ({
             (est. {log.task.estimated_effort})
           </span>
         )}
+        {!FIBONACCI.includes(log.effort as typeof FIBONACCI[number]) && (
+          <span style={s.effortError}>Invalid effort value — please re-select</span>
+        )}
       </div>
 
-      {/* Work note */}
+      {/* Energy type */}
       <div style={s.fieldRow}>
-        <label style={s.label}>Work note</label>
+        <label style={s.label}>Energy type</label>
+        <div style={s.energyGroup}>
+          {ENERGY_TYPES.map((type) => {
+            const meta = ENERGY_TYPE_META[type];
+            const selected = log.energy_type === type;
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => {
+                  if (!isEditable) return;
+                  onChange(index, { energy_type: selected ? null : type });
+                }}
+                disabled={!isEditable}
+                title={meta.label}
+                style={{
+                  ...s.energyChip,
+                  ...(selected
+                    ? { background: meta.color, color: '#fff', borderColor: meta.color }
+                    : { background: 'transparent', color: 'var(--text-secondary)', borderColor: 'var(--border-strong)' }),
+                  cursor: isEditable ? 'pointer' : 'default',
+                  opacity: !isEditable && !selected ? 0.45 : 1,
+                }}
+              >
+                <span>{meta.icon}</span>
+                <span style={s.energyChipLabel}>{meta.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Insight (day-level learning note) */}
+      <div style={s.fieldRow}>
+        <label style={s.label}>Insight</label>
         <input
           type="text"
-          value={log.work_note ?? ''}
-          onChange={(e) => onChange(index, { work_note: e.target.value || null })}
+          value={log.insight ?? ''}
+          onChange={(e) => onChange(index, { insight: e.target.value || null })}
           style={s.input}
           disabled={!isEditable}
           placeholder="What specifically happened today?"
@@ -560,6 +598,21 @@ const rowStyles: Record<string, React.CSSProperties> = {
     color: 'var(--text-h)',
   },
   effortHint: { fontSize: '0.78rem', color: 'var(--text-secondary)' },
+  effortError: { fontSize: '0.78rem', color: 'var(--error)', fontWeight: 600 },
+  energyGroup: { display: 'flex', flexWrap: 'wrap', gap: '0.35rem' },
+  energyChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    padding: '0.2rem 0.55rem',
+    borderRadius: '999px',
+    border: '1px solid',
+    fontSize: '0.8rem',
+    fontWeight: 500,
+    transition: 'background 0.15s, color 0.15s',
+    lineHeight: 1.3,
+  },
+  energyChipLabel: { whiteSpace: 'nowrap' },
   tagGroup: { display: 'flex', flexWrap: 'wrap', gap: '0.35rem' },
   tagChip: {
     padding: '0.2rem 0.6rem',

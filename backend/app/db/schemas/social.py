@@ -61,7 +61,7 @@ class FeedDailyWorkLog(BaseModel):
     category_id: uuid.UUID
     project_id: uuid.UUID
     effort: int
-    work_note: str | None
+    insight: str | None
     status: str
     blocker_type_id: uuid.UUID | None
     # blocker_text intentionally omitted (private field)
@@ -76,7 +76,7 @@ class FeedItemRead(BaseModel):
     user_id: uuid.UUID
     display_name: str
     record_date: str  # ISO date string
-    day_note: str | None
+    day_insight: str | None
     daily_work_logs: list[FeedDailyWorkLog]
     comment_count: int
     reactions: list[ReactionGroupRead]

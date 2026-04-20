@@ -69,7 +69,7 @@ async def generate_weekly_report(
 
     if not _is_after_window_close(week_start):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Weekly report can only be generated after the edit window closes (Saturday).",
         )
 
@@ -85,13 +85,18 @@ async def generate_weekly_report(
     record_ids = [r.id for r in records]
 
     # Fetch DailyWorkLogs and their parent Tasks for this week's records
-    logs_r = await db.execute(
-        select(DailyWorkLog, Task)
-        .join(Task, DailyWorkLog.task_id == Task.id)
-        .where(DailyWorkLog.daily_record_id.in_(record_ids))
-        if record_ids
-        else select(DailyWorkLog, Task).where(false())
-    )
+    if record_ids:
+        logs_r = await db.execute(
+            select(DailyWorkLog, Task)
+            .join(Task, DailyWorkLog.task_id == Task.id)
+            .where(DailyWorkLog.daily_record_id.in_(record_ids))
+        )
+    else:
+        logs_r = await db.execute(
+            select(DailyWorkLog, Task)
+            .join(Task, DailyWorkLog.task_id == Task.id)
+            .where(false())
+        )
     log_task_pairs = logs_r.all()
     work_logs = [log for log, _ in log_task_pairs]
 

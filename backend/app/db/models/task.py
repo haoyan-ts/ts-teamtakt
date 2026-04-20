@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    String,
     Text,
     UniqueConstraint,
     Uuid,
@@ -26,6 +27,14 @@ class TaskStatus(enum.StrEnum):
     running = "running"
     done = "done"
     blocked = "blocked"
+
+
+class EnergyType(enum.StrEnum):
+    deep_focus = "deep_focus"
+    collaborative = "collaborative"
+    admin = "admin"
+    creative = "creative"
+    reactive = "reactive"
 
 
 class Task(Base):
@@ -69,6 +78,7 @@ class Task(Base):
         Uuid(as_uuid=True), ForeignKey("blocker_types.id"), nullable=True
     )
     github_issue_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    insight: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -92,7 +102,10 @@ class DailyWorkLog(Base):
         Uuid(as_uuid=True), ForeignKey("daily_records.id"), nullable=False
     )
     effort: Mapped[int] = mapped_column(Integer, nullable=False)
-    work_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    energy_type: Mapped[EnergyType | None] = mapped_column(
+        SAEnum(EnergyType, name="energy_type", native_enum=False), nullable=True
+    )
+    insight: Mapped[str | None] = mapped_column(String(500), nullable=True)
     blocker_type_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("blocker_types.id"), nullable=True
     )

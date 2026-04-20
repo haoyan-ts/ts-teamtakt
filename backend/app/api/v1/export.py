@@ -117,7 +117,7 @@ _RECORD_HEADERS = [
     "user",
     "record_date",
     "day_load",
-    "day_note",
+    "day_insight",
 ]
 _LOG_HEADERS = [
     "log_id",
@@ -128,7 +128,7 @@ _LOG_HEADERS = [
     "sub_type",
     "project",
     "effort",
-    "work_note",
+    "insight",
     "status",
     "blocker_type",
     "blocker_text",
@@ -142,7 +142,7 @@ def _record_row(rec: DailyRecord, maps: dict, *, include_private: bool = True) -
         maps["users"].get(rec.user_id, str(rec.user_id)),
         str(rec.record_date),
         rec.day_load if include_private else "",
-        rec.day_note or "",
+        rec.day_insight or "",
     ]
 
 
@@ -162,7 +162,7 @@ def _log_row(
         maps["subtypes"].get(task.sub_type_id, "") if task.sub_type_id else "",
         maps["projects"].get(task.project_id, str(task.project_id)),
         log.effort,
-        log.work_note or "",
+        log.insight or "",
         task.status,
         (
             maps["blocker_types"].get(log.blocker_type_id, "")
@@ -409,14 +409,14 @@ async def export_bulk(
     )
     _sheet(
         "DailyRecords",
-        ["id", "user_id", "record_date", "day_load", "day_note", "created_at"],
+        ["id", "user_id", "record_date", "day_load", "day_insight", "created_at"],
         [
             [
                 str(r.id),
                 str(r.user_id),
                 str(r.record_date),
                 r.day_load,
-                r.day_note or "",
+                r.day_insight or "",
                 str(r.created_at),
             ]
             for r in records
@@ -463,7 +463,7 @@ async def export_bulk(
             "task_id",
             "daily_record_id",
             "effort",
-            "work_note",
+            "insight",
             "blocker_type_id",
             "blocker_text",
             "sort_order",
@@ -474,7 +474,7 @@ async def export_bulk(
                 str(log.task_id),
                 str(log.daily_record_id),
                 log.effort,
-                log.work_note or "",
+                log.insight or "",
                 str(log.blocker_type_id) if log.blocker_type_id else "",
                 log.blocker_text or "",
                 log.sort_order,

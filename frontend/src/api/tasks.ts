@@ -13,6 +13,7 @@ export interface CreateTaskPayload {
   estimated_effort?: number | null;
   blocker_type_id?: string | null;
   github_issue_url?: string | null;
+  insight?: string | null;
 }
 
 // github_issue_url excluded: immutable after set — send only on create
@@ -25,6 +26,7 @@ export interface UpdateTaskPayload {
   status?: 'todo' | 'running' | 'done' | 'blocked';
   estimated_effort?: number | null;
   blocker_type_id?: string | null;
+  insight?: string | null;
 }
 
 export async function getTasks(params?: {
@@ -70,6 +72,7 @@ export interface GithubAutofillResult {
   estimated_effort: number | null;
   status: 'todo' | 'done' | null;
   blocker_type_id: string | null;
+  insight: string | null;
 }
 
 export async function prefillFromGithubIssue(

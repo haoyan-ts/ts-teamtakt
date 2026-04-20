@@ -4,7 +4,18 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, field_validator
+
+from app.db.models.task import EnergyType
+
+_FIBONACCI = frozenset({1, 2, 3, 5, 8})
+
+
+def _validate_fibonacci(v: int) -> int:
+    if v not in _FIBONACCI:
+        raise ValueError(f"effort must be one of {sorted(_FIBONACCI)}, got {v}")
+    return v
+
 
 # ---------------------------------------------------------------------------
 # Self-assessment tag refs (shared between request and response)
@@ -30,12 +41,25 @@ class SelfAssessmentTagRefResponse(BaseModel):
 
 class DailyWorkLogCreate(BaseModel):
     task_id: uuid.UUID
-    effort: int = Field(ge=1, le=5)
-    work_note: str | None = None
+    effort: int
+    energy_type: EnergyType | None = None
+    insight: str | None = None
     blocker_type_id: uuid.UUID | None = None
     blocker_text: str | None = None
     sort_order: int = 0
     self_assessment_tags: list[SelfAssessmentTagRef] = []
+
+    @field_validator("effort")
+    @classmethod
+    def effort_must_be_fibonacci(cls, v: int) -> int:
+        return _validate_fibonacci(v)
+
+    @field_validator("insight")
+    @classmethod
+    def insight_max_500(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 500:
+            raise ValueError("insight must be 500 characters or fewer")
+        return v
 
 
 class DailyWorkLogResponse(BaseModel):
@@ -43,7 +67,8 @@ class DailyWorkLogResponse(BaseModel):
     task_id: uuid.UUID
     daily_record_id: uuid.UUID
     effort: int
-    work_note: str | None
+    energy_type: EnergyType | None
+    insight: str | None
     blocker_type_id: uuid.UUID | None
     blocker_text: str | None
     sort_order: int
@@ -64,9 +89,24 @@ class TaskCreate(BaseModel):
     category_id: uuid.UUID
     sub_type_id: uuid.UUID | None = None
     status: Literal["todo", "running", "done", "blocked"] = "todo"
-    estimated_effort: int | None = Field(default=None, ge=1, le=5)
+    estimated_effort: int | None = None
     blocker_type_id: uuid.UUID | None = None
     github_issue_url: str | None = None
+    insight: str | None = None
+
+    @field_validator("estimated_effort")
+    @classmethod
+    def estimated_effort_must_be_fibonacci(cls, v: int | None) -> int | None:
+        if v is not None:
+            return _validate_fibonacci(v)
+        return v
+
+    @field_validator("insight")
+    @classmethod
+    def insight_max_500(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 500:
+            raise ValueError("insight must be 500 characters or fewer")
+        return v
 
 
 class TaskUpdate(BaseModel):
@@ -76,10 +116,25 @@ class TaskUpdate(BaseModel):
     category_id: uuid.UUID | None = None
     sub_type_id: uuid.UUID | None = None
     status: Literal["todo", "running", "done", "blocked"] | None = None
-    estimated_effort: int | None = Field(default=None, ge=1, le=5)
+    estimated_effort: int | None = None
     blocker_type_id: uuid.UUID | None = None
     github_issue_url: str | None = None
     is_active: bool | None = None
+    insight: str | None = None
+
+    @field_validator("estimated_effort")
+    @classmethod
+    def estimated_effort_must_be_fibonacci(cls, v: int | None) -> int | None:
+        if v is not None:
+            return _validate_fibonacci(v)
+        return v
+
+    @field_validator("insight")
+    @classmethod
+    def insight_max_500(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 500:
+            raise ValueError("insight must be 500 characters or fewer")
+        return v
 
 
 class TaskResponse(BaseModel):
@@ -94,6 +149,7 @@ class TaskResponse(BaseModel):
     estimated_effort: int | None
     blocker_type_id: uuid.UUID | None
     github_issue_url: str | None
+    insight: str | None
     created_by: uuid.UUID
     created_at: datetime
     closed_at: date | None
@@ -114,3 +170,4 @@ class TaskAutoFillResponse(BaseModel):
     category_id: uuid.UUID | None = None
     sub_type_id: uuid.UUID | None = None
     estimated_effort: int | None = None
+    insight: str | None = None

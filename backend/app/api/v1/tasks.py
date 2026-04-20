@@ -87,6 +87,7 @@ async def create_task(
         estimated_effort=body.estimated_effort,
         blocker_type_id=body.blocker_type_id,
         github_issue_url=body.github_issue_url,
+        insight=body.insight,
         closed_at=closed_at,
     )
     db.add(task)
@@ -171,7 +172,7 @@ async def update_task(
     if body.github_issue_url is not None and task.github_issue_url is not None:
         if body.github_issue_url != task.github_issue_url:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="github_issue_url is immutable after it has been set.",
             )
 
@@ -191,6 +192,8 @@ async def update_task(
         task.blocker_type_id = body.blocker_type_id
     if body.is_active is not None:
         task.is_active = body.is_active
+    if body.insight is not None:
+        task.insight = body.insight
 
     if body.status is not None:
         new_status = TaskStatus(body.status)

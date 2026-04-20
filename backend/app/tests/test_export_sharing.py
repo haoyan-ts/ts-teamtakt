@@ -77,7 +77,7 @@ async def make_daily_record(db, user_id, record_date_str):
         user_id=user_id,
         record_date=date.fromisoformat(record_date_str),
         day_load=3,
-        day_note="test note",
+        day_insight="test note",
         form_opened_at=datetime.now(UTC),
     )
     db.add(dr)

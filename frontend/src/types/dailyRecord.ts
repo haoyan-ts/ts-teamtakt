@@ -59,6 +59,7 @@ export interface Task {
   estimated_effort: number | null;
   blocker_type_id: string | null;
   github_issue_url: string | null; // immutable after set
+  insight: string | null;
   created_by: string;
   created_at: string;
   closed_at: string | null;
@@ -67,13 +68,16 @@ export interface Task {
 
 // ---- DailyWorkLog (what I did today on a task) ----
 
+export type EnergyType = 'deep_focus' | 'collaborative' | 'admin' | 'creative' | 'reactive';
+
 export interface DailyWorkLog {
   id: string;
   task_id: string;
   task?: Task; // populated when returned as part of DailyRecord
   daily_record_id: string;
-  effort: number; // 1-5 actual effort today
-  work_note: string | null;
+  effort: number; // Fibonacci: 1, 2, 3, 5, 8
+  energy_type: EnergyType | null;
+  insight: string | null;
   blocker_type_id: string | null;
   blocker_text: string | null; // private
   sort_order: number;
@@ -86,7 +90,8 @@ export interface DailyWorkLogFormEntry {
   task: Task;
   task_id: string;
   effort: number;
-  work_note: string | null;
+  energy_type: EnergyType | null;
+  insight: string | null;
   blocker_type_id: string | null;
   blocker_text: string | null;
   sort_order: number;
@@ -97,8 +102,8 @@ export interface DailyRecord {
   id: string;
   user_id: string;
   record_date: string; // ISO date string
-  day_load: number | null;
-  day_note: string | null;
+  day_load: number | null; // battery %, 0–100; null when visibility-stripped
+  day_insight: string | null;
   form_opened_at: string;
   created_at: string;
   updated_at: string;
@@ -121,4 +126,19 @@ export interface UnlockGrant {
   granted_by: string;
   granted_at: string;
   revoked_at: string | null;
+}
+
+// ---- Effort breakdown (from /daily-records/breakdown) ----
+
+export interface EnergyTypeEffort {
+  energy_type: EnergyType | null;
+  effort: number;
+}
+
+export interface DailyEffortBreakdown {
+  user_id: string;
+  record_date: string;
+  total_effort: number;
+  by_energy_type: EnergyTypeEffort[];
+  battery_pct: number | null; // null when visibility rules disallow it
 }

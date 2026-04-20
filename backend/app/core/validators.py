@@ -7,11 +7,11 @@ def validate_self_assessment_tags(daily_work_logs_data: list) -> None:
         if hasattr(log, "self_assessment_tags"):
             tags = log.self_assessment_tags or []
             primary_count = sum(1 for t in tags if t.is_primary)
-            note = getattr(log, "work_note", "") or ""
+            note = getattr(log, "insight", "") or ""
         else:
             tags = log.get("self_assessment_tags", [])
             primary_count = sum(1 for t in tags if t.get("is_primary", False))
-            note = log.get("work_note", "") or ""
+            note = log.get("insight", "") or ""
 
         if primary_count == 0:
             raise ValueError(

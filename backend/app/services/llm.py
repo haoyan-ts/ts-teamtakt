@@ -45,7 +45,7 @@ async def generate_email_draft(
     top_projects: list[dict],
     carry_overs: list[dict],
     blockers: list[dict],
-    day_notes: list[str],
+    day_insights: list[str],
     blocker_texts: list[str],
 ) -> dict[str, str]:
     """
@@ -57,12 +57,12 @@ async def generate_email_draft(
         return _placeholder_draft(display_name, week_label, days_reported)
 
     # Build prompt — user content isolated in <user_data> blocks
-    day_notes_block = "\n".join(_cap(n) for n in day_notes if n)
+    day_insights_block = "\n".join(_cap(n) for n in day_insights if n)
     blocker_texts_block = "\n".join(_cap(t) for t in blocker_texts if t)
 
     user_data_section = (
         "<user_data>\n"
-        f"Daily notes:\n{day_notes_block or '(none)'}\n\n"
+        f"Daily insights:\n{day_insights_block or '(none)'}\n\n"
         f"Blocker descriptions:\n{blocker_texts_block or '(none)'}\n"
         "</user_data>"
     )
@@ -146,7 +146,7 @@ async def generate_quarterly_report(
     quarter: str,
     output_language: str,
     pre_aggregated_data: dict,
-    day_notes_by_project: dict[str, list[str]],
+    day_insights_by_project: dict[str, list[str]],
     blocker_texts_by_project: dict[str, list[str]],
     guidance_text: str | None,
 ) -> dict[str, str]:
@@ -163,7 +163,7 @@ async def generate_quarterly_report(
 
     # Build user_data block — all user-authored content isolated here
     notes_lines: list[str] = []
-    for project, notes in day_notes_by_project.items():
+    for project, notes in day_insights_by_project.items():
         for note in notes:
             notes_lines.append(f"[{project}] {_cap(note)}")
     blocker_lines: list[str] = []

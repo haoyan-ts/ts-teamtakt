@@ -107,7 +107,8 @@ function taskToBlankLog(task: Task): DailyWorkLogFormEntry {
     task,
     task_id: task.id,
     effort: 3,
-    work_note: null,
+    energy_type: null,
+    insight: null,
     blocker_type_id: null,
     blocker_text: null,
     sort_order: 0,
@@ -157,8 +158,8 @@ export const DailyFormPage = () => {
   const [isAbsenceMode, setIsAbsenceMode] = useState(false);
   const [absenceType, setAbsenceType] = useState<string>('holiday');
   const [workLogs, setWorkLogs] = useState<DailyWorkLogFormEntry[]>([]);
-  const [dayLoad, setDayLoad] = useState(3);
-  const [dayNote, setDayNote] = useState('');
+  const [dayLoad, setDayLoad] = useState(50);
+  const [dayInsight, setDayInsight] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -195,8 +196,8 @@ export const DailyFormPage = () => {
     setAbsenceTypes([]);
     setAbsenceType('');
     setWorkLogs([]);
-    setDayLoad(3);
-    setDayNote('');
+    setDayLoad(50);
+    setDayInsight('');
     setSuccessMsg(null);
     setChecked(false);
     setShowConfirmCheck(false);
@@ -226,8 +227,8 @@ export const DailyFormPage = () => {
           const rec = records[0];
           setExistingRecord(rec);
           setChecked(true); // already submitted — start in locked state
-          setDayLoad(rec.day_load ?? 3);
-          setDayNote(rec.day_note ?? '');
+          setDayLoad(rec.day_load ?? 50);
+          setDayInsight(rec.day_insight ?? '');
 
           const activeTasksById = new Map(activeTasks.map((t) => [t.id, t]));
 
@@ -257,7 +258,8 @@ export const DailyFormPage = () => {
                 task,
                 task_id: log.task_id,
                 effort: log.effort,
-                work_note: log.work_note,
+                energy_type: log.energy_type,
+                insight: log.insight,
                 blocker_type_id: log.blocker_type_id,
                 blocker_text: log.blocker_text,
                 sort_order: log.sort_order,
@@ -292,15 +294,6 @@ export const DailyFormPage = () => {
     })();
   }, [recordDate]);
 
-  // Work log manipulation
-  const updateLog = useCallback(
-    (index: number, updated: Partial<DailyWorkLogFormEntry>) => {
-      isDirty.current = true;
-      setWorkLogs((prev) => prev.map((l, i) => (i === index ? { ...l, ...updated } : l)));
-    },
-    []
-  );
-
   const removeLog = useCallback((index: number) => {
     isDirty.current = true;
     setWorkLogs((prev) => prev.filter((_, i) => i !== index));
@@ -324,12 +317,13 @@ export const DailyFormPage = () => {
     if (validatePrimaryTags(logsSnapshot) !== null) return;
     const payload = {
       day_load: dayLoad,
-      day_note: dayNote || null,
+      day_insight: dayInsight || null,
       form_opened_at: formOpenedAt.current.toISOString(),
       daily_work_logs: logsSnapshot.map((l, i) => ({
         task_id: l.task_id,
         effort: l.effort,
-        work_note: l.work_note,
+        energy_type: l.energy_type,
+        insight: l.insight,
         blocker_type_id: l.blocker_type_id,
         blocker_text: l.blocker_text,
         sort_order: i,
@@ -349,7 +343,18 @@ export const DailyFormPage = () => {
     } catch (e) {
       console.warn('[autoSave] DailyRecord auto-save failed:', e);
     }
-  }, [isEditable, saving, dayLoad, dayNote, existingRecord, recordDate]);
+  }, [isEditable, saving, dayLoad, dayInsight, existingRecord, recordDate]);
+
+  // Work log manipulation
+  const updateLog = useCallback(
+    (index: number, updated: Partial<DailyWorkLogFormEntry>) => {
+      isDirty.current = true;
+      const next = workLogs.map((l, i) => (i === index ? { ...l, ...updated } : l));
+      setWorkLogs(next);
+      void autoSaveRecord(next);
+    },
+    [workLogs, autoSaveRecord]
+  );
 
   const handleTaskCreated = useCallback((task: Task) => {
     const next = [...workLogs, taskToBlankLog(task)];
@@ -440,12 +445,13 @@ export const DailyFormPage = () => {
 
     const payload = {
       day_load: dayLoad,
-      day_note: dayNote || null,
+      day_insight: dayInsight || null,
       form_opened_at: formOpenedAt.current.toISOString(),
       daily_work_logs: workLogs.map((l, i) => ({
         task_id: l.task_id,
         effort: l.effort,
-        work_note: l.work_note,
+        energy_type: l.energy_type,
+        insight: l.insight,
         blocker_type_id: l.blocker_type_id,
         blocker_text: l.blocker_text,
         sort_order: i,
@@ -681,31 +687,41 @@ export const DailyFormPage = () => {
             });
           })()}
 
-          {/* Day load (private) */}
+          {/* Battery % (private) */}
           <div style={s.metaSection}>
             <div style={s.fieldRow}>
               <label style={s.label}>
-                Day load (1–5) <span style={s.privateLabel}>[private]</span>
+                Battery % <span style={s.privateLabel}>[private]</span>
               </label>
-              <input
-                type="range"
-                min={1}
-                max={5}
-                step={1}
-                value={dayLoad}
-                onChange={(e) => { isDirty.current = true; setDayLoad(Number(e.target.value)); }}
-                disabled={!isEditable}
-                style={{ width: '10rem', margin: '0 0.75rem' }}
-              />
-              <span style={{ fontWeight: 600, minWidth: '1.5rem' }}>{dayLoad}</span>
+              <div style={{ display: 'flex', gap: '0.4rem', margin: '0 0.75rem' }}>
+                {[0, 25, 50, 75, 100].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    disabled={!isEditable}
+                    onClick={() => { isDirty.current = true; setDayLoad(pct); }}
+                    style={{
+                      padding: '0.25rem 0.6rem',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border)',
+                      cursor: isEditable ? 'pointer' : 'not-allowed',
+                      background: dayLoad === pct ? 'var(--accent)' : 'var(--bg-secondary)',
+                      color: dayLoad === pct ? '#fff' : 'var(--text-body)',
+                      fontWeight: dayLoad === pct ? 700 : 400,
+                    }}
+                  >
+                    {pct}%
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Day note */}
+            {/* Day Insight */}
             <div style={{ ...s.fieldRow, alignItems: 'flex-start', marginTop: '0.5rem' }}>
-              <label style={s.label}>Day note</label>
+              <label style={s.label}>Day Insight</label>
               <textarea
-                value={dayNote}
-                onChange={(e) => { isDirty.current = true; setDayNote(e.target.value); }}
+                value={dayInsight}
+                onChange={(e) => { isDirty.current = true; setDayInsight(e.target.value); }}
                 disabled={!isEditable}
                 rows={3}
                 style={{ ...s.input, resize: 'vertical' }}
