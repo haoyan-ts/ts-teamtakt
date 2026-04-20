@@ -191,6 +191,8 @@ async def update_task(
         task.blocker_type_id = body.blocker_type_id
     if body.is_active is not None:
         task.is_active = body.is_active
+    if body.insight is not None:
+        task.insight = body.insight
 
     if body.status is not None:
         new_status = TaskStatus(body.status)

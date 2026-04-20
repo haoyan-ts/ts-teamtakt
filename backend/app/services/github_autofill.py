@@ -39,10 +39,13 @@ async def fetch_github_issue(url: str, github_token: str | None = None) -> dict:
 async def map_to_task_fields(
     issue: dict,
     db: AsyncSession,
+    github_field_map: dict | None = None,
 ) -> TaskAutoFillResponse:
     """Map a raw GitHub Issue dict to TaskAutoFillResponse.
 
     Matches first label name (case-insensitive) against active categories.
+    If github_field_map contains an "Insight" key, the corresponding custom
+    field value from the issue is used to populate insight (capped at 500 chars).
     """
     title: str | None = issue.get("title")
     description: str | None = issue.get("body")
@@ -57,8 +60,17 @@ async def map_to_task_fields(
                 category_id = cat.id
                 break
 
+    # Resolve insight from github_field_map if configured
+    insight: str | None = None
+    if github_field_map and "Insight" in github_field_map:
+        field_key = github_field_map["Insight"]
+        raw = issue.get(field_key)
+        if isinstance(raw, str) and raw:
+            insight = raw[:500]
+
     return TaskAutoFillResponse(
         title=title,
         description=description,
         category_id=category_id,
+        insight=insight,
     )

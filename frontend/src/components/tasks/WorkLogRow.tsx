@@ -303,13 +303,13 @@ export const WorkLogRow = ({
         </div>
       </div>
 
-      {/* Work note */}
+      {/* Insight (day-level learning note) */}
       <div style={s.fieldRow}>
-        <label style={s.label}>Work note</label>
+        <label style={s.label}>Insight</label>
         <input
           type="text"
-          value={log.work_note ?? ''}
-          onChange={(e) => onChange(index, { work_note: e.target.value || null })}
+          value={log.insight ?? ''}
+          onChange={(e) => onChange(index, { insight: e.target.value || null })}
           style={s.input}
           disabled={!isEditable}
           placeholder="What specifically happened today?"

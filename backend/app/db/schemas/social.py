@@ -61,7 +61,7 @@ class FeedDailyWorkLog(BaseModel):
     category_id: uuid.UUID
     project_id: uuid.UUID
     effort: int
-    work_note: str | None
+    insight: str | None
     status: str
     blocker_type_id: uuid.UUID | None
     # blocker_text intentionally omitted (private field)

@@ -59,6 +59,7 @@ export interface Task {
   estimated_effort: number | null;
   blocker_type_id: string | null;
   github_issue_url: string | null; // immutable after set
+  insight: string | null;
   created_by: string;
   created_at: string;
   closed_at: string | null;
@@ -76,7 +77,7 @@ export interface DailyWorkLog {
   daily_record_id: string;
   effort: number; // Fibonacci: 1, 2, 3, 5, 8
   energy_type: EnergyType | null;
-  work_note: string | null;
+  insight: string | null;
   blocker_type_id: string | null;
   blocker_text: string | null; // private
   sort_order: number;
@@ -90,7 +91,7 @@ export interface DailyWorkLogFormEntry {
   task_id: string;
   effort: number;
   energy_type: EnergyType | null;
-  work_note: string | null;
+  insight: string | null;
   blocker_type_id: string | null;
   blocker_text: string | null;
   sort_order: number;

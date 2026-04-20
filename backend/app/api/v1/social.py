@@ -482,7 +482,7 @@ async def get_feed(
                     category_id=task.category_id,
                     project_id=task.project_id,
                     effort=log.effort,
-                    work_note=log.work_note,
+                    insight=log.insight,
                     status=task.status,
                     blocker_type_id=log.blocker_type_id,
                     # blocker_text intentionally omitted

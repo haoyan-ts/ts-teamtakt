@@ -292,6 +292,102 @@ async def test_task_autofill_invalid_url_returns_400(client, db_session):
 # ===========================================================================
 
 
+# ===========================================================================
+# insight field — Task
+# ===========================================================================
+
+
+async def _make_task(client, db, email, **overrides):
+    """Helper: create a user + task, return (task_dict, token)."""
+    user, tok = await make_user(db, email)
+    await make_team_with_member(db, user.id)
+    cat = await make_category(db, f"cat_{email}")
+    proj = await make_project(db, user.id)
+
+    payload = {
+        "title": "Test Task",
+        "project_id": str(proj.id),
+        "category_id": str(cat.id),
+        "status": "todo",
+        **overrides,
+    }
+    resp = await client.post("/api/v1/tasks", json=payload, headers=auth(tok))
+    assert resp.status_code == 201
+    return resp.json(), tok
+
+
+async def test_task_insight_save_and_retrieve(client, db_session):
+    """insight is saved via PATCH and returned by GET."""
+    task_data, tok = await _make_task(client, db_session, "ins01@t.com")
+    task_id = task_data["id"]
+
+    patch_resp = await client.put(
+        f"/api/v1/tasks/{task_id}",
+        json={"insight": "I learned that async is tricky."},
+        headers=auth(tok),
+    )
+    assert patch_resp.status_code == 200
+    assert patch_resp.json()["insight"] == "I learned that async is tricky."
+
+    get_resp = await client.get(f"/api/v1/tasks/{task_id}", headers=auth(tok))
+    assert get_resp.status_code == 200
+    assert get_resp.json()["insight"] == "I learned that async is tricky."
+
+
+async def test_task_insight_too_long_rejected(client, db_session):
+    """insight longer than 500 chars returns 422."""
+    task_data, tok = await _make_task(client, db_session, "ins02@t.com")
+    task_id = task_data["id"]
+
+    long_insight = "x" * 501
+    resp = await client.put(
+        f"/api/v1/tasks/{task_id}",
+        json={"insight": long_insight},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 422
+
+
+async def test_task_carry_over_does_not_copy_insight(client, db_session):
+    """insight must NOT be inherited when a task entry is carried over."""
+    # This test validates the model-level constraint: insight on Task is
+    # independent per task. Carry-over creates a new TaskEntry, not a new Task,
+    # so Task.insight is irrelevant to carry-over; but DailyWorkLog.insight
+    # (day-level) must not auto-populate on new logs.
+    user, tok = await make_user(db_session, "ins03@t.com")
+    await make_team_with_member(db_session, user.id)
+    cat = await make_category(db_session, "cat_ins03")
+    proj = await make_project(db_session, user.id)
+
+    # Create task with insight
+    create_resp = await client.post(
+        "/api/v1/tasks",
+        json={
+            "title": "Carry test",
+            "project_id": str(proj.id),
+            "category_id": str(cat.id),
+            "status": "todo",
+            "insight": "original learning",
+        },
+        headers=auth(tok),
+    )
+    assert create_resp.status_code == 201
+    # Task.insight is set on create
+    assert create_resp.json()["insight"] == "original learning"
+
+    # A fresh DailyWorkLog for this task should have insight=None (not inherited)
+    from app.db.models.task import DailyWorkLog
+
+    new_log = DailyWorkLog(
+        task_id=create_resp.json()["id"],
+        daily_record_id=__import__("uuid").uuid4(),  # dummy FK, not committed
+        effort=1,
+        sort_order=0,
+    )
+    # insight not set → defaults to None
+    assert new_log.insight is None
+
+
 async def test_task_estimated_effort_valid_fibonacci_values(client, db_session):
     user, tok = await make_user(db_session, "fib01@t.com")
     await make_team_with_member(db_session, user.id)

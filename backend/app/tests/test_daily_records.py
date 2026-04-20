@@ -319,7 +319,7 @@ def _work_log_payload(task_id: str, effort: int, **overrides):
         "task_id": task_id,
         "effort": effort,
         "energy_type": None,
-        "work_note": None,
+        "insight": None,
         "blocker_type_id": None,
         "blocker_text": None,
         "sort_order": 0,

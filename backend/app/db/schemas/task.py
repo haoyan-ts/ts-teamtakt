@@ -43,7 +43,7 @@ class DailyWorkLogCreate(BaseModel):
     task_id: uuid.UUID
     effort: int
     energy_type: EnergyType | None = None
-    work_note: str | None = None
+    insight: str | None = None
     blocker_type_id: uuid.UUID | None = None
     blocker_text: str | None = None
     sort_order: int = 0
@@ -54,6 +54,13 @@ class DailyWorkLogCreate(BaseModel):
     def effort_must_be_fibonacci(cls, v: int) -> int:
         return _validate_fibonacci(v)
 
+    @field_validator("insight")
+    @classmethod
+    def insight_max_500(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 500:
+            raise ValueError("insight must be 500 characters or fewer")
+        return v
+
 
 class DailyWorkLogResponse(BaseModel):
     id: uuid.UUID
@@ -61,7 +68,7 @@ class DailyWorkLogResponse(BaseModel):
     daily_record_id: uuid.UUID
     effort: int
     energy_type: EnergyType | None
-    work_note: str | None
+    insight: str | None
     blocker_type_id: uuid.UUID | None
     blocker_text: str | None
     sort_order: int
@@ -85,12 +92,20 @@ class TaskCreate(BaseModel):
     estimated_effort: int | None = None
     blocker_type_id: uuid.UUID | None = None
     github_issue_url: str | None = None
+    insight: str | None = None
 
     @field_validator("estimated_effort")
     @classmethod
     def estimated_effort_must_be_fibonacci(cls, v: int | None) -> int | None:
         if v is not None:
             return _validate_fibonacci(v)
+        return v
+
+    @field_validator("insight")
+    @classmethod
+    def insight_max_500(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 500:
+            raise ValueError("insight must be 500 characters or fewer")
         return v
 
 
@@ -105,12 +120,20 @@ class TaskUpdate(BaseModel):
     blocker_type_id: uuid.UUID | None = None
     github_issue_url: str | None = None
     is_active: bool | None = None
+    insight: str | None = None
 
     @field_validator("estimated_effort")
     @classmethod
     def estimated_effort_must_be_fibonacci(cls, v: int | None) -> int | None:
         if v is not None:
             return _validate_fibonacci(v)
+        return v
+
+    @field_validator("insight")
+    @classmethod
+    def insight_max_500(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 500:
+            raise ValueError("insight must be 500 characters or fewer")
         return v
 
 
@@ -126,6 +149,7 @@ class TaskResponse(BaseModel):
     estimated_effort: int | None
     blocker_type_id: uuid.UUID | None
     github_issue_url: str | None
+    insight: str | None
     created_by: uuid.UUID
     created_at: datetime
     closed_at: date | None
@@ -146,3 +170,4 @@ class TaskAutoFillResponse(BaseModel):
     category_id: uuid.UUID | None = None
     sub_type_id: uuid.UUID | None = None
     estimated_effort: int | None = None
+    insight: str | None = None
