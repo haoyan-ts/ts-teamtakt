@@ -294,15 +294,6 @@ export const DailyFormPage = () => {
     })();
   }, [recordDate]);
 
-  // Work log manipulation
-  const updateLog = useCallback(
-    (index: number, updated: Partial<DailyWorkLogFormEntry>) => {
-      isDirty.current = true;
-      setWorkLogs((prev) => prev.map((l, i) => (i === index ? { ...l, ...updated } : l)));
-    },
-    []
-  );
-
   const removeLog = useCallback((index: number) => {
     isDirty.current = true;
     setWorkLogs((prev) => prev.filter((_, i) => i !== index));
@@ -353,6 +344,17 @@ export const DailyFormPage = () => {
       console.warn('[autoSave] DailyRecord auto-save failed:', e);
     }
   }, [isEditable, saving, dayLoad, dayNote, existingRecord, recordDate]);
+
+  // Work log manipulation
+  const updateLog = useCallback(
+    (index: number, updated: Partial<DailyWorkLogFormEntry>) => {
+      isDirty.current = true;
+      const next = workLogs.map((l, i) => (i === index ? { ...l, ...updated } : l));
+      setWorkLogs(next);
+      void autoSaveRecord(next);
+    },
+    [workLogs, autoSaveRecord]
+  );
 
   const handleTaskCreated = useCallback((task: Task) => {
     const next = [...workLogs, taskToBlankLog(task)];
