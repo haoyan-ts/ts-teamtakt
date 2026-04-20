@@ -421,9 +421,9 @@ async def test_work_log_valid_energy_type_accepted_schema(client, db_session):
             },
             headers=auth(tok),
         )
-        assert (
-            resp.status_code != 422
-        ), f"energy_type={energy!r} should pass schema validation"
+        assert resp.status_code != 422, (
+            f"energy_type={energy!r} should pass schema validation"
+        )
 
 
 # ---------------------------------------------------------------------------
