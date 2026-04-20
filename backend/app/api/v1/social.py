@@ -530,7 +530,7 @@ async def get_feed(
                 user_id=record.user_id,
                 display_name=display_name,
                 record_date=record.record_date.isoformat(),
-                day_note=record.day_note,
+                day_insight=record.day_insight,
                 daily_work_logs=daily_work_logs,
                 comment_count=comment_count or 0,
                 reactions=reaction_groups,

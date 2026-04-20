@@ -76,7 +76,7 @@ class FeedItemRead(BaseModel):
     user_id: uuid.UUID
     display_name: str
     record_date: str  # ISO date string
-    day_note: str | None
+    day_insight: str | None
     daily_work_logs: list[FeedDailyWorkLog]
     comment_count: int
     reactions: list[ReactionGroupRead]

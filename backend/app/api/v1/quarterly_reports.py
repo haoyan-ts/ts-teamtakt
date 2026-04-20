@@ -116,7 +116,7 @@ async def _pre_aggregate(
     db: AsyncSession,
 ) -> tuple[dict, dict[str, list[str]], dict[str, list[str]]]:
     """
-    Returns (pre_aggregated_data, day_notes_by_project, blocker_texts_by_project).
+    Returns (pre_aggregated_data, day_insights_by_project, blocker_texts_by_project).
     pre_aggregated_data contains effort%, task counts, blocker counts, category breakdown.
     """
     start, end = _quarter_date_range(quarter)
@@ -157,7 +157,7 @@ async def _pre_aggregate(
     total_effort = 0
     seen_tasks: set[uuid.UUID] = set()
 
-    day_notes_by_proj: dict[str, list[str]] = defaultdict(list)
+    day_insights_by_proj: dict[str, list[str]] = defaultdict(list)
     blocker_texts_by_proj: dict[str, list[str]] = defaultdict(list)
 
     for log, task in log_task_pairs:
@@ -174,18 +174,18 @@ async def _pre_aggregate(
         if log.blocker_text:
             blocker_texts_by_proj[proj].append(log.blocker_text)
 
-    # Collect day notes per project (one note per record, deduped)
-    record_day_notes: dict[uuid.UUID, str | None] = {r.id: r.day_note for r in records}
+    # Collect day insights per project (one note per record, deduped)
+    record_day_insights: dict[uuid.UUID, str | None] = {r.id: r.day_insight for r in records}
     record_proj: dict[uuid.UUID, set[str]] = defaultdict(set)
     for log, task in log_task_pairs:
-        if log.daily_record_id in record_day_notes:
+        if log.daily_record_id in record_day_insights:
             record_proj[log.daily_record_id].add(proj_names.get(task.project_id, "?"))
 
-    for rec_id, note in record_day_notes.items():
+    for rec_id, note in record_day_insights.items():
         if note:
             for proj in record_proj.get(rec_id, []):
-                if note not in day_notes_by_proj[proj]:
-                    day_notes_by_proj[proj].append(note)
+                if note not in day_insights_by_proj[proj]:
+                    day_insights_by_proj[proj].append(note)
 
     # Effort %
     proj_effort_pct = {
@@ -203,7 +203,7 @@ async def _pre_aggregate(
         "category_effort": dict(cat_effort),
     }
 
-    return pre_aggregated, dict(day_notes_by_proj), dict(blocker_texts_by_proj)
+    return pre_aggregated, dict(day_insights_by_proj), dict(blocker_texts_by_proj)
 
 
 async def _run_generation(report_id: uuid.UUID) -> None:
@@ -222,7 +222,7 @@ async def _run_generation(report_id: uuid.UUID) -> None:
         output_language = await _get_output_language(db)
 
         try:
-            pre_data, day_notes, blocker_texts = await _pre_aggregate(
+            pre_data, day_insights, blocker_texts = await _pre_aggregate(
                 report.user_id, report.quarter, db
             )
             sections = await llm.generate_quarterly_report(
@@ -230,7 +230,7 @@ async def _run_generation(report_id: uuid.UUID) -> None:
                 quarter=report.quarter,
                 output_language=output_language,
                 pre_aggregated_data=pre_data,
-                day_notes_by_project=day_notes,
+                day_insights_by_project=day_insights,
                 blocker_texts_by_project=blocker_texts,
                 guidance_text=report.guidance_text,
             )

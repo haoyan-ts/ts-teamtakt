@@ -14,14 +14,14 @@ type WorkLogPayload = Omit<DailyWorkLogFormEntry, '_key' | 'task'>;
 interface CreateDailyRecordPayload {
   record_date: string;
   day_load: number;
-  day_note?: string | null;
+  day_insight?: string | null;
   form_opened_at: string;
   daily_work_logs: WorkLogPayload[];
 }
 
 interface UpdateDailyRecordPayload {
   day_load?: number | null;
-  day_note?: string | null;
+  day_insight?: string | null;
   form_opened_at: string;
   daily_work_logs?: WorkLogPayload[] | null;
 }

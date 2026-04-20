@@ -24,14 +24,14 @@ class DailyEffortBreakdownResponse(BaseModel):
 class DailyRecordCreate(BaseModel):
     record_date: date
     day_load: int = Field(ge=0, le=100)  # battery %, 0–100
-    day_note: str | None = None
+    day_insight: str | None = None
     form_opened_at: datetime
     daily_work_logs: list[DailyWorkLogCreate] = []
 
 
 class DailyRecordUpdate(BaseModel):
     day_load: int | None = Field(default=None, ge=0, le=100)  # battery %, 0–100
-    day_note: str | None = None
+    day_insight: str | None = None
     form_opened_at: datetime  # required on update too (for edit window check)
     daily_work_logs: list[DailyWorkLogCreate] | None = None  # full replacement
 
@@ -41,7 +41,7 @@ class DailyRecordResponse(BaseModel):
     user_id: uuid.UUID
     record_date: date
     day_load: int | None  # None when requester lacks visibility
-    day_note: str | None
+    day_insight: str | None
     form_opened_at: datetime
     created_at: datetime
     updated_at: datetime

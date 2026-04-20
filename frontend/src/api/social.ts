@@ -13,7 +13,7 @@ export interface FeedItem {
   user_id: string;
   display_name: string;
   record_date: string;
-  day_note: string | null;
+  day_insight: string | null;
   daily_work_logs: DailyWorkLog[];
   comment_count: number;
   reactions: ReactionGroup[];

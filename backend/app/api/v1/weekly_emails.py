@@ -106,7 +106,7 @@ async def create_or_refresh_draft(
             detail="Weekly report not generated yet. Call /weekly-reports/generate first.",
         )
 
-    # Fetch day_notes and blocker_text for the week (raw, for LLM)
+    # Fetch day_insights and blocker_text for the week (raw, for LLM)
     week_dates = [week_start + timedelta(days=i) for i in range(7)]
     recs_r = await db.execute(
         select(DailyRecord).where(
@@ -124,7 +124,7 @@ async def create_or_refresh_draft(
     )
     work_logs = lt_r.scalars().all()
 
-    day_notes = [r.day_note for r in records if r.day_note]
+    day_insights = [r.day_insight for r in records if r.day_insight]
     blocker_texts = [log.blocker_text for log in work_logs if log.blocker_text]
 
     rd = report.data
@@ -141,7 +141,7 @@ async def create_or_refresh_draft(
         top_projects=rd.get("top_projects", []),
         carry_overs=rd.get("carry_overs", []),
         blockers=rd.get("blockers", []),
-        day_notes=day_notes,
+        day_insights=day_insights,
         blocker_texts=blocker_texts,
     )
 

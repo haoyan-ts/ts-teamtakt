@@ -159,7 +159,7 @@ export const DailyFormPage = () => {
   const [absenceType, setAbsenceType] = useState<string>('holiday');
   const [workLogs, setWorkLogs] = useState<DailyWorkLogFormEntry[]>([]);
   const [dayLoad, setDayLoad] = useState(50);
-  const [dayNote, setDayNote] = useState('');
+  const [dayInsight, setDayInsight] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -197,7 +197,7 @@ export const DailyFormPage = () => {
     setAbsenceType('');
     setWorkLogs([]);
     setDayLoad(50);
-    setDayNote('');
+    setDayInsight('');
     setSuccessMsg(null);
     setChecked(false);
     setShowConfirmCheck(false);
@@ -228,7 +228,7 @@ export const DailyFormPage = () => {
           setExistingRecord(rec);
           setChecked(true); // already submitted — start in locked state
           setDayLoad(rec.day_load ?? 50);
-          setDayNote(rec.day_note ?? '');
+          setDayInsight(rec.day_insight ?? '');
 
           const activeTasksById = new Map(activeTasks.map((t) => [t.id, t]));
 
@@ -317,7 +317,7 @@ export const DailyFormPage = () => {
     if (validatePrimaryTags(logsSnapshot) !== null) return;
     const payload = {
       day_load: dayLoad,
-      day_note: dayNote || null,
+      day_insight: dayInsight || null,
       form_opened_at: formOpenedAt.current.toISOString(),
       daily_work_logs: logsSnapshot.map((l, i) => ({
         task_id: l.task_id,
@@ -343,7 +343,7 @@ export const DailyFormPage = () => {
     } catch (e) {
       console.warn('[autoSave] DailyRecord auto-save failed:', e);
     }
-  }, [isEditable, saving, dayLoad, dayNote, existingRecord, recordDate]);
+  }, [isEditable, saving, dayLoad, dayInsight, existingRecord, recordDate]);
 
   // Work log manipulation
   const updateLog = useCallback(
@@ -445,7 +445,7 @@ export const DailyFormPage = () => {
 
     const payload = {
       day_load: dayLoad,
-      day_note: dayNote || null,
+      day_insight: dayInsight || null,
       form_opened_at: formOpenedAt.current.toISOString(),
       daily_work_logs: workLogs.map((l, i) => ({
         task_id: l.task_id,
@@ -716,12 +716,12 @@ export const DailyFormPage = () => {
               </div>
             </div>
 
-            {/* Day note */}
+            {/* Day Insight */}
             <div style={{ ...s.fieldRow, alignItems: 'flex-start', marginTop: '0.5rem' }}>
-              <label style={s.label}>Day note</label>
+              <label style={s.label}>Day Insight</label>
               <textarea
-                value={dayNote}
-                onChange={(e) => { isDirty.current = true; setDayNote(e.target.value); }}
+                value={dayInsight}
+                onChange={(e) => { isDirty.current = true; setDayInsight(e.target.value); }}
                 disabled={!isEditable}
                 rows={3}
                 style={{ ...s.input, resize: 'vertical' }}

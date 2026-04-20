@@ -73,9 +73,9 @@ export const FeedCard = ({ item }: FeedCardProps) => {
         </div>
       </div>
 
-      {/* Day note */}
-      {item.day_note && (
-        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-body)', whiteSpace: 'pre-wrap' }}>{item.day_note}</p>
+      {/* Day Insight */}
+      {item.day_insight && (
+        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-body)', whiteSpace: 'pre-wrap' }}>{item.day_insight}</p>
       )}
 
       {/* Work logs */}

@@ -167,7 +167,7 @@ async def _build_record_response(
         user_id=record.user_id,
         record_date=record.record_date,
         day_load=record.day_load,
-        day_note=record.day_note,
+        day_insight=record.day_insight,
         form_opened_at=record.form_opened_at,
         created_at=record.created_at,
         updated_at=record.updated_at,
@@ -307,7 +307,7 @@ async def create_daily_record(
         user_id=current_user.id,
         record_date=body.record_date,
         day_load=body.day_load,
-        day_note=body.day_note,
+        day_insight=body.day_insight,
         form_opened_at=body.form_opened_at,
     )
     db.add(record)
@@ -593,8 +593,8 @@ async def update_daily_record(
 
     if body.day_load is not None:
         record.day_load = body.day_load
-    if body.day_note is not None:
-        record.day_note = body.day_note
+    if body.day_insight is not None:
+        record.day_insight = body.day_insight
     record.form_opened_at = body.form_opened_at
 
     await db.commit()

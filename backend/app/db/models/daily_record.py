@@ -29,7 +29,7 @@ class DailyRecord(Base):
     )
     record_date: Mapped[date] = mapped_column(Date, nullable=False)
     day_load: Mapped[int] = mapped_column(Integer, nullable=False)
-    day_note: Mapped[str] = mapped_column(Text, nullable=True)
+    day_insight: Mapped[str] = mapped_column(Text, nullable=True)
     form_opened_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
