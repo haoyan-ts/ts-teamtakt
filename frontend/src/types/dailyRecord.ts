@@ -126,3 +126,18 @@ export interface UnlockGrant {
   granted_at: string;
   revoked_at: string | null;
 }
+
+// ---- Effort breakdown (from /daily-records/breakdown) ----
+
+export interface EnergyTypeEffort {
+  energy_type: EnergyType | null;
+  effort: number;
+}
+
+export interface DailyEffortBreakdown {
+  user_id: string;
+  record_date: string;
+  total_effort: number;
+  by_energy_type: EnergyTypeEffort[];
+  battery_pct: number | null; // null when visibility rules disallow it
+}

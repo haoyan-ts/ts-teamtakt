@@ -20,9 +20,11 @@ from app.db.models.task import DailyWorkLog, DailyWorkLogSelfAssessmentTag, Task
 from app.db.models.team import TeamMembership, TeamSettings
 from app.db.models.user import User
 from app.db.schemas.daily_record import (
+    DailyEffortBreakdownResponse,
     DailyRecordCreate,
     DailyRecordResponse,
     DailyRecordUpdate,
+    EnergyTypeEffort,
     UnlockGrantCreate,
     UnlockGrantResponse,
 )
@@ -140,6 +142,7 @@ async def _build_work_log_response(
         task_id=log.task_id,
         daily_record_id=log.daily_record_id,
         effort=log.effort,
+        energy_type=log.energy_type,
         work_note=log.work_note,
         blocker_type_id=log.blocker_type_id,
         blocker_text=log.blocker_text,
@@ -230,6 +233,7 @@ async def _create_daily_work_logs(
             daily_record_id=record_id,
             task_id=log_data.task_id,
             effort=log_data.effort,
+            energy_type=log_data.energy_type,
             work_note=log_data.work_note,
             blocker_type_id=log_data.blocker_type_id,
             blocker_text=log_data.blocker_text,
@@ -393,6 +397,95 @@ async def list_daily_records(
         visible = await is_record_fully_visible(r.user_id, current_user, db)
         responses.append(apply_visibility_filter(resp, visible=visible))
     return responses
+
+
+@router.get("/daily-records/breakdown", response_model=DailyEffortBreakdownResponse)
+async def get_effort_breakdown(
+    date: str = Query(..., description="ISO date string, e.g. 2026-04-20"),
+    user_id: uuid.UUID | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Return daily effort totals broken down by energy_type for a given user and date.
+    battery_pct (= day_load) is included only when the requester has visibility rights.
+    """
+    from datetime import date as date_type
+
+    parsed_date = date_type.fromisoformat(date)
+    target_user_id = user_id if user_id is not None else current_user.id
+
+    if target_user_id != current_user.id:
+        if current_user.is_admin:
+            pass
+        elif current_user.is_leader:
+            leader_membership = await db.scalar(
+                select(TeamMembership).where(
+                    TeamMembership.user_id == current_user.id,
+                    TeamMembership.left_at.is_(None),
+                )
+            )
+            if leader_membership is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+                )
+            member_membership = await db.scalar(
+                select(TeamMembership).where(
+                    TeamMembership.user_id == target_user_id,
+                    TeamMembership.team_id == leader_membership.team_id,
+                    TeamMembership.left_at.is_(None),
+                )
+            )
+            if member_membership is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: user is not in your team",
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+            )
+
+    record = await db.scalar(
+        select(DailyRecord).where(
+            DailyRecord.user_id == target_user_id,
+            DailyRecord.record_date == parsed_date,
+        )
+    )
+    if record is None:
+        return DailyEffortBreakdownResponse(
+            user_id=target_user_id,
+            record_date=parsed_date,
+            total_effort=0,
+            by_energy_type=[],
+            battery_pct=None,
+        )
+
+    logs_r = await db.execute(
+        select(DailyWorkLog).where(DailyWorkLog.daily_record_id == record.id)
+    )
+    logs = logs_r.scalars().all()
+
+    effort_map: dict[str | None, int] = {}
+    for log in logs:
+        key = str(log.energy_type) if log.energy_type is not None else None
+        effort_map[key] = effort_map.get(key, 0) + log.effort
+
+    by_energy_type = [
+        EnergyTypeEffort(energy_type=k, effort=v)
+        for k, v in sorted(effort_map.items(), key=lambda x: x[0] or "")
+    ]
+
+    visible = await is_record_fully_visible(target_user_id, current_user, db)
+    battery_pct = record.day_load if visible else None
+
+    return DailyEffortBreakdownResponse(
+        user_id=target_user_id,
+        record_date=parsed_date,
+        total_effort=sum(effort_map.values()),
+        by_energy_type=by_energy_type,
+        battery_pct=battery_pct,
+    )
 
 
 @router.get("/daily-records/{record_id}", response_model=DailyRecordResponse)

@@ -13,10 +13,14 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { getDailyRecords, getAbsences } from '../api/dailyRecords';
+import { getDailyRecords, getAbsences, getEffortBreakdown } from '../api/dailyRecords';
 import { getActiveTasks } from '../api/tasks';
 import { getCategories } from '../api/categories';
-import type { DailyRecord, Task, Category } from '../types/dailyRecord';
+import { getTeamMembers } from '../api/teams';
+import type { TeamMember } from '../api/teams';
+import type { DailyRecord, Task, Category, DailyEffortBreakdown } from '../types/dailyRecord';
+import { useAuthStore } from '../stores/authStore';
+import { EffortBreakdownChart } from '../components/dashboard/EffortBreakdownChart';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -303,15 +307,104 @@ const BlockerHistoryCard = ({ records }: BlockerHistoryCardProps) => {
 // Main Dashboard page
 // ---------------------------------------------------------------------------
 
+interface TeamEnergyOverviewCardProps {
+  members: TeamMember[];
+  today: string;
+}
+
+const TeamEnergyOverviewCard = ({ members, today }: TeamEnergyOverviewCardProps) => {
+  const [breakdowns, setBreakdowns] = useState<Record<string, DailyEffortBreakdown>>({});
+  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set(members.map((m) => m.user_id)));
+
+  useEffect(() => {
+    members.forEach((m) => {
+      getEffortBreakdown({ date: today, user_id: m.user_id })
+        .then((bd) => setBreakdowns((prev) => ({ ...prev, [m.user_id]: bd })))
+        .catch(() => {/* member data unavailable — skip silently */})
+        .finally(() =>
+          setLoadingIds((prev) => {
+            const next = new Set(prev);
+            next.delete(m.user_id);
+            return next;
+          })
+        );
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [today]);
+
+  return (
+    <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
+      <h3 style={cardTitle}>Team Energy Overview — {today}</h3>
+      {members.length === 0 ? (
+        <p style={emptyText}>No team members.</p>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                <th style={th}>Member</th>
+                <th style={th}>Total Effort</th>
+                <th style={th}>deep_focus</th>
+                <th style={th}>collaborative</th>
+                <th style={th}>admin</th>
+                <th style={th}>creative</th>
+                <th style={th}>reactive</th>
+                <th style={th}>Unset</th>
+                <th style={th}>Battery</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((m) => {
+                const bd = breakdowns[m.user_id];
+                const isLoading = loadingIds.has(m.user_id);
+                const effortFor = (key: string | null) =>
+                  bd?.by_energy_type.find((e) => e.energy_type === key)?.effort ?? 0;
+                return (
+                  <tr key={m.user_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={td}>{m.display_name}</td>
+                    {isLoading ? (
+                      <td style={td} colSpan={8}><span style={emptyText}>Loading…</span></td>
+                    ) : !bd ? (
+                      <td style={td} colSpan={8}><span style={emptyText}>No data</span></td>
+                    ) : (
+                      <>
+                        <td style={{ ...td, textAlign: 'center' }}>{bd.total_effort || '—'}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{effortFor('deep_focus') || '—'}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{effortFor('collaborative') || '—'}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{effortFor('admin') || '—'}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{effortFor('creative') || '—'}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{effortFor('reactive') || '—'}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{effortFor(null) || '—'}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>
+                          {bd.battery_pct !== null ? `${bd.battery_pct}%` : '—'}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const DashboardPage = () => {
   const today = todayISO();
   const weekStart = mondayOf(today);
   const fourWeeksAgo = addDays(today, -28);
 
+  const user = useAuthStore((s) => s.user);
+
   const [records, setRecords] = useState<DailyRecord[]>([]);
   const [activeTasks, setActiveTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isAbsent, setIsAbsent] = useState(false);
+  const [breakdown, setBreakdown] = useState<DailyEffortBreakdown | null>(null);
+  const [breakdownLoading, setBreakdownLoading] = useState(true);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -332,6 +425,23 @@ export const DashboardPage = () => {
       .finally(() => setLoading(false));
   }, [fourWeeksAgo, today]);
 
+  useEffect(() => {
+    let cancelled = false;
+    getEffortBreakdown({ date: today })
+      .then((bd) => { if (!cancelled) { setBreakdown(bd); setBreakdownLoading(false); } })
+      .catch(() => { if (!cancelled) { setBreakdown(null); setBreakdownLoading(false); } });
+    return () => { cancelled = true; };
+  }, [today]);
+
+  useEffect(() => {
+    const teamId = user?.team?.id;
+    if (user?.is_leader && teamId) {
+      getTeamMembers(teamId)
+        .then(setTeamMembers)
+        .catch(() => setTeamMembers([]));
+    }
+  }, [user?.is_leader, user?.team?.id]);
+
   if (loading) return <div>Loading dashboard…</div>;
   if (error) return <div style={{ color: 'var(--error)' }}>{error}</div>;
 
@@ -342,9 +452,18 @@ export const DashboardPage = () => {
       <div style={grid}>
         <RunningBlockedCard tasks={activeTasks} categories={categories} />
         <WeeklySummaryCard records={records} categories={categories} weekStart={weekStart} />
+        <EffortBreakdownChart breakdown={breakdown} loading={breakdownLoading} />
         <LoadTrendCard records={records} />
         <BlockerHistoryCard records={records} />
       </div>
+      {user?.is_leader && teamMembers.length > 0 && (
+        <div style={{ marginTop: '1.5rem' }}>
+          <h3 style={{ marginBottom: '0.75rem', fontSize: '1rem', fontWeight: 600 }}>Team Dashboard</h3>
+          <div style={grid}>
+            <TeamEnergyOverviewCard members={teamMembers} today={today} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

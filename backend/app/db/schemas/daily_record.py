@@ -8,6 +8,19 @@ from pydantic import BaseModel, Field
 from app.db.schemas.task import DailyWorkLogCreate, DailyWorkLogResponse
 
 
+class EnergyTypeEffort(BaseModel):
+    energy_type: str | None  # None for work logs without energy_type set
+    effort: int
+
+
+class DailyEffortBreakdownResponse(BaseModel):
+    user_id: uuid.UUID
+    record_date: date
+    total_effort: int
+    by_energy_type: list[EnergyTypeEffort]
+    battery_pct: int | None  # None when visibility rules disallow it
+
+
 class DailyRecordCreate(BaseModel):
     record_date: date
     day_load: int = Field(ge=0, le=100)  # battery %, 0–100

@@ -507,3 +507,223 @@ async def test_day_load_over_hundred_rejected(client, db_session):
         headers=auth(tok),
     )
     assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# GET /daily-records/breakdown — effort breakdown by energy type
+# ---------------------------------------------------------------------------
+
+
+async def insert_record_with_logs(db, user_id, record_date, day_load, logs):
+    """Insert a DailyRecord and DailyWorkLog rows directly for testing."""
+    from app.db.models.task import DailyWorkLog
+
+    record = DailyRecord(
+        user_id=user_id,
+        record_date=record_date,
+        day_load=day_load,
+        form_opened_at=datetime.now(UTC),
+    )
+    db.add(record)
+    await db.flush()
+    for log_data in logs:
+        db.add(
+            DailyWorkLog(
+                daily_record_id=record.id,
+                task_id=log_data["task_id"],
+                effort=log_data["effort"],
+                energy_type=log_data.get("energy_type"),
+                sort_order=log_data.get("sort_order", 0),
+            )
+        )
+    await db.commit()
+    await db.refresh(record)
+    return record
+
+
+async def test_breakdown_owner_sees_battery_pct(client, db_session):
+    """Owner receives battery_pct in their own breakdown."""
+    import uuid
+
+    user, tok = await make_user(db_session, "bd01@t.com")
+    team = await make_team(db_session, "bd01_team")
+    await make_membership(db_session, user.id, team.id)
+
+    rec_date = date.today() - timedelta(days=20)
+    fake_task_id = uuid.uuid4()
+    await insert_record_with_logs(
+        db_session,
+        user.id,
+        rec_date,
+        day_load=65,
+        logs=[
+            {"task_id": fake_task_id, "effort": 3, "energy_type": "deep_focus"},
+            {"task_id": uuid.uuid4(), "effort": 2, "energy_type": "admin"},
+        ],
+    )
+
+    resp = await client.get(
+        f"/api/v1/daily-records/breakdown?date={rec_date}&user_id={user.id}",
+        headers=auth(tok),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_effort"] == 5
+    assert data["battery_pct"] == 65
+    by_type = {e["energy_type"]: e["effort"] for e in data["by_energy_type"]}
+    assert by_type["deep_focus"] == 3
+    assert by_type["admin"] == 2
+
+
+async def test_breakdown_leader_sees_battery_pct(client, db_session):
+    """Team leader can see battery_pct for a member."""
+    import uuid
+
+    member, _ = await make_user(db_session, "bd02m@t.com")
+    leader, leader_tok = await make_user(db_session, "bd02l@t.com", is_leader=True)
+    team = await make_team(db_session, "bd02_team")
+    await make_membership(db_session, member.id, team.id)
+    await make_membership(db_session, leader.id, team.id)
+
+    rec_date = date.today() - timedelta(days=21)
+    await insert_record_with_logs(
+        db_session,
+        member.id,
+        rec_date,
+        day_load=80,
+        logs=[{"task_id": uuid.uuid4(), "effort": 5, "energy_type": "collaborative"}],
+    )
+
+    resp = await client.get(
+        f"/api/v1/daily-records/breakdown?date={rec_date}&user_id={member.id}",
+        headers=auth(leader_tok),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["battery_pct"] == 80
+    assert data["total_effort"] == 5
+
+
+async def test_breakdown_outsider_denied(client, db_session):
+    """Non-leader peer cannot view another user's breakdown."""
+
+    member, _ = await make_user(db_session, "bd03m@t.com")
+    outsider, outsider_tok = await make_user(db_session, "bd03x@t.com")
+    team = await make_team(db_session, "bd03_team")
+    other_team = await make_team(db_session, "bd03x_team")
+    await make_membership(db_session, member.id, team.id)
+    await make_membership(db_session, outsider.id, other_team.id)
+
+    rec_date = date.today() - timedelta(days=22)
+    await insert_record_with_logs(db_session, member.id, rec_date, day_load=50, logs=[])
+
+    resp = await client.get(
+        f"/api/v1/daily-records/breakdown?date={rec_date}&user_id={member.id}",
+        headers=auth(outsider_tok),
+    )
+    assert resp.status_code == 403
+
+
+async def test_breakdown_battery_pct_hidden_from_peer(client, db_session):
+    """Non-leader same-team peer cannot read another user's breakdown."""
+
+    member, _ = await make_user(db_session, "bd04m@t.com")
+    peer, peer_tok = await make_user(db_session, "bd04p@t.com")
+    team = await make_team(db_session, "bd04_team")
+    await make_membership(db_session, member.id, team.id)
+    await make_membership(db_session, peer.id, team.id)
+
+    rec_date = date.today() - timedelta(days=23)
+    await insert_record_with_logs(db_session, member.id, rec_date, day_load=40, logs=[])
+
+    resp = await client.get(
+        f"/api/v1/daily-records/breakdown?date={rec_date}&user_id={member.id}",
+        headers=auth(peer_tok),
+    )
+    assert resp.status_code == 403
+
+
+async def test_breakdown_no_record_returns_zeros(client, db_session):
+    """Breakdown for a date with no record returns total_effort=0 and empty list."""
+    user, tok = await make_user(db_session, "bd05@t.com")
+    team = await make_team(db_session, "bd05_team")
+    await make_membership(db_session, user.id, team.id)
+
+    rec_date = date.today() - timedelta(days=100)
+    resp = await client.get(
+        f"/api/v1/daily-records/breakdown?date={rec_date}",
+        headers=auth(tok),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_effort"] == 0
+    assert data["by_energy_type"] == []
+    assert data["battery_pct"] is None
+
+
+async def test_breakdown_null_energy_type_grouped(client, db_session):
+    """Work logs with energy_type=None appear as null key in by_energy_type."""
+    import uuid
+
+    user, tok = await make_user(db_session, "bd06@t.com")
+    team = await make_team(db_session, "bd06_team")
+    await make_membership(db_session, user.id, team.id)
+
+    rec_date = date.today() - timedelta(days=24)
+    await insert_record_with_logs(
+        db_session,
+        user.id,
+        rec_date,
+        day_load=70,
+        logs=[
+            {"task_id": uuid.uuid4(), "effort": 1, "energy_type": None},
+            {"task_id": uuid.uuid4(), "effort": 2, "energy_type": None},
+        ],
+    )
+
+    resp = await client.get(
+        f"/api/v1/daily-records/breakdown?date={rec_date}",
+        headers=auth(tok),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_effort"] == 3
+    null_entry = next(
+        (e for e in data["by_energy_type"] if e["energy_type"] is None), None
+    )
+    assert null_entry is not None
+    assert null_entry["effort"] == 3
+
+
+async def test_breakdown_total_effort_is_fibonacci_sum(client, db_session):
+    """Total effort is the integer sum of Fibonacci effort values — no conversion."""
+    import uuid
+
+    user, tok = await make_user(db_session, "bd07@t.com")
+    team = await make_team(db_session, "bd07_team")
+    await make_membership(db_session, user.id, team.id)
+
+    rec_date = date.today() - timedelta(days=25)
+    await insert_record_with_logs(
+        db_session,
+        user.id,
+        rec_date,
+        day_load=55,
+        logs=[
+            {"task_id": uuid.uuid4(), "effort": 1, "energy_type": "deep_focus"},
+            {"task_id": uuid.uuid4(), "effort": 2, "energy_type": "deep_focus"},
+            {"task_id": uuid.uuid4(), "effort": 5, "energy_type": "reactive"},
+            {"task_id": uuid.uuid4(), "effort": 8, "energy_type": "reactive"},
+        ],
+    )
+
+    resp = await client.get(
+        f"/api/v1/daily-records/breakdown?date={rec_date}",
+        headers=auth(tok),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_effort"] == 16  # 1+2+5+8
+    by_type = {e["energy_type"]: e["effort"] for e in data["by_energy_type"]}
+    assert by_type["deep_focus"] == 3  # 1+2
+    assert by_type["reactive"] == 13  # 5+8
