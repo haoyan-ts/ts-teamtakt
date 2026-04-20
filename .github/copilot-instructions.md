@@ -4,7 +4,7 @@ Rules that MUST be followed in every coding task. Violating any of these is a bu
 
 ## Data Model
 
-- Effort is a relative scale (1–5). No hour tracking anywhere in the system. No absolute time units.
+- Effort is a relative scale — Fibonacci values only: {1, 2, 3, 5, 8}. No hour tracking anywhere in the system. No absolute time units.
 - Self-assessment tags are many-to-many via junction table with `is_primary` boolean. Exactly one tag per TaskEntry must have `is_primary=true`. Validate on save (app-level); reject if zero or >1 primary.
 - `carried_from_id` on TaskEntry is **immutable** after row creation. Carry-over is a snapshot — editing the parent does NOT propagate to children.
 - DailyRecord and Absence are mutually exclusive per `(user_id, record_date)`. Cross-table app-level check on every create/update. Both tables have `UNIQUE(user_id, record_date)`.

@@ -67,12 +67,15 @@ export interface Task {
 
 // ---- DailyWorkLog (what I did today on a task) ----
 
+export type EnergyType = 'deep_focus' | 'collaborative' | 'admin' | 'creative' | 'reactive';
+
 export interface DailyWorkLog {
   id: string;
   task_id: string;
   task?: Task; // populated when returned as part of DailyRecord
   daily_record_id: string;
-  effort: number; // 1-5 actual effort today
+  effort: number; // Fibonacci: 1, 2, 3, 5, 8
+  energy_type: EnergyType | null;
   work_note: string | null;
   blocker_type_id: string | null;
   blocker_text: string | null; // private
@@ -86,6 +89,7 @@ export interface DailyWorkLogFormEntry {
   task: Task;
   task_id: string;
   effort: number;
+  energy_type: EnergyType | null;
   work_note: string | null;
   blocker_type_id: string | null;
   blocker_text: string | null;

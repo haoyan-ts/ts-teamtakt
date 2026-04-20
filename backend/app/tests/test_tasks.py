@@ -285,3 +285,86 @@ async def test_task_autofill_invalid_url_returns_400(client, db_session):
         headers=auth(tok),
     )
     assert resp.status_code == 400
+
+
+# ===========================================================================
+# Fibonacci effort validation — estimated_effort on Task
+# ===========================================================================
+
+
+async def test_task_estimated_effort_valid_fibonacci_values(client, db_session):
+    user, tok = await make_user(db_session, "fib01@t.com")
+    await make_team_with_member(db_session, user.id)
+    cat = await make_category(db_session, "fib01_Cat")
+    proj = await make_project(db_session, user.id)
+
+    for effort in (1, 2, 3, 5, 8):
+        resp = await client.post(
+            "/api/v1/tasks",
+            json=task_payload(
+                cat.id, proj.id, estimated_effort=effort, title=f"fib {effort}"
+            ),
+            headers=auth(tok),
+        )
+        assert resp.status_code == 201, f"effort={effort} should be accepted"
+        assert resp.json()["estimated_effort"] == effort
+
+
+async def test_task_estimated_effort_non_fibonacci_rejected(client, db_session):
+    user, tok = await make_user(db_session, "fib02@t.com")
+    await make_team_with_member(db_session, user.id)
+    cat = await make_category(db_session, "fib02_Cat")
+    proj = await make_project(db_session, user.id)
+
+    for invalid in (4, 6, 7, 9):
+        resp = await client.post(
+            "/api/v1/tasks",
+            json=task_payload(cat.id, proj.id, estimated_effort=invalid),
+            headers=auth(tok),
+        )
+        assert resp.status_code == 422, f"effort={invalid} should be rejected"
+
+
+async def test_task_update_estimated_effort_non_fibonacci_rejected(client, db_session):
+    user, tok = await make_user(db_session, "fib03@t.com")
+    await make_team_with_member(db_session, user.id)
+    cat = await make_category(db_session, "fib03_Cat")
+    proj = await make_project(db_session, user.id)
+
+    create_resp = await client.post(
+        "/api/v1/tasks",
+        json=task_payload(cat.id, proj.id, estimated_effort=3),
+        headers=auth(tok),
+    )
+    assert create_resp.status_code == 201
+    task_id = create_resp.json()["id"]
+
+    resp = await client.put(
+        f"/api/v1/tasks/{task_id}",
+        json={"estimated_effort": 4},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 422
+
+
+async def test_task_update_estimated_effort_to_eight_accepted(client, db_session):
+    user, tok = await make_user(db_session, "fib04@t.com")
+    await make_team_with_member(db_session, user.id)
+    cat = await make_category(db_session, "fib04_Cat")
+    proj = await make_project(db_session, user.id)
+
+    create_resp = await client.post(
+        "/api/v1/tasks",
+        json=task_payload(cat.id, proj.id, estimated_effort=3),
+        headers=auth(tok),
+    )
+    assert create_resp.status_code == 201
+    task_id = create_resp.json()["id"]
+
+    resp = await client.put(
+        f"/api/v1/tasks/{task_id}",
+        json={"estimated_effort": 8},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["estimated_effort"] == 8

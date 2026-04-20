@@ -4,7 +4,18 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, field_validator
+
+from app.db.models.task import EnergyType
+
+_FIBONACCI = frozenset({1, 2, 3, 5, 8})
+
+
+def _validate_fibonacci(v: int) -> int:
+    if v not in _FIBONACCI:
+        raise ValueError(f"effort must be one of {sorted(_FIBONACCI)}, got {v}")
+    return v
+
 
 # ---------------------------------------------------------------------------
 # Self-assessment tag refs (shared between request and response)
@@ -30,12 +41,18 @@ class SelfAssessmentTagRefResponse(BaseModel):
 
 class DailyWorkLogCreate(BaseModel):
     task_id: uuid.UUID
-    effort: int = Field(ge=1, le=5)
+    effort: int
+    energy_type: EnergyType | None = None
     work_note: str | None = None
     blocker_type_id: uuid.UUID | None = None
     blocker_text: str | None = None
     sort_order: int = 0
     self_assessment_tags: list[SelfAssessmentTagRef] = []
+
+    @field_validator("effort")
+    @classmethod
+    def effort_must_be_fibonacci(cls, v: int) -> int:
+        return _validate_fibonacci(v)
 
 
 class DailyWorkLogResponse(BaseModel):
@@ -43,6 +60,7 @@ class DailyWorkLogResponse(BaseModel):
     task_id: uuid.UUID
     daily_record_id: uuid.UUID
     effort: int
+    energy_type: EnergyType | None
     work_note: str | None
     blocker_type_id: uuid.UUID | None
     blocker_text: str | None
@@ -64,9 +82,16 @@ class TaskCreate(BaseModel):
     category_id: uuid.UUID
     sub_type_id: uuid.UUID | None = None
     status: Literal["todo", "running", "done", "blocked"] = "todo"
-    estimated_effort: int | None = Field(default=None, ge=1, le=5)
+    estimated_effort: int | None = None
     blocker_type_id: uuid.UUID | None = None
     github_issue_url: str | None = None
+
+    @field_validator("estimated_effort")
+    @classmethod
+    def estimated_effort_must_be_fibonacci(cls, v: int | None) -> int | None:
+        if v is not None:
+            return _validate_fibonacci(v)
+        return v
 
 
 class TaskUpdate(BaseModel):
@@ -76,10 +101,17 @@ class TaskUpdate(BaseModel):
     category_id: uuid.UUID | None = None
     sub_type_id: uuid.UUID | None = None
     status: Literal["todo", "running", "done", "blocked"] | None = None
-    estimated_effort: int | None = Field(default=None, ge=1, le=5)
+    estimated_effort: int | None = None
     blocker_type_id: uuid.UUID | None = None
     github_issue_url: str | None = None
     is_active: bool | None = None
+
+    @field_validator("estimated_effort")
+    @classmethod
+    def estimated_effort_must_be_fibonacci(cls, v: int | None) -> int | None:
+        if v is not None:
+            return _validate_fibonacci(v)
+        return v
 
 
 class TaskResponse(BaseModel):

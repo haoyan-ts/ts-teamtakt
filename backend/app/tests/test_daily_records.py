@@ -307,3 +307,120 @@ async def test_non_leader_peer_cannot_get_record_detail(client, db_session):
         f"/api/v1/daily-records/{record.id}", headers=auth(peer_tok)
     )
     assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Fibonacci effort validation — DailyWorkLog.effort
+# ---------------------------------------------------------------------------
+
+
+def _work_log_payload(task_id: str, effort: int, **overrides):
+    base = {
+        "task_id": task_id,
+        "effort": effort,
+        "energy_type": None,
+        "work_note": None,
+        "blocker_type_id": None,
+        "blocker_text": None,
+        "sort_order": 0,
+        "self_assessment_tags": [],
+    }
+    base.update(overrides)
+    return base
+
+
+async def test_work_log_non_fibonacci_effort_rejected(client, db_session):
+    """Pydantic rejects effort values not in {1,2,3,5,8} before any DB access."""
+    user, tok = await make_user(db_session, "fib10@t.com")
+    team = await make_team(db_session, "fib10_team")
+    await make_membership(db_session, user.id, team.id)
+
+    import uuid
+
+    fake_task_id = str(uuid.uuid4())
+    for invalid in (4, 6, 7):
+        resp = await client.post(
+            "/api/v1/daily-records",
+            json={
+                "record_date": str(date.today()),
+                "day_load": 3,
+                "form_opened_at": datetime.now(UTC).isoformat(),
+                "daily_work_logs": [_work_log_payload(fake_task_id, invalid)],
+            },
+            headers=auth(tok),
+        )
+        assert resp.status_code == 422, f"effort={invalid} should be rejected"
+
+
+async def test_work_log_effort_eight_accepted_schema(client, db_session):
+    """effort=8 must pass Pydantic schema validation (422 would be a schema rejection)."""
+    user, tok = await make_user(db_session, "fib11@t.com")
+    team = await make_team(db_session, "fib11_team")
+    await make_membership(db_session, user.id, team.id)
+
+    import uuid
+
+    fake_task_id = str(uuid.uuid4())
+    resp = await client.post(
+        "/api/v1/daily-records",
+        json={
+            "record_date": str(date.today()),
+            "day_load": 3,
+            "form_opened_at": datetime.now(UTC).isoformat(),
+            "daily_work_logs": [_work_log_payload(fake_task_id, 8)],
+        },
+        headers=auth(tok),
+    )
+    # May fail for reasons other than schema (e.g. task not found), but must NOT be 422
+    assert resp.status_code != 422, "effort=8 should pass Pydantic validation"
+
+
+async def test_work_log_invalid_energy_type_rejected(client, db_session):
+    """energy_type values outside the allowed enum are rejected with 422."""
+    user, tok = await make_user(db_session, "fib12@t.com")
+    team = await make_team(db_session, "fib12_team")
+    await make_membership(db_session, user.id, team.id)
+
+    import uuid
+
+    fake_task_id = str(uuid.uuid4())
+    resp = await client.post(
+        "/api/v1/daily-records",
+        json={
+            "record_date": str(date.today()),
+            "day_load": 3,
+            "form_opened_at": datetime.now(UTC).isoformat(),
+            "daily_work_logs": [
+                _work_log_payload(fake_task_id, 3, energy_type="unknown_type")
+            ],
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 422
+
+
+async def test_work_log_valid_energy_type_accepted_schema(client, db_session):
+    """Valid energy_type values pass Pydantic schema validation."""
+    user, tok = await make_user(db_session, "fib13@t.com")
+    team = await make_team(db_session, "fib13_team")
+    await make_membership(db_session, user.id, team.id)
+
+    import uuid
+
+    fake_task_id = str(uuid.uuid4())
+    for energy in ("deep_focus", "collaborative", "admin", "creative", "reactive"):
+        resp = await client.post(
+            "/api/v1/daily-records",
+            json={
+                "record_date": str(date.today()),
+                "day_load": 3,
+                "form_opened_at": datetime.now(UTC).isoformat(),
+                "daily_work_logs": [
+                    _work_log_payload(fake_task_id, 3, energy_type=energy)
+                ],
+            },
+            headers=auth(tok),
+        )
+        assert (
+            resp.status_code != 422
+        ), f"energy_type={energy!r} should pass schema validation"

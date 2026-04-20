@@ -28,6 +28,14 @@ class TaskStatus(enum.StrEnum):
     blocked = "blocked"
 
 
+class EnergyType(enum.StrEnum):
+    deep_focus = "deep_focus"
+    collaborative = "collaborative"
+    admin = "admin"
+    creative = "creative"
+    reactive = "reactive"
+
+
 class Task(Base):
     __tablename__ = "tasks"
     __table_args__ = (
@@ -92,6 +100,9 @@ class DailyWorkLog(Base):
         Uuid(as_uuid=True), ForeignKey("daily_records.id"), nullable=False
     )
     effort: Mapped[int] = mapped_column(Integer, nullable=False)
+    energy_type: Mapped[EnergyType | None] = mapped_column(
+        SAEnum(EnergyType, name="energy_type", native_enum=False), nullable=True
+    )
     work_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     blocker_type_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("blocker_types.id"), nullable=True

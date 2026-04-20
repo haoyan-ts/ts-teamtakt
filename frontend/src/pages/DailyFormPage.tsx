@@ -107,6 +107,7 @@ function taskToBlankLog(task: Task): DailyWorkLogFormEntry {
     task,
     task_id: task.id,
     effort: 3,
+    energy_type: null,
     work_note: null,
     blocker_type_id: null,
     blocker_text: null,
@@ -257,6 +258,7 @@ export const DailyFormPage = () => {
                 task,
                 task_id: log.task_id,
                 effort: log.effort,
+                energy_type: log.energy_type,
                 work_note: log.work_note,
                 blocker_type_id: log.blocker_type_id,
                 blocker_text: log.blocker_text,
@@ -329,6 +331,7 @@ export const DailyFormPage = () => {
       daily_work_logs: logsSnapshot.map((l, i) => ({
         task_id: l.task_id,
         effort: l.effort,
+        energy_type: l.energy_type,
         work_note: l.work_note,
         blocker_type_id: l.blocker_type_id,
         blocker_text: l.blocker_text,
@@ -445,6 +448,7 @@ export const DailyFormPage = () => {
       daily_work_logs: workLogs.map((l, i) => ({
         task_id: l.task_id,
         effort: l.effort,
+        energy_type: l.energy_type,
         work_note: l.work_note,
         blocker_type_id: l.blocker_type_id,
         blocker_text: l.blocker_text,

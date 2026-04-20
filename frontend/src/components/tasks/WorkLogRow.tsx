@@ -247,14 +247,14 @@ export const WorkLogRow = ({
 
       {/* Actual effort */}
       <div style={s.fieldRow}>
-        <label style={s.label}>Effort today (1–5) *</label>
+        <label style={s.label}>Effort today (1–8) *</label>
         <select
           value={log.effort}
           onChange={(e) => onChange(index, { effort: Number(e.target.value) })}
           style={{ ...s.select, width: '5rem' }}
           disabled={!isEditable}
         >
-          {[1, 2, 3, 4, 5].map((n) => (
+          {[1, 2, 3, 5, 8].map((n) => (
             <option key={n} value={n}>{n}</option>
           ))}
         </select>
@@ -263,6 +263,26 @@ export const WorkLogRow = ({
             (est. {log.task.estimated_effort})
           </span>
         )}
+      </div>
+
+      {/* Energy type */}
+      <div style={s.fieldRow}>
+        <label style={s.label}>Energy type</label>
+        <select
+          value={log.energy_type ?? ''}
+          onChange={(e) =>
+            onChange(index, { energy_type: (e.target.value || null) as typeof log.energy_type })
+          }
+          style={{ ...s.select, width: '10rem' }}
+          disabled={!isEditable}
+        >
+          <option value="">— optional —</option>
+          <option value="deep_focus">Deep focus</option>
+          <option value="collaborative">Collaborative</option>
+          <option value="admin">Admin</option>
+          <option value="creative">Creative</option>
+          <option value="reactive">Reactive</option>
+        </select>
       </div>
 
       {/* Work note */}

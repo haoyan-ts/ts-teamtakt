@@ -348,7 +348,7 @@ export const TaskCreateModal = ({
               style={{ ...s.select, width: '5rem' }}
             >
               <option value="">—</option>
-              {[1, 2, 3, 4, 5].map((n) => (
+              {[1, 2, 3, 5, 8].map((n) => (
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
