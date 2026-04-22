@@ -216,6 +216,8 @@ async def me(
         "is_leader": user.is_leader,
         "is_admin": user.is_admin,
         "preferred_locale": user.preferred_locale,
+        "ms365_connected": user.ms_graph_refresh_token is not None,
+        "avatar_url": user.avatar_url,
         "team": team_data,
         "lobby": team_data is None and not user.is_admin,
     }
