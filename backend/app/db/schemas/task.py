@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
-from app.db.models.task import EnergyType
+from app.db.models.task import EnergyType, TaskPriority
 
 _FIBONACCI = frozenset({1, 2, 3, 5, 8})
 
@@ -44,7 +44,6 @@ class DailyWorkLogCreate(BaseModel):
     effort: int
     energy_type: EnergyType | None = None
     insight: str | None = None
-    blocker_type_id: uuid.UUID | None = None
     blocker_text: str | None = None
     sort_order: int = 0
     self_assessment_tags: list[SelfAssessmentTagRef] = []
@@ -69,7 +68,6 @@ class DailyWorkLogResponse(BaseModel):
     effort: int
     energy_type: EnergyType | None
     insight: str | None
-    blocker_type_id: uuid.UUID | None
     blocker_text: str | None
     sort_order: int
     self_assessment_tags: list[SelfAssessmentTagRefResponse] = []
@@ -85,11 +83,13 @@ class DailyWorkLogResponse(BaseModel):
 class TaskCreate(BaseModel):
     title: str
     description: str | None = None
-    project_id: uuid.UUID
+    project_id: uuid.UUID | None = None
     category_id: uuid.UUID
-    sub_type_id: uuid.UUID | None = None
+    work_type_id: uuid.UUID | None = None
     status: Literal["todo", "running", "done", "blocked"] = "todo"
+    priority: TaskPriority | None = None
     estimated_effort: int | None = None
+    due_date: date | None = None
     blocker_type_id: uuid.UUID | None = None
     github_issue_url: str | None = None
     insight: str | None = None
@@ -114,9 +114,11 @@ class TaskUpdate(BaseModel):
     description: str | None = None
     project_id: uuid.UUID | None = None
     category_id: uuid.UUID | None = None
-    sub_type_id: uuid.UUID | None = None
+    work_type_id: uuid.UUID | None = None
     status: Literal["todo", "running", "done", "blocked"] | None = None
+    priority: TaskPriority | None = None
     estimated_effort: int | None = None
+    due_date: date | None = None
     blocker_type_id: uuid.UUID | None = None
     github_issue_url: str | None = None
     is_active: bool | None = None
@@ -142,11 +144,13 @@ class TaskResponse(BaseModel):
     title: str
     description: str | None
     assignee_id: uuid.UUID
-    project_id: uuid.UUID
+    project_id: uuid.UUID | None
     category_id: uuid.UUID
-    sub_type_id: uuid.UUID | None
+    work_type_id: uuid.UUID | None
     status: str
+    priority: TaskPriority | None
     estimated_effort: int | None
+    due_date: date | None
     blocker_type_id: uuid.UUID | None
     github_issue_url: str | None
     insight: str | None
@@ -168,6 +172,6 @@ class TaskAutoFillResponse(BaseModel):
     description: str | None = None
     project_id: uuid.UUID | None = None
     category_id: uuid.UUID | None = None
-    sub_type_id: uuid.UUID | None = None
+    work_type_id: uuid.UUID | None = None
     estimated_effort: int | None = None
     insight: str | None = None

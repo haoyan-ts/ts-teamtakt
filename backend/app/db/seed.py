@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.security import hash_password
 from app.db.models.admin_settings import AdminSettings
-from app.db.models.category import Category, SelfAssessmentTag
+from app.db.models.category import Category, SelfAssessmentTag, WorkType
 from app.db.models.user import User
 
 _ADMIN_PASSWORD_DEV_DEFAULT = "ChangeMe_DevOnly!"  # never use in production
@@ -25,8 +25,29 @@ async def seed_initial_data(db: AsyncSession):
     initial_categories = ["OKR", "Routine", "Interrupt"]
     for i, name in enumerate(initial_categories):
         existing = await db.execute(select(Category).where(Category.name == name))
+        row = existing.scalar_one_or_none()
+        if row is not None and row.is_active:
+            row.is_active = False  # deactivate old seeds; keep for FK integrity
+
+    new_categories = [
+        "Development",
+        "Testing & QA",
+        "Planning",
+        "Documentation",
+        "Support",
+        "Research",
+        "Other",
+    ]
+    for i, name in enumerate(new_categories):
+        existing = await db.execute(select(Category).where(Category.name == name))
         if not existing.scalar_one_or_none():
             db.add(Category(id=uuid4(), name=name, is_active=True, sort_order=i))
+
+    work_type_seeds = ["Software", "Hardware", "Documents", "Slide", "Other"]
+    for i, name in enumerate(work_type_seeds):
+        existing = await db.execute(select(WorkType).where(WorkType.name == name))
+        if not existing.scalar_one_or_none():
+            db.add(WorkType(id=uuid4(), name=name, is_active=True, sort_order=i))
 
     existing = await db.execute(
         select(AdminSettings).where(AdminSettings.key == "output_language")

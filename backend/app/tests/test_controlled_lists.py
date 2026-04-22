@@ -187,65 +187,38 @@ async def test_admin_deactivates_category(client, db_session):
 
 
 # ---------------------------------------------------------------------------
-# 6. Admin adds sub-type to category → 201
+# 6. Admin creates work type → 201
 # ---------------------------------------------------------------------------
 
 
-async def test_admin_adds_sub_type(client, db_session):
+async def test_admin_creates_work_type(client, db_session):
     admin, tok = await make_user(db_session, "cl06_admin@t.com", is_admin=True)
     team = await make_team(db_session, "cl06_Team")
     await make_membership(db_session, admin.id, team.id)
 
-    cat_resp = await client.post(
-        "/api/v1/categories", json={"name": "cl06_Cat"}, headers=auth(tok)
+    resp = await client.post(
+        "/api/v1/work-types", json={"name": "cl06_WorkType"}, headers=auth(tok)
     )
-    cat_id = cat_resp.json()["id"]
-
-    st_resp = await client.post(
-        f"/api/v1/categories/{cat_id}/sub-types",
-        json={"name": "cl06_SubType"},
-        headers=auth(tok),
-    )
-    assert st_resp.status_code == 201
-    assert st_resp.json()["name"] == "cl06_SubType"
-    assert st_resp.json()["category_id"] == cat_id
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == "cl06_WorkType"
+    assert data["is_active"] is True
 
 
 # ---------------------------------------------------------------------------
-# 7. Deactivate sub-type → hidden from active list
+# 7. Non-admin cannot create work type → 403
 # ---------------------------------------------------------------------------
 
 
-async def test_deactivate_sub_type(client, db_session):
-    admin, tok = await make_user(db_session, "cl07_admin@t.com", is_admin=True)
+async def test_non_admin_cannot_create_work_type(client, db_session):
+    member, tok = await make_user(db_session, "cl07_member@t.com")
     team = await make_team(db_session, "cl07_Team")
-    await make_membership(db_session, admin.id, team.id)
+    await make_membership(db_session, member.id, team.id)
 
-    cat_resp = await client.post(
-        "/api/v1/categories", json={"name": "cl07_Cat"}, headers=auth(tok)
+    resp = await client.post(
+        "/api/v1/work-types", json={"name": "cl07_WorkType"}, headers=auth(tok)
     )
-    cat_id = cat_resp.json()["id"]
-
-    st_resp = await client.post(
-        f"/api/v1/categories/{cat_id}/sub-types",
-        json={"name": "cl07_SubType"},
-        headers=auth(tok),
-    )
-    st_id = st_resp.json()["id"]
-
-    patch_resp = await client.patch(
-        f"/api/v1/category-sub-types/{st_id}",
-        json={"is_active": False},
-        headers=auth(tok),
-    )
-    assert patch_resp.status_code == 200
-    assert patch_resp.json()["is_active"] is False
-
-    list_resp = await client.get("/api/v1/categories", headers=auth(tok))
-    for cat in list_resp.json():
-        if cat["id"] == cat_id:
-            sub_names = [st["name"] for st in cat["sub_types"]]
-            assert "cl07_SubType" not in sub_names
+    assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------
