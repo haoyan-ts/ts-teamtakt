@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.absence import SharingGrant
+from app.db.models.grants import SharingGrant
 from app.db.models.team import TeamMembership
 
 if TYPE_CHECKING:

@@ -7,7 +7,6 @@ Rules that MUST be followed in every coding task. Violating any of these is a bu
 - Effort is a relative scale — Fibonacci values only: {1, 2, 3, 5, 8}. No hour tracking anywhere in the system. No absolute time units.
 - Self-assessment tags are many-to-many via junction table with `is_primary` boolean. Exactly one tag per TaskEntry must have `is_primary=true`. Validate on save (app-level); reject if zero or >1 primary.
 - `carried_from_id` on TaskEntry is **immutable** after row creation. Carry-over is a snapshot — editing the parent does NOT propagate to children.
-- DailyRecord and Absence are mutually exclusive per `(user_id, record_date)`. Cross-table app-level check on every create/update. Both tables have `UNIQUE(user_id, record_date)`.
 - Controlled lists (categories, blocker types) use soft-delete (`is_active` flag, default `true`). Never hard-delete. Historical records keep FK references; deactivated items hidden from new-entry forms only.
 - Categories have two-level hierarchy: category → optional sub-type. Balance targets are set at top-level category only.
 - Project table: single table with `scope ENUM(personal, team, cross_team)`. `team_id` is NULL for cross_team projects.
@@ -20,7 +19,6 @@ Rules that MUST be followed in every coding task. Violating any of these is a bu
 - Lock check happens at **submit time** (server-side), NOT at form-load time.
 - 15-minute grace period: if `form_opened_at < deadline`, accept submission until deadline + 15 min. Validate `form_opened_at` is within last 6 hours.
 - Leader unlock targets `(user_id, record_date)`, not a record row. This allows unlocking a date where no DailyRecord exists yet.
-- Absence records follow the exact same edit window and lock formula as DailyRecord.
 
 ## Visibility & Security
 

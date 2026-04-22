@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
 from app.db.engine import get_db
-from app.db.models.absence import SharingGrant
+from app.db.models.grants import SharingGrant
 from app.db.models.team import TeamMembership
 from app.db.models.user import User
 from app.db.schemas.sharing_grant import SharingGrantCreate, SharingGrantResponse

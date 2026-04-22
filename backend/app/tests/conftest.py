@@ -13,7 +13,6 @@ from sqlalchemy.pool import StaticPool
 
 from app.db.engine import get_db
 from app.db.models import Base
-from app.db.models.absence import ABSENCE_TYPE_UUIDS, AbsenceType
 from app.main import app
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -38,9 +37,6 @@ async def db_engine():
 async def db_session(db_engine):
     factory = async_sessionmaker(db_engine, expire_on_commit=False)
     async with factory() as session:
-        # Seed absence types with fixed UUIDs so tests can reference them
-        for name, uid in ABSENCE_TYPE_UUIDS.items():
-            session.add(AbsenceType(id=uid, name=name, is_active=True))
         await session.commit()
         yield session
 

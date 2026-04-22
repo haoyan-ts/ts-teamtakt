@@ -27,7 +27,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
 from app.db.engine import get_db
-from app.db.models.absence import Absence
 from app.db.models.category import BlockerType, Category, CategorySubType
 from app.db.models.daily_record import DailyRecord
 from app.db.models.project import Project
@@ -357,7 +356,6 @@ async def export_bulk(
     records = list((await db.execute(select(DailyRecord))).scalars().all())
     tasks = list((await db.execute(select(Task))).scalars().all())
     work_logs = list((await db.execute(select(DailyWorkLog))).scalars().all())
-    absences = list((await db.execute(select(Absence))).scalars().all())
     categories = list((await db.execute(select(Category))).scalars().all())
     projects = list((await db.execute(select(Project))).scalars().all())
     bl_types = list((await db.execute(select(BlockerType))).scalars().all())
@@ -480,20 +478,6 @@ async def export_bulk(
                 log.sort_order,
             ]
             for log in work_logs
-        ],
-    )
-    _sheet(
-        "Absences",
-        ["id", "user_id", "record_date", "absence_type", "note"],
-        [
-            [
-                str(a.id),
-                str(a.user_id),
-                str(a.record_date),
-                a.absence_type.name,
-                a.note or "",
-            ]
-            for a in absences
         ],
     )
     _sheet(

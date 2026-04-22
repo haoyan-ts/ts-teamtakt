@@ -3,7 +3,6 @@ import type {
   DailyRecord,
   DailyWorkLogFormEntry,
   DailyEffortBreakdown,
-  Absence,
   UnlockGrant,
 } from '../types/dailyRecord';
 
@@ -48,47 +47,6 @@ export async function getDailyRecords(params: {
   user_id?: string;
 }): Promise<DailyRecord[]> {
   const res = await client.get<DailyRecord[]>('/daily-records', { params });
-  return res.data;
-}
-
-// ---- Absences ----
-
-export async function createAbsence(payload: {
-  record_date: string;
-  absence_type_id: string;
-  note?: string | null;
-  form_opened_at: string;
-}): Promise<Absence> {
-  const res = await client.post<Absence>('/absences', payload);
-  return res.data;
-}
-
-export async function deleteAbsence(
-  id: string,
-  form_opened_at: string
-): Promise<void> {
-  await client.delete(`/absences/${id}`, {
-    params: { form_opened_at },
-  });
-}
-
-export async function updateAbsence(
-  id: string,
-  payload: {
-    absence_type_id?: string;
-    note?: string | null;
-    form_opened_at: string;
-  }
-): Promise<Absence> {
-  const res = await client.put<Absence>(`/absences/${id}`, payload);
-  return res.data;
-}
-
-export async function getAbsences(params: {
-  start_date?: string;
-  end_date?: string;
-}): Promise<Absence[]> {
-  const res = await client.get<Absence[]>('/absences', { params });
   return res.data;
 }
 

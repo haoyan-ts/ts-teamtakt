@@ -79,13 +79,6 @@
       "outputLanguageLabel": "Output Language",
       "saving": "Saving…",
       "description": "Applies to weekly emails and quarterly reports. UI language is set per user."
-    },
-    "absenceTypes": {
-      "title": "Absence Types",
-      "deactivate": "Deactivate",
-      "activate": "Activate",
-      "newPlaceholder": "New absence type",
-      "add": "Add"
     }
   }
 }

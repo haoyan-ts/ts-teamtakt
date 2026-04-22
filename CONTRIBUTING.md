@@ -112,7 +112,6 @@ Critical business rules that must never be broken are documented in [`.github/co
 - Edit window / lock logic
 - Visibility filtering (public vs private fields)
 - Carry-over snapshot immutability
-- Daily record ↔ Absence mutual exclusion
 - Self-assessment tag primary validation
 - LLM input sanitization
 
