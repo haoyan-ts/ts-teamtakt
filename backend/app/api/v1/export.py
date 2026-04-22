@@ -159,7 +159,9 @@ def _log_row(
         task.title,
         maps["categories"].get(task.category_id, str(task.category_id)),
         maps["work_types"].get(task.work_type_id, "") if task.work_type_id else "",
-        maps["projects"].get(task.project_id, str(task.project_id)) if task.project_id else "",
+        maps["projects"].get(task.project_id, str(task.project_id))
+        if task.project_id
+        else "",
         log.effort,
         log.insight or "",
         task.status,

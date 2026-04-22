@@ -420,9 +420,9 @@ async def test_work_log_valid_energy_type_accepted_schema(client, db_session):
             },
             headers=auth(tok),
         )
-        assert (
-            resp.status_code != 422
-        ), f"energy_type={energy!r} should pass schema validation"
+        assert resp.status_code != 422, (
+            f"energy_type={energy!r} should pass schema validation"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -815,7 +815,9 @@ async def test_work_log_zero_primary_tags_rejected(client, db_session):
 async def test_work_log_multiple_primary_tags_rejected(client, db_session):
     """Submitting a work log with >1 primary tag → 422."""
     import uuid
+
     from sqlalchemy import select
+
     from app.db.models.category import SelfAssessmentTag
 
     user, tok = await make_user(db_session, "isprim02@t.com")
@@ -863,7 +865,9 @@ async def test_work_log_multiple_primary_tags_rejected(client, db_session):
 async def test_work_log_exactly_one_primary_tag_accepted(client, db_session):
     """Submitting a work log with exactly one is_primary=True tag → 201."""
     import uuid
+
     from sqlalchemy import select
+
     from app.db.models.category import SelfAssessmentTag
 
     user, tok = await make_user(db_session, "isprim03@t.com")
