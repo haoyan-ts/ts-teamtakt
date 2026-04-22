@@ -906,3 +906,401 @@ async def test_work_log_exactly_one_primary_tag_accepted(client, db_session):
         headers=auth(tok),
     )
     assert resp.status_code == 201
+
+
+# ---------------------------------------------------------------------------
+# Check / uncheck toggle
+# ---------------------------------------------------------------------------
+
+
+async def _create_record_today(client, db_session, email_suffix):
+    user, tok = await make_user(db_session, f"{email_suffix}@t.com")
+    team = await make_team(db_session, f"{email_suffix}_team")
+    await make_membership(db_session, user.id, team.id)
+    resp = await client.post(
+        "/api/v1/daily-records",
+        json={
+            "record_date": str(date.today()),
+            "day_load": 70,
+            "form_opened_at": datetime.now(UTC).isoformat(),
+            "daily_work_logs": [],
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 201
+    return user, tok, resp.json()["id"]
+
+
+async def test_check_record_within_window(client, db_session):
+    """POST /check within edit window → 200, is_checked=True, is_locked=True."""
+    _, tok, record_id = await _create_record_today(client, db_session, "chk01")
+    resp = await client.post(
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_checked"] is True
+    assert data["is_locked"] is True
+
+
+async def test_uncheck_record_within_window(client, db_session):
+    """DELETE /check within edit window → 200, is_checked=False; sent_at untouched."""
+    _, tok, record_id = await _create_record_today(client, db_session, "unchk01")
+    r = await client.post(
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert r.status_code == 200
+    resp = await client.request(
+        "DELETE",
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_checked"] is False
+    assert data["teams_message_sent_at"] is None
+    assert data["email_sent_at"] is None
+
+
+async def test_check_outside_window_no_grant(client, db_session):
+    """Check on a past-window record without unlock grant → 423."""
+    user, tok = await make_user(db_session, "chk_ow01@t.com")
+    team = await make_team(db_session, "chk_ow01_team")
+    await make_membership(db_session, user.id, team.id)
+    past_date = date.today() - timedelta(days=21)
+    record = await insert_record(db_session, user.id, past_date)
+    resp = await client.post(
+        f"/api/v1/daily-records/{record.id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 423
+
+
+async def test_check_outside_window_with_grant(client, db_session):
+    """Check on a past-window record WITH an active unlock grant → 200."""
+    from app.db.models.grants import UnlockGrant
+
+    user, tok = await make_user(db_session, "chk_grant01@t.com")
+    leader, _ = await make_user(db_session, "chk_leader01@t.com", is_leader=True)
+    team = await make_team(db_session, "chk_grant01_team")
+    await make_membership(db_session, user.id, team.id)
+    await make_membership(db_session, leader.id, team.id)
+
+    past_date = date.today() - timedelta(days=21)
+    record = await insert_record(db_session, user.id, past_date)
+
+    grant = UnlockGrant(user_id=user.id, record_date=past_date, granted_by=leader.id)
+    db_session.add(grant)
+    await db_session.commit()
+
+    resp = await client.post(
+        f"/api/v1/daily-records/{record.id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_checked"] is True
+
+
+async def test_check_stale_form_opened_at(client, db_session):
+    """form_opened_at older than 6 hours → 423."""
+    _, tok, record_id = await _create_record_today(client, db_session, "chk_stale01")
+    stale_ts = (datetime.now(UTC) - timedelta(hours=7)).isoformat()
+    resp = await client.post(
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": stale_ts},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 423
+
+
+async def test_check_other_user_forbidden(client, db_session):
+    """Attempting to check another user's record → 403."""
+    _, _tok, record_id = await _create_record_today(client, db_session, "chk_own01")
+    other, other_tok = await make_user(db_session, "chk_own02@t.com")
+    resp = await client.post(
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(other_tok),
+    )
+    assert resp.status_code == 403
+
+
+async def test_uncheck_does_not_clear_sent_at(client, db_session):
+    """Un-check after teams_message_sent_at is set should not clear it."""
+    import uuid as _uuid
+
+    from sqlalchemy import select as sa_select
+
+    from app.db.models.daily_record import DailyRecord as DR
+
+    _, tok, record_id = await _create_record_today(client, db_session, "unchk_sent01")
+    r = await client.post(
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert r.status_code == 200
+    rid = _uuid.UUID(record_id)
+    record = await db_session.scalar(sa_select(DR).where(DR.id == rid))
+    assert record is not None
+    record.teams_message_sent_at = datetime.now(UTC)
+    await db_session.commit()
+    resp = await client.request(
+        "DELETE",
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_checked"] is False
+    assert resp.json()["teams_message_sent_at"] is not None
+
+
+# ---------------------------------------------------------------------------
+# Draft endpoints
+# ---------------------------------------------------------------------------
+
+
+async def test_get_teams_draft_returns_record_fields(client, db_session):
+    """GET teams-message/draft returns subject with user name and record date."""
+    _, tok, record_id = await _create_record_today(client, db_session, "draft01")
+    resp = await client.get(
+        f"/api/v1/daily-records/{record_id}/teams-message/draft",
+        headers=auth(tok),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "subject" in data
+    assert "body" in data
+    assert str(date.today()) in data["subject"]
+
+
+async def test_get_email_draft_returns_record_fields(client, db_session):
+    """GET email/draft returns subject with user name and record date."""
+    _, tok, record_id = await _create_record_today(client, db_session, "draft02")
+    resp = await client.get(
+        f"/api/v1/daily-records/{record_id}/email/draft",
+        headers=auth(tok),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "subject" in data
+    assert str(date.today()) in data["subject"]
+
+
+async def test_get_draft_other_user_forbidden(client, db_session):
+    """Fetching another user's draft → 403."""
+    _, _tok, record_id = await _create_record_today(client, db_session, "draft03")
+    other, other_tok = await make_user(db_session, "draft03b@t.com")
+    resp = await client.get(
+        f"/api/v1/daily-records/{record_id}/teams-message/draft",
+        headers=auth(other_tok),
+    )
+    assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Send guard checks (Teams)
+# ---------------------------------------------------------------------------
+
+
+async def test_send_teams_requires_checked(client, db_session):
+    """POST teams-message without checking first → 423."""
+    _, tok, record_id = await _create_record_today(client, db_session, "tsend01")
+    resp = await client.post(
+        f"/api/v1/daily-records/{record_id}/teams-message",
+        json={"subject": "Status", "body": "Done for today"},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 423
+
+
+async def test_send_teams_idempotent(client, db_session):
+    """Second POST to teams-message → 409 Conflict."""
+    import uuid as _uuid
+
+    from sqlalchemy import select as sa_select
+
+    from app.db.models.daily_record import DailyRecord as DR
+
+    _, tok, record_id = await _create_record_today(client, db_session, "tsend02")
+    r = await client.post(
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert r.status_code == 200
+    rid = _uuid.UUID(record_id)
+    record = await db_session.scalar(sa_select(DR).where(DR.id == rid))
+    assert record is not None
+    record.teams_message_sent_at = datetime.now(UTC)
+    await db_session.commit()
+    resp = await client.post(
+        f"/api/v1/daily-records/{record_id}/teams-message",
+        json={"subject": "Status", "body": "Done for today"},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 409
+
+
+async def test_send_teams_no_ms365_account(client, db_session):
+    """POST teams-message without MS365 token → 422."""
+    _, tok, record_id = await _create_record_today(client, db_session, "tsend03")
+    r = await client.post(
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert r.status_code == 200
+    resp = await client.post(
+        f"/api/v1/daily-records/{record_id}/teams-message",
+        json={"subject": "Status", "body": "Done for today"},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 422
+
+
+async def test_send_teams_channel_not_configured(client, db_session):
+    """POST teams-message when AdminSettings has no channel config → 503."""
+    import uuid as _uuid
+
+    from sqlalchemy import select as sa_select
+
+    from app.db.models.user import User as U
+
+    user, tok, record_id = await _create_record_today(client, db_session, "tsend04")
+    uid = _uuid.UUID(str(user.id))
+    u = await db_session.scalar(sa_select(U).where(U.id == uid))
+    assert u is not None
+    u.ms_graph_refresh_token = "fake-token"
+    await db_session.commit()
+
+    r = await client.post(
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert r.status_code == 200
+
+    # No AdminSettings row → 503
+    resp = await client.post(
+        f"/api/v1/daily-records/{record_id}/teams-message",
+        json={"subject": "Status", "body": "Done for today"},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 503
+
+
+async def test_send_teams_happy_path(client, db_session):
+    """POST teams-message with valid config → 200, teams_message_sent_at set."""
+    import uuid as _uuid
+    from unittest.mock import AsyncMock, patch
+
+    from sqlalchemy import select as sa_select
+
+    from app.db.models.admin_settings import AdminSettings
+    from app.db.models.team import TeamMembership as TM
+    from app.db.models.user import User as U
+
+    user, tok, record_id = await _create_record_today(client, db_session, "tsend05")
+    uid = _uuid.UUID(str(user.id))
+    u = await db_session.scalar(sa_select(U).where(U.id == uid))
+    assert u is not None
+    u.ms_graph_refresh_token = "fake-token"
+    await db_session.commit()
+
+    membership = await db_session.scalar(
+        sa_select(TM).where(TM.user_id == uid, TM.left_at.is_(None))
+    )
+    assert membership is not None
+    cfg = AdminSettings(
+        key="ms_teams_config",
+        value={},
+        team_id=membership.team_id,
+        teams_team_id="team-abc",
+        teams_channel_id="channel-xyz",
+    )
+    db_session.add(cfg)
+    await db_session.commit()
+
+    r = await client.post(
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert r.status_code == 200
+
+    with (
+        patch(
+            "app.services.graph_teams.refresh_graph_token",
+            new=AsyncMock(return_value=("access-tok", "new-refresh")),
+        ),
+        patch(
+            "app.services.graph_teams.post_channel_message",
+            new=AsyncMock(),
+        ) as mock_post,
+    ):
+        resp = await client.post(
+            f"/api/v1/daily-records/{record_id}/teams-message",
+            json={"subject": "Daily status", "body": "All done"},
+            headers=auth(tok),
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["sent_at"] is not None
+    mock_post.assert_awaited_once()
+    kw = mock_post.call_args.kwargs
+    assert kw["teams_team_id"] == "team-abc"
+    assert kw["teams_channel_id"] == "channel-xyz"
+
+
+# ---------------------------------------------------------------------------
+# Send guard checks (Email)
+# ---------------------------------------------------------------------------
+
+
+async def test_send_email_requires_checked(client, db_session):
+    """POST email without checking first → 423."""
+    _, tok, record_id = await _create_record_today(client, db_session, "esend01")
+    resp = await client.post(
+        f"/api/v1/daily-records/{record_id}/email",
+        json={"subject": "Status", "body": "Done for today"},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 423
+
+
+async def test_send_email_idempotent(client, db_session):
+    """Second POST to email → 409 Conflict."""
+    import uuid as _uuid
+
+    from sqlalchemy import select as sa_select
+
+    from app.db.models.daily_record import DailyRecord as DR
+
+    _, tok, record_id = await _create_record_today(client, db_session, "esend02")
+    r = await client.post(
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert r.status_code == 200
+    rid = _uuid.UUID(record_id)
+    record = await db_session.scalar(sa_select(DR).where(DR.id == rid))
+    assert record is not None
+    record.email_sent_at = datetime.now(UTC)
+    await db_session.commit()
+    resp = await client.post(
+        f"/api/v1/daily-records/{record_id}/email",
+        json={"subject": "Status", "body": "Done for today"},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 409

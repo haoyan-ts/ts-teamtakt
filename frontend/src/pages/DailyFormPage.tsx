@@ -5,6 +5,12 @@ import {
   updateDailyRecord,
   getDailyRecords,
   getUnlockGrants,
+  checkDailyRecord,
+  uncheckDailyRecord,
+  getTeamsDraft,
+  getEmailDraft,
+  sendTeamsMessage,
+  sendEmail,
 } from '../api/dailyRecords';
 import { getActiveTasks, getTask } from '../api/tasks';
 import { getCategories, getSelfAssessmentTags, getBlockerTypes } from '../api/categories';
@@ -157,6 +163,16 @@ export const DailyFormPage = () => {
   const [checked, setChecked] = useState(false);
   const [showConfirmCheck, setShowConfirmCheck] = useState(false);
 
+  // Send panel state
+  const [teamsSentAt, setTeamsSentAt] = useState<string | null>(null);
+  const [emailSentAt, setEmailSentAt] = useState<string | null>(null);
+  const [showTeamsModal, setShowTeamsModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [draftSubject, setDraftSubject] = useState('');
+  const [draftBody, setDraftBody] = useState('');
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+
   // Task create modal
   const [showTaskModal, setShowTaskModal] = useState(false);
 
@@ -168,7 +184,12 @@ export const DailyFormPage = () => {
     () => getEditWindowState(recordDate, formOpenedAt.current),
     [recordDate]
   );
-  const isEditable = (windowState !== 'locked' || !!unlockGrant) && !checked;
+  // Use server-authoritative is_locked when a record exists; fall back to
+  // client-side deadline computation only before the first save.
+  const isLocked = existingRecord
+    ? existingRecord.is_locked
+    : windowState === 'locked' && !unlockGrant;
+  const isEditable = !isLocked && !checked;
 
   // Category → accent color map (stable across renders, cycles through palette)
   const categoryColorMap = useMemo(() => getColorMap(categories), [categories]);
@@ -186,6 +207,9 @@ export const DailyFormPage = () => {
     setSuccessMsg(null);
     setChecked(false);
     setShowConfirmCheck(false);
+    setTeamsSentAt(null);
+    setEmailSentAt(null);
+    setSendError(null);
     isDirty.current = false;
     (async () => {
       try {
@@ -207,7 +231,9 @@ export const DailyFormPage = () => {
         if (records.length > 0) {
           const rec = records[0];
           setExistingRecord(rec);
-          setChecked(true); // already submitted — start in locked state
+          setChecked(rec.is_checked);
+          setTeamsSentAt(rec.teams_message_sent_at);
+          setEmailSentAt(rec.email_sent_at);
           setDayLoad(rec.day_load ?? 50);
           setDayInsight(rec.day_insight ?? '');
 
@@ -386,17 +412,25 @@ export const DailyFormPage = () => {
     };
 
     try {
+      let savedRecord: DailyRecord;
       if (existingRecord) {
-        await updateDailyRecord(existingRecord.id, payload);
+        savedRecord = await updateDailyRecord(existingRecord.id, payload);
       } else {
-        const created = await createDailyRecord({
+        savedRecord = await createDailyRecord({
           record_date: recordDate,
           ...payload,
         });
-        setExistingRecord(created);
       }
+      // Call the real check API
+      const checkedRecord = await checkDailyRecord(
+        savedRecord.id,
+        formOpenedAt.current.toISOString(),
+      );
+      setExistingRecord(checkedRecord);
+      setChecked(checkedRecord.is_checked);
+      setTeamsSentAt(checkedRecord.teams_message_sent_at);
+      setEmailSentAt(checkedRecord.email_sent_at);
       setSuccessMsg('Record checked.');
-      setChecked(true);
       isDirty.current = false;
     } catch (err: unknown) {
       const msg =
@@ -409,6 +443,108 @@ export const DailyFormPage = () => {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUncheck = async () => {
+    if (!existingRecord) return;
+    setError(null);
+    try {
+      const updated = await uncheckDailyRecord(
+        existingRecord.id,
+        formOpenedAt.current.toISOString(),
+      );
+      setExistingRecord(updated);
+      setChecked(updated.is_checked);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 423) {
+        setError('The edit window is closed — cannot uncheck. Ask your leader for an unlock.');
+      } else {
+        setError('Failed to uncheck record.');
+      }
+    }
+  };
+
+  const openTeamsModal = async () => {
+    if (!existingRecord) return;
+    setSendError(null);
+    try {
+      const draft = await getTeamsDraft(existingRecord.id);
+      setDraftSubject(draft.subject);
+      setDraftBody(draft.body);
+      setShowTeamsModal(true);
+    } catch {
+      setSendError('Failed to load Teams draft.');
+    }
+  };
+
+  const openEmailModal = async () => {
+    if (!existingRecord) return;
+    setSendError(null);
+    try {
+      const draft = await getEmailDraft(existingRecord.id);
+      setDraftSubject(draft.subject);
+      setDraftBody(draft.body);
+      setShowEmailModal(true);
+    } catch {
+      setSendError('Failed to load email draft.');
+    }
+  };
+
+  const handleSendTeams = async () => {
+    if (!existingRecord) return;
+    setSending(true);
+    setSendError(null);
+    try {
+      const result = await sendTeamsMessage(existingRecord.id, {
+        subject: draftSubject,
+        body: draftBody,
+      });
+      setTeamsSentAt(result.sent_at);
+      setShowTeamsModal(false);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number; data?: { detail?: string } } })?.response?.status;
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      if (status === 503) {
+        setSendError('Teams channel not configured — contact your admin.');
+      } else if (status === 422) {
+        setSendError('MS365 account not connected — set up in Profile Settings.');
+      } else if (status === 409) {
+        setSendError('Already sent.');
+        setShowTeamsModal(false);
+      } else {
+        setSendError(detail ?? 'Failed to send Teams message.');
+      }
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!existingRecord) return;
+    setSending(true);
+    setSendError(null);
+    try {
+      const result = await sendEmail(existingRecord.id, {
+        subject: draftSubject,
+        body: draftBody,
+      });
+      setEmailSentAt(result.sent_at);
+      setShowEmailModal(false);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number; data?: { detail?: string } } })?.response?.status;
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      if (status === 422) {
+        setSendError('MS365 account not connected — set up in Profile Settings.');
+      } else if (status === 409) {
+        setSendError('Already sent.');
+        setShowEmailModal(false);
+      } else {
+        setSendError(detail ?? 'Failed to send email.');
+      }
+    } finally {
+      setSending(false);
     }
   };
 
@@ -465,20 +601,25 @@ export const DailyFormPage = () => {
         </button>
       </div>
 
-      {/* Edit window banner */}
-      {windowState === 'grace' && (
+      {/* Edit window banner — use server is_locked when record exists */}
+      {!isLocked && windowState === 'grace' && (
         <div style={{ ...s.banner, background: 'var(--warning-bg)', border: '1px solid var(--warning)', color: 'var(--text-h)' }}>
           ⚠ Grace period — submit before the edit window closes.
         </div>
       )}
-      {windowState === 'locked' && !unlockGrant && (
-        <div style={{ ...s.banner, background: 'var(--error-bg)', border: '1px solid var(--error)', color: 'var(--error)' }}>
-          🔒 Edit window closed. Contact your leader to request an unlock.
+      {isLocked && checked && (
+        <div style={{ ...s.banner, background: 'var(--success-bg)', border: '1px solid var(--success)', color: 'var(--success)' }}>
+          ✓ Checked and locked.
         </div>
       )}
-      {windowState === 'locked' && unlockGrant && (
+      {isLocked && !checked && unlockGrant && (
         <div style={{ ...s.banner, background: 'var(--success-bg)', border: '1px solid var(--success)', color: 'var(--success)' }}>
           🔓 Unlock granted by your leader.
+        </div>
+      )}
+      {isLocked && !checked && !unlockGrant && (
+        <div style={{ ...s.banner, background: 'var(--error-bg)', border: '1px solid var(--error)', color: 'var(--error)' }}>
+          🔒 Edit window closed. Contact your leader to request an unlock.
         </div>
       )}
 
@@ -626,10 +767,10 @@ export const DailyFormPage = () => {
             {checked ? (
               <>
                 <span style={s.checkedBadge}>✓ Checked</span>
-                {windowState !== 'locked' && (
+                {!isLocked && (
                   <button
                     type="button"
-                    onClick={() => setChecked(false)}
+                    onClick={handleUncheck}
                     style={{ ...s.navBtn, marginLeft: '0.75rem' }}
                   >
                     Re-edit
@@ -646,6 +787,32 @@ export const DailyFormPage = () => {
               </button>
             )}
           </div>
+
+          {/* Post-check send panel */}
+          {checked && existingRecord && (
+            <div style={s.sendPanel}>
+              <p style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-body)' }}>
+                Share status
+              </p>
+              {sendError && <p style={s.errorMsg}>{sendError}</p>}
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {teamsSentAt ? (
+                  <span style={s.sentBadge}>✓ Sent to Teams</span>
+                ) : (
+                  <button type="button" onClick={openTeamsModal} style={s.sendBtn}>
+                    Send to Teams
+                  </button>
+                )}
+                {emailSentAt ? (
+                  <span style={s.sentBadge}>✓ Email sent</span>
+                ) : (
+                  <button type="button" onClick={openEmailModal} style={s.sendBtn}>
+                    Send Email
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </form>
 
       {/* Task create modal — rendered outside <form> to avoid nested form HTML */}
@@ -681,6 +848,78 @@ export const DailyFormPage = () => {
                 style={s.saveBtn}
               >
                 Confirm Check
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Teams message draft modal */}
+      {showTeamsModal && (
+        <div style={s.modalOverlay}>
+          <div style={{ ...s.modalBox, width: '480px' }}>
+            <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Send to Teams</h3>
+            {sendError && <p style={s.errorMsg}>{sendError}</p>}
+            <div style={{ marginBottom: '0.5rem' }}>
+              <label style={s.label}>Subject</label>
+              <input
+                type="text"
+                value={draftSubject}
+                onChange={(e) => setDraftSubject(e.target.value)}
+                style={{ ...s.input, marginTop: '0.25rem' }}
+              />
+            </div>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={s.label}>Body</label>
+              <textarea
+                value={draftBody}
+                onChange={(e) => setDraftBody(e.target.value)}
+                rows={8}
+                style={{ ...s.input, resize: 'vertical', marginTop: '0.25rem' }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" onClick={() => { setShowTeamsModal(false); setSendError(null); }} style={s.navBtn}>
+                Cancel
+              </button>
+              <button type="button" onClick={handleSendTeams} disabled={sending} style={s.saveBtn}>
+                {sending ? 'Sending\u2026' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email draft modal */}
+      {showEmailModal && (
+        <div style={s.modalOverlay}>
+          <div style={{ ...s.modalBox, width: '480px' }}>
+            <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Send Email</h3>
+            {sendError && <p style={s.errorMsg}>{sendError}</p>}
+            <div style={{ marginBottom: '0.5rem' }}>
+              <label style={s.label}>Subject</label>
+              <input
+                type="text"
+                value={draftSubject}
+                onChange={(e) => setDraftSubject(e.target.value)}
+                style={{ ...s.input, marginTop: '0.25rem' }}
+              />
+            </div>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={s.label}>Body</label>
+              <textarea
+                value={draftBody}
+                onChange={(e) => setDraftBody(e.target.value)}
+                rows={8}
+                style={{ ...s.input, resize: 'vertical', marginTop: '0.25rem' }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" onClick={() => { setShowEmailModal(false); setSendError(null); }} style={s.navBtn}>
+                Cancel
+              </button>
+              <button type="button" onClick={handleSendEmail} disabled={sending} style={s.saveBtn}>
+                {sending ? 'Sending\u2026' : 'Send'}
               </button>
             </div>
           </div>
@@ -806,6 +1045,32 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '6px',
     fontWeight: 600,
     fontSize: '0.9rem',
+    border: '1px solid #9ae6b4',
+  },
+  sendPanel: {
+    marginTop: '1rem',
+    padding: '0.75rem 1rem',
+    background: 'var(--bg-tertiary)',
+    border: '1px solid var(--border)',
+    borderRadius: '8px',
+  },
+  sendBtn: {
+    padding: '0.35rem 0.9rem',
+    background: 'var(--accent)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: 500,
+    fontSize: '0.85rem',
+  },
+  sentBadge: {
+    padding: '0.35rem 0.9rem',
+    background: '#c6f6d5',
+    color: '#276749',
+    borderRadius: '6px',
+    fontWeight: 600,
+    fontSize: '0.85rem',
     border: '1px solid #9ae6b4',
   },
   modalOverlay: {

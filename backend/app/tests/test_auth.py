@@ -1,8 +1,13 @@
+import secrets
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from jose import JWTError
 from jose import jwt as jose_jwt
 
-from app.api.v1.auth import _generate_state
+import app.services.graph_auth as _graph_auth_mod
+from app.core import oauth_state
+from app.services.graph_auth import verify_id_token
 
 
 def make_fake_id_token(email: str, name: str) -> str:
@@ -14,13 +19,14 @@ def make_fake_id_token(email: str, name: str) -> str:
     )
 
 
-def make_mock_httpx_cm(id_token: str):
+def make_mock_httpx_cm(id_token: str, *, refresh_token: str = "ms-fake-refresh-token"):
     """Return a mock async context manager simulating httpx.AsyncClient."""
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
         "id_token": id_token,
         "access_token": "ms-fake-access-token",
+        "refresh_token": refresh_token,
         "token_type": "Bearer",
     }
     mock_client = AsyncMock()
@@ -29,6 +35,28 @@ def make_mock_httpx_cm(id_token: str):
     mock_cm.__aenter__ = AsyncMock(return_value=mock_client)
     mock_cm.__aexit__ = AsyncMock(return_value=None)
     return mock_cm
+
+
+def _seed_state(verifier: str = "dummy-verifier") -> str:
+    """Insert a nonce-store entry and return the state token for use in callback tests."""
+    state = secrets.token_urlsafe(32)
+    oauth_state.store_state(state, verifier)
+    return state
+
+
+def _patch_sso_mocks(mocker, email: str, name: str) -> None:
+    """Patch httpx.AsyncClient and verify_id_token for SSO callback tests."""
+    id_token = make_fake_id_token(email, name)
+    mocker.patch(
+        "app.api.v1.auth.httpx.AsyncClient",
+        return_value=make_mock_httpx_cm(id_token),
+    )
+    mocker.patch(
+        "app.api.v1.auth.verify_id_token",
+        new=AsyncMock(
+            return_value={"email": email, "name": name, "sub": "ms-oid-stub"}
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -52,11 +80,8 @@ async def test_me_no_token(client):
 # 3. Callback: new user created, JWT returned, lobby=true
 # ---------------------------------------------------------------------------
 async def test_callback_new_user(client, mocker):
-    state = _generate_state()
-    id_token = make_fake_id_token("newuser@example.com", "New User")
-    mocker.patch(
-        "app.api.v1.auth.httpx.AsyncClient", return_value=make_mock_httpx_cm(id_token)
-    )
+    state = _seed_state()
+    _patch_sso_mocks(mocker, "newuser@example.com", "New User")
 
     resp = await client.get(f"/api/v1/auth/callback?code=test-code&state={state}")
     assert resp.status_code == 307
@@ -79,11 +104,8 @@ async def test_callback_new_user(client, mocker):
 # ---------------------------------------------------------------------------
 async def test_callback_existing_user(client, mocker):
     # "newuser@example.com" was already created in test_callback_new_user (session-scoped DB)
-    state = _generate_state()
-    id_token = make_fake_id_token("newuser@example.com", "New User")
-    mocker.patch(
-        "app.api.v1.auth.httpx.AsyncClient", return_value=make_mock_httpx_cm(id_token)
-    )
+    state = _seed_state()
+    _patch_sso_mocks(mocker, "newuser@example.com", "New User")
 
     resp = await client.get(f"/api/v1/auth/callback?code=test-code&state={state}")
     assert resp.status_code == 307
@@ -100,11 +122,8 @@ async def test_callback_existing_user(client, mocker):
 # 5. GET /me with valid JWT → 200, correct user info
 # ---------------------------------------------------------------------------
 async def test_me_with_valid_token(client, mocker):
-    state = _generate_state()
-    id_token = make_fake_id_token("metest@example.com", "Me Test")
-    mocker.patch(
-        "app.api.v1.auth.httpx.AsyncClient", return_value=make_mock_httpx_cm(id_token)
-    )
+    state = _seed_state()
+    _patch_sso_mocks(mocker, "metest@example.com", "Me Test")
 
     resp = await client.get(f"/api/v1/auth/callback?code=test-code&state={state}")
     token = resp.headers["location"].split("token=")[1]
@@ -132,12 +151,8 @@ async def test_admin_email_bootstrap(client, mocker):
     original_admin = settings.ADMIN_EMAIL
     settings.ADMIN_EMAIL = "bootstrap-admin@example.com"
     try:
-        state = _generate_state()
-        id_token = make_fake_id_token("bootstrap-admin@example.com", "Bootstrap Admin")
-        mocker.patch(
-            "app.api.v1.auth.httpx.AsyncClient",
-            return_value=make_mock_httpx_cm(id_token),
-        )
+        state = _seed_state()
+        _patch_sso_mocks(mocker, "bootstrap-admin@example.com", "Bootstrap Admin")
 
         resp = await client.get(f"/api/v1/auth/callback?code=test-code&state={state}")
         assert resp.status_code == 307
@@ -156,11 +171,8 @@ async def test_admin_email_bootstrap(client, mocker):
 # 7. Lobby user can still access /health
 # ---------------------------------------------------------------------------
 async def test_health_accessible_for_lobby_user(client, mocker):
-    state = _generate_state()
-    id_token = make_fake_id_token("lobbytest@example.com", "Lobby Test")
-    mocker.patch(
-        "app.api.v1.auth.httpx.AsyncClient", return_value=make_mock_httpx_cm(id_token)
-    )
+    state = _seed_state()
+    _patch_sso_mocks(mocker, "lobbytest@example.com", "Lobby Test")
 
     resp = await client.get(f"/api/v1/auth/callback?code=test-code&state={state}")
     assert resp.status_code == 307
@@ -185,13 +197,8 @@ async def test_logout(client):
 # ---------------------------------------------------------------------------
 async def _get_token_for(client, email: str, name: str, mocker) -> str:
     """Helper: register/login a user and return their Bearer token."""
-    from app.api.v1.auth import _generate_state
-
-    state = _generate_state()
-    id_token = make_fake_id_token(email, name)
-    mocker.patch(
-        "app.api.v1.auth.httpx.AsyncClient", return_value=make_mock_httpx_cm(id_token)
-    )
+    state = _seed_state()
+    _patch_sso_mocks(mocker, email, name)
     resp = await client.get(f"/api/v1/auth/callback?code=test-code&state={state}")
     return resp.headers["location"].split("token=")[1]
 
@@ -337,3 +344,265 @@ async def test_local_login_nonexistent_user(client):
     )
     assert resp.status_code == 401
     assert resp.json()["detail"] == "Invalid credentials"
+
+
+# ---------------------------------------------------------------------------
+# verify_id_token tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def _reset_jwks_cache():
+    """Reset JWKS module-level cache between tests."""
+    _graph_auth_mod._jwks_cache = {}
+    _graph_auth_mod._jwks_fetched_at = None
+    yield
+    _graph_auth_mod._jwks_cache = {}
+    _graph_auth_mod._jwks_fetched_at = None
+
+
+async def test_valid_token_returns_claims(mocker, _reset_jwks_cache):
+    expected_claims = {"sub": "user-1", "email": "u@example.com"}
+
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.get_unverified_header",
+        return_value={"kid": "test-kid", "alg": "RS256"},
+    )
+    mock_fetch = AsyncMock()
+    mocker.patch("app.services.graph_auth._fetch_jwks", mock_fetch)
+    _graph_auth_mod._jwks_cache = {"test-kid": {"kid": "test-kid", "kty": "RSA"}}
+
+    mocker.patch(
+        "app.services.graph_auth.jwk.construct",
+        return_value=MagicMock(),
+    )
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.decode",
+        return_value=expected_claims,
+    )
+
+    result = await verify_id_token("fake.token.here")
+    assert result == expected_claims
+
+
+async def test_expired_token_raises_401(mocker, _reset_jwks_cache):
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.get_unverified_header",
+        return_value={"kid": "test-kid", "alg": "RS256"},
+    )
+    _graph_auth_mod._jwks_cache = {"test-kid": {"kid": "test-kid", "kty": "RSA"}}
+    mocker.patch(
+        "app.services.graph_auth.jwk.construct",
+        return_value=MagicMock(),
+    )
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.decode",
+        side_effect=JWTError("Signature has expired"),
+    )
+
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        await verify_id_token("expired.token.here")
+    assert exc_info.value.status_code == 401
+
+
+async def test_wrong_audience_raises_401(mocker, _reset_jwks_cache):
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.get_unverified_header",
+        return_value={"kid": "test-kid", "alg": "RS256"},
+    )
+    _graph_auth_mod._jwks_cache = {"test-kid": {"kid": "test-kid", "kty": "RSA"}}
+    mocker.patch(
+        "app.services.graph_auth.jwk.construct",
+        return_value=MagicMock(),
+    )
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.decode",
+        side_effect=JWTError("Invalid audience"),
+    )
+
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        await verify_id_token("wrong-aud.token.here")
+    assert exc_info.value.status_code == 401
+
+
+async def test_kid_miss_triggers_jwks_refresh(mocker, _reset_jwks_cache):
+    """kid not in cache → _fetch_jwks called → cache populated → decode succeeds."""
+    expected_claims = {"sub": "user-2"}
+
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.get_unverified_header",
+        return_value={"kid": "new-kid", "alg": "RS256"},
+    )
+
+    async def _populate_cache():
+        _graph_auth_mod._jwks_cache = {"new-kid": {"kid": "new-kid", "kty": "RSA"}}
+        from datetime import UTC, datetime
+
+        _graph_auth_mod._jwks_fetched_at = datetime.now(UTC)
+
+    mocker.patch("app.services.graph_auth._fetch_jwks", side_effect=_populate_cache)
+    mocker.patch(
+        "app.services.graph_auth.jwk.construct",
+        return_value=MagicMock(),
+    )
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.decode",
+        return_value=expected_claims,
+    )
+
+    result = await verify_id_token("kid-miss.token.here")
+    assert result == expected_claims
+
+
+async def test_unsupported_algorithm_raises_401(mocker, _reset_jwks_cache):
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.get_unverified_header",
+        return_value={"kid": "test-kid", "alg": "HS256"},
+    )
+
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        await verify_id_token("hs256.token.here")
+    assert exc_info.value.status_code == 401
+
+
+async def test_stale_cache_triggers_refresh(mocker, _reset_jwks_cache):
+    """TTL-expired cache triggers refresh even when kid is present."""
+    from datetime import UTC, datetime, timedelta
+
+    _graph_auth_mod._jwks_cache = {"old-kid": {"kid": "old-kid", "kty": "RSA"}}
+    _graph_auth_mod._jwks_fetched_at = datetime.now(UTC) - timedelta(hours=2)
+
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.get_unverified_header",
+        return_value={"kid": "old-kid", "alg": "RS256"},
+    )
+
+    fetch_called = []
+
+    async def _mock_fetch():
+        fetch_called.append(True)
+        _graph_auth_mod._jwks_cache = {"old-kid": {"kid": "old-kid", "kty": "RSA"}}
+        _graph_auth_mod._jwks_fetched_at = datetime.now(UTC)
+
+    mocker.patch("app.services.graph_auth._fetch_jwks", side_effect=_mock_fetch)
+    mocker.patch("app.services.graph_auth.jwk.construct", return_value=MagicMock())
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.decode",
+        return_value={"sub": "user-3"},
+    )
+
+    await verify_id_token("stale.token.here")
+    assert fetch_called, "_fetch_jwks should have been called on stale cache"
+
+
+# ---------------------------------------------------------------------------
+# PKCE roundtrip and invalid-state tests
+# ---------------------------------------------------------------------------
+
+
+async def test_login_includes_pkce_params(client):
+    """GET /login redirect must carry PKCE S256 challenge and full Graph scope."""
+    resp = await client.get("/api/v1/auth/login")
+    assert resp.status_code == 307
+    location = resp.headers["location"]
+    assert "code_challenge=" in location
+    assert "code_challenge_method=S256" in location
+    assert "offline_access" in location
+
+
+async def test_login_callback_pkce_roundtrip(client, mocker):
+    """Full roundtrip: GET /login stores PKCE state → GET /callback consumes it."""
+    from urllib.parse import parse_qs, urlparse
+
+    resp = await client.get("/api/v1/auth/login")
+    assert resp.status_code == 307
+    qs = parse_qs(urlparse(resp.headers["location"]).query)
+    state = qs["state"][0]
+    assert "code_challenge" in qs
+    assert qs["code_challenge_method"][0] == "S256"
+
+    _patch_sso_mocks(mocker, "pkce-roundtrip@example.com", "PKCE User")
+    resp2 = await client.get(f"/api/v1/auth/callback?code=test-code&state={state}")
+    assert resp2.status_code == 307
+    assert "token=" in resp2.headers["location"]
+
+
+async def test_callback_invalid_state(client):
+    """Callback with unknown state → 400."""
+    resp = await client.get("/api/v1/auth/callback?code=test-code&state=not-in-store")
+    assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# MS365 reconnect tests
+# ---------------------------------------------------------------------------
+
+
+async def test_ms365_reconnect_requires_auth(client):
+    resp = await client.get("/api/v1/auth/ms365/reconnect")
+    assert resp.status_code == 401
+
+
+async def test_ms365_reconnect_redirects(client, mocker):
+    """Authenticated GET /auth/ms365/reconnect → 307 to Microsoft with prompt=consent."""
+    token = await _get_token_for(
+        client, "reconnect-user@example.com", "Reconnect User", mocker
+    )
+    resp = await client.get(
+        "/api/v1/auth/ms365/reconnect",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 307
+    location = resp.headers["location"]
+    assert "login.microsoftonline.com" in location
+    assert "prompt=consent" in location
+    assert "code_challenge=" in location
+    assert "code_challenge_method=S256" in location
+
+
+async def test_ms365_reconnect_callback_stores_refresh_token(client, mocker):
+    """Callback consumes nonce, exchanges code, stores refresh_token; /me reflects ms365_connected."""
+    token = await _get_token_for(
+        client, "reconnect-cb@example.com", "Reconnect CB", mocker
+    )
+    resp = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    user_id = resp.json()["id"]
+
+    state = secrets.token_urlsafe(32)
+    oauth_state.store_state(state, "test-verifier", user_id=user_id)
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"refresh_token": "new-graph-refresh-token"}
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+    mock_cm = AsyncMock()
+    mock_cm.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_cm.__aexit__ = AsyncMock(return_value=None)
+    mocker.patch("app.api.v1.auth.httpx.AsyncClient", return_value=mock_cm)
+
+    resp2 = await client.get(
+        f"/api/v1/auth/ms365/reconnect/callback?code=abc&state={state}"
+    )
+    assert resp2.status_code == 307
+    assert "ms365=connected" in resp2.headers["location"]
+
+    resp3 = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert resp3.json()["ms365_connected"] is True
+
+
+async def test_ms365_reconnect_callback_invalid_state(client):
+    resp = await client.get(
+        "/api/v1/auth/ms365/reconnect/callback?code=abc&state=not-in-store"
+    )
+    assert resp.status_code == 400

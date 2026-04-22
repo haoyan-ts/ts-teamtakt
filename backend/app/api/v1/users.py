@@ -9,6 +9,7 @@ from app.db.engine import get_db
 from app.db.models.team import Team, TeamMembership
 from app.db.models.user import User
 from app.db.schemas.user import UserResponse, UserRoleUpdate, UserUpdate
+from app.services.graph_auth import ConsentRequiredError, fetch_ms365_avatar
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -39,6 +40,8 @@ async def get_me(
         "is_leader": current_user.is_leader,
         "is_admin": current_user.is_admin,
         "preferred_locale": current_user.preferred_locale,
+        "ms365_connected": current_user.ms_graph_refresh_token is not None,
+        "avatar_url": current_user.avatar_url,
         "team": team_data,
         "lobby": team_data is None,
     }
@@ -66,6 +69,38 @@ async def update_me(
         preferred_locale=current_user.preferred_locale,
         created_at=current_user.created_at,
     )
+
+
+@router.post("/me/sync-avatar")
+async def sync_avatar(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch profile photo from MS365 and save it as avatar_url."""
+    if current_user.ms_graph_refresh_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="MS365 not connected",
+        )
+    try:
+        data_url, new_refresh_token = await fetch_ms365_avatar(
+            current_user.ms_graph_refresh_token
+        )
+    except ConsentRequiredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="ms365_reconnect_required",
+        ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
+        ) from exc
+
+    current_user.avatar_url = data_url
+    current_user.ms_graph_refresh_token = new_refresh_token
+    await db.commit()
+    await db.refresh(current_user)
+    return {"avatar_url": current_user.avatar_url}
 
 
 @router.get("", response_model=list[UserResponse])

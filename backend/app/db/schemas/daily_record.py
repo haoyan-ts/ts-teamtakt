@@ -43,11 +43,38 @@ class DailyRecordResponse(BaseModel):
     day_load: int | None  # None when requester lacks visibility
     day_insight: str | None
     form_opened_at: datetime
+    is_checked: bool
+    teams_message_sent_at: datetime | None
+    email_sent_at: datetime | None
+    is_locked: bool  # computed: is_checked OR now >= edit_deadline; never stored
     created_at: datetime
     updated_at: datetime
     daily_work_logs: list[DailyWorkLogResponse] = []
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": False}
+
+
+class DailyRecordCheckRequest(BaseModel):
+    form_opened_at: datetime  # required; edit-window check happens at submit time
+
+
+class DailyStatusDraftResponse(BaseModel):
+    subject: str
+    body: str
+
+
+class DailyStatusSendRequest(BaseModel):
+    subject: str
+    body: str  # user-edited content; HTML-escaped at send time
+
+
+class DailyTeamsMessageSentResponse(BaseModel):
+    sent_at: datetime
+    message_id: str | None
+
+
+class DailyEmailSentResponse(BaseModel):
+    sent_at: datetime
 
 
 class UnlockGrantCreate(BaseModel):

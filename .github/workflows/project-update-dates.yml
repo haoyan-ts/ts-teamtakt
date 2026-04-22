@@ -1,0 +1,153 @@
+# yaml-language-server: $schema=off
+name: Update Project Dates on Status Change
+
+on:
+  projects_v2_item:
+    types: [edited]
+
+jobs:
+  update-dates:
+    name: Set Start/End Date from Status
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve changed field name
+        id: field
+        # Only proceed for single_select field changes (Status is single_select)
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          FIELD_NODE_ID: ${{ github.event.changes.field_value.field_node_id }}
+          FIELD_TYPE: ${{ github.event.changes.field_value.field_type }}
+        run: |
+          if [ "$FIELD_TYPE" != 'single_select' ]; then
+            echo "Not a single_select change — skipping."
+            echo "name=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          NAME=$(gh api graphql -f query='
+            query($id: ID!) {
+              node(id: $id) {
+                ... on ProjectV2SingleSelectField { name }
+                ... on ProjectV2IterationField      { name }
+              }
+            }
+          ' -f id="$FIELD_NODE_ID" \
+            --jq '.data.node.name // ""')
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Get current Status value
+        id: status
+        if: steps.field.outputs.name == 'Status'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ITEM_ID: ${{ github.event.projects_v2_item.node_id }}
+        run: |
+          VALUE=$(gh api graphql -f query='
+            query($id: ID!) {
+              node(id: $id) {
+                ... on ProjectV2Item {
+                  fieldValues(first: 30) {
+                    nodes {
+                      ... on ProjectV2ItemFieldSingleSelectValue {
+                        name
+                        field { ... on ProjectV2SingleSelectField { name } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f id="$ITEM_ID" \
+            --jq '[.data.node.fieldValues.nodes[] | select(.field.name == "Status") | .name][0] // ""')
+          echo "value=$VALUE" >> "$GITHUB_OUTPUT"
+
+      - name: Get project field IDs
+        id: fields
+        if: >
+          steps.field.outputs.name == 'Status' &&
+          (steps.status.outputs.value == 'In Progress' || steps.status.outputs.value == 'Done')
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PROJECT_ID: ${{ github.event.projects_v2_item.project_node_id }}
+        run: |
+          RESP=$(gh api graphql -f query='
+            query($id: ID!) {
+              node(id: $id) {
+                ... on ProjectV2 {
+                  fields(first: 50) {
+                    nodes {
+                      ... on ProjectV2Field { id name dataType }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f id="$PROJECT_ID")
+
+          START_DATE_ID=$(echo "$RESP" | jq -r \
+            '[.data.node.fields.nodes[] | select(.name == "Start Date" and .dataType == "DATE") | .id][0] // ""')
+          END_DATE_ID=$(echo "$RESP" | jq -r \
+            '[.data.node.fields.nodes[] | select(.name == "End Date" and .dataType == "DATE") | .id][0] // ""')
+
+          echo "start_date_id=$START_DATE_ID" >> "$GITHUB_OUTPUT"
+          echo "end_date_id=$END_DATE_ID"     >> "$GITHUB_OUTPUT"
+
+      - name: Set Start Date (In Progress)
+        if: >
+          steps.field.outputs.name == 'Status' &&
+          steps.status.outputs.value == 'In Progress' &&
+          steps.fields.outputs.start_date_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PROJECT_ID: ${{ github.event.projects_v2_item.project_node_id }}
+          ITEM_ID: ${{ github.event.projects_v2_item.node_id }}
+          FIELD_ID: ${{ steps.fields.outputs.start_date_id }}
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          gh api graphql -f query='
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId:    $itemId
+                fieldId:   $fieldId
+                value:     { date: $date }
+              }) {
+                projectV2Item { id }
+              }
+            }
+          ' \
+            -f projectId="$PROJECT_ID" \
+            -f itemId="$ITEM_ID" \
+            -f fieldId="$FIELD_ID" \
+            -f date="$TODAY"
+          echo "Start Date set to $TODAY"
+
+      - name: Set End Date (Done)
+        if: >
+          steps.field.outputs.name == 'Status' &&
+          steps.status.outputs.value == 'Done' &&
+          steps.fields.outputs.end_date_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PROJECT_ID: ${{ github.event.projects_v2_item.project_node_id }}
+          ITEM_ID: ${{ github.event.projects_v2_item.node_id }}
+          FIELD_ID: ${{ steps.fields.outputs.end_date_id }}
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          gh api graphql -f query='
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId:    $itemId
+                fieldId:   $fieldId
+                value:     { date: $date }
+              }) {
+                projectV2Item { id }
+              }
+            }
+          ' \
+            -f projectId="$PROJECT_ID" \
+            -f itemId="$ITEM_ID" \
+            -f fieldId="$FIELD_ID" \
+            -f date="$TODAY"
+          echo "End Date set to $TODAY"

@@ -33,6 +33,28 @@
     "save": "保存",
     "saving": "保存中…",
     "saved": "已保存 ✓",
-    "saveError": "保存失败，请重试。"
+    "saveError": "保存失败，请重试。",
+    "avatarSync": "从MS365同步头像",
+    "avatarSyncing": "同步中…",
+    "avatarSyncError": "无法同步头像，请重试。",
+    "avatarSyncReconnect": "请断开并重新连接MS365以启用头像同步。",
+    "permissions": {
+      "title": "已连接的权限",
+      "connected": "已连接",
+      "notConnected": "未连接",
+      "comingSoon": "即将推出",
+      "connect": "连接",
+      "reconnect": "重新连接MS365",
+      "disconnect": "断开连接",
+      "disconnecting": "断开中…",
+      "ms365": {
+        "label": "Microsoft 365",
+        "description": "用于代您发送每周邮件报告并向MS Teams频道发布内容。"
+      },
+      "github": {
+        "label": "GitHub",
+        "description": "将支持从GitHub Issues和Pull Requests自动填充任务。"
+      }
+    }
   }
 }

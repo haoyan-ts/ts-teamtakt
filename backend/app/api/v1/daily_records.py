@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import html
+import logging
 import uuid
 from datetime import UTC, date, datetime
 
@@ -9,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_active_user
-from app.core.edit_window import check_edit_window
+from app.core.edit_window import _now_jst, check_edit_window, compute_edit_deadline
 from app.core.validators import validate_self_assessment_tags
 from app.core.visibility import apply_visibility_filter, is_record_fully_visible
 from app.core.working_days import count_working_days
@@ -21,15 +23,22 @@ from app.db.models.team import TeamMembership, TeamSettings
 from app.db.models.user import User
 from app.db.schemas.daily_record import (
     DailyEffortBreakdownResponse,
+    DailyEmailSentResponse,
+    DailyRecordCheckRequest,
     DailyRecordCreate,
     DailyRecordResponse,
     DailyRecordUpdate,
+    DailyStatusDraftResponse,
+    DailyStatusSendRequest,
+    DailyTeamsMessageSentResponse,
     EnergyTypeEffort,
     UnlockGrantCreate,
     UnlockGrantResponse,
 )
 from app.db.schemas.task import DailyWorkLogResponse, SelfAssessmentTagRefResponse
 from app.services.notification import NotificationService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["daily-records"])
 unlock_router = APIRouter(tags=["daily-records"])
@@ -168,6 +177,11 @@ async def _build_record_response(
         day_load=record.day_load,
         day_insight=record.day_insight,
         form_opened_at=record.form_opened_at,
+        is_checked=record.is_checked,
+        teams_message_sent_at=record.teams_message_sent_at,
+        email_sent_at=record.email_sent_at,
+        is_locked=record.is_checked
+        or (_now_jst() >= compute_edit_deadline(record.record_date)),
         created_at=record.created_at,
         updated_at=record.updated_at,
         daily_work_logs=daily_work_logs,
@@ -660,3 +674,343 @@ async def revoke_unlock_grant(
         )
     grant.revoked_at = datetime.now(UTC)
     await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Check / uncheck endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/daily-records/{record_id}/check",
+    response_model=DailyRecordResponse,
+)
+async def check_daily_record(
+    record_id: uuid.UUID,
+    body: DailyRecordCheckRequest,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    record = await db.scalar(select(DailyRecord).where(DailyRecord.id == record_id))
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+    if record.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
+
+    await _check_edit_window_or_unlock(
+        record.user_id, record.record_date, body.form_opened_at, db
+    )
+
+    record.is_checked = True
+    await db.commit()
+    await db.refresh(record)
+
+    svc = NotificationService(db)
+    await svc.send(
+        user_id=record.user_id,
+        trigger_type="record_checked",
+        title="Daily record checked",
+        body=f"Your record for {record.record_date} has been marked as checked.",
+    )
+    await db.commit()
+
+    return await _build_record_response(record, db)
+
+
+@router.delete(
+    "/daily-records/{record_id}/check",
+    response_model=DailyRecordResponse,
+)
+async def uncheck_daily_record(
+    record_id: uuid.UUID,
+    body: DailyRecordCheckRequest,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    record = await db.scalar(select(DailyRecord).where(DailyRecord.id == record_id))
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+    if record.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
+
+    await _check_edit_window_or_unlock(
+        record.user_id, record.record_date, body.form_opened_at, db
+    )
+
+    record.is_checked = False
+    # teams_message_sent_at / email_sent_at are intentionally NOT cleared
+    await db.commit()
+    await db.refresh(record)
+
+    return await _build_record_response(record, db)
+
+
+# ---------------------------------------------------------------------------
+# Draft generation helper
+# ---------------------------------------------------------------------------
+
+
+async def _build_daily_status_draft(
+    record: DailyRecord,
+    user: User,
+    db: AsyncSession,
+) -> tuple[str, str]:
+    """Build (subject, body) draft text from record fields. Blocker text is omitted."""
+    subject = f"{user.display_name}'s daily status \u2014 {record.record_date}"
+
+    lines = [
+        f"## {record.record_date} Status  ({user.display_name})",
+        "",
+        f"**Energy level**: {record.day_load}%",
+        f"**Summary**: {record.day_insight or '(no summary)'}",
+        "",
+        "### Tasks",
+    ]
+
+    logs_r = await db.execute(
+        select(DailyWorkLog, Task)
+        .join(Task, DailyWorkLog.task_id == Task.id)
+        .where(DailyWorkLog.daily_record_id == record.id)
+        .order_by(DailyWorkLog.sort_order)
+    )
+    for log, task in logs_r.all():
+        energy = log.energy_type or "-"
+        line = f"- [{energy}] {task.title} \u2014 effort {log.effort}pt"
+        lines.append(line)
+        if log.insight:
+            lines.append(f"  {log.insight}")
+
+    body = "\n".join(lines)
+    return subject, body
+
+
+# ---------------------------------------------------------------------------
+# Draft retrieval endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/daily-records/{record_id}/teams-message/draft",
+    response_model=DailyStatusDraftResponse,
+)
+async def get_teams_message_draft(
+    record_id: uuid.UUID,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    record = await db.scalar(select(DailyRecord).where(DailyRecord.id == record_id))
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+    if record.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
+
+    subject, body = await _build_daily_status_draft(record, current_user, db)
+    return DailyStatusDraftResponse(subject=subject, body=body)
+
+
+@router.get(
+    "/daily-records/{record_id}/email/draft",
+    response_model=DailyStatusDraftResponse,
+)
+async def get_email_draft(
+    record_id: uuid.UUID,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    record = await db.scalar(select(DailyRecord).where(DailyRecord.id == record_id))
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+    if record.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
+
+    subject, body = await _build_daily_status_draft(record, current_user, db)
+    return DailyStatusDraftResponse(subject=subject, body=body)
+
+
+# ---------------------------------------------------------------------------
+# Teams message send endpoint
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/daily-records/{record_id}/teams-message",
+    response_model=DailyTeamsMessageSentResponse,
+)
+async def send_teams_message(
+    record_id: uuid.UUID,
+    body: DailyStatusSendRequest,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.db.models.admin_settings import AdminSettings
+    from app.services import graph_teams
+
+    record = await db.scalar(select(DailyRecord).where(DailyRecord.id == record_id))
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+    if record.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
+    if not record.is_checked:
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail="Record must be checked before sending.",
+        )
+    if record.teams_message_sent_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Teams message already sent for this record.",
+        )
+
+    if current_user.ms_graph_refresh_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="MS365 account not connected.",
+        )
+
+    membership = await db.scalar(
+        select(TeamMembership).where(
+            TeamMembership.user_id == current_user.id,
+            TeamMembership.left_at.is_(None),
+        )
+    )
+    if membership is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not a member of any team.",
+        )
+    settings = await db.scalar(
+        select(AdminSettings).where(
+            AdminSettings.key == "ms_teams_config",
+            AdminSettings.team_id == membership.team_id,
+        )
+    )
+    if settings is None or not settings.teams_team_id or not settings.teams_channel_id:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Teams channel not configured.",
+        )
+
+    try:
+        access_token, new_refresh = await graph_teams.refresh_graph_token(
+            current_user.ms_graph_refresh_token
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+    current_user.ms_graph_refresh_token = new_refresh
+
+    safe_subject = html.escape(body.subject)
+    safe_body = html.escape(body.body).replace("\n", "<br>")
+    html_body = f"<h3>{safe_subject}</h3><p>{safe_body}</p>"
+
+    try:
+        await graph_teams.post_channel_message(
+            access_token=access_token,
+            teams_team_id=settings.teams_team_id,
+            teams_channel_id=settings.teams_channel_id,
+            html_body=html_body,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+    now = datetime.now(UTC)
+    record.teams_message_sent_at = now
+    await db.commit()
+
+    return DailyTeamsMessageSentResponse(
+        sent_at=now,
+        message_id=record.teams_message_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Email send endpoint
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/daily-records/{record_id}/email",
+    response_model=DailyEmailSentResponse,
+)
+async def send_email(
+    record_id: uuid.UUID,
+    body: DailyStatusSendRequest,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services import graph_mail
+
+    record = await db.scalar(select(DailyRecord).where(DailyRecord.id == record_id))
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+    if record.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
+    if not record.is_checked:
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail="Record must be checked before sending.",
+        )
+    if record.email_sent_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already sent for this record.",
+        )
+
+    if current_user.ms_graph_refresh_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="MS365 account not connected.",
+        )
+
+    try:
+        access_token, new_refresh = await graph_mail.refresh_graph_token(
+            current_user.ms_graph_refresh_token
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+    current_user.ms_graph_refresh_token = new_refresh
+
+    safe_body = html.escape(body.body)
+    html_body = graph_mail.build_email_html({"tasks": safe_body})
+
+    try:
+        assert current_user.email is not None
+        await graph_mail.send_mail(
+            access_token=access_token,
+            to_addresses=[current_user.email],
+            subject=html.escape(body.subject),
+            html_body=html_body,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+    now = datetime.now(UTC)
+    record.email_sent_at = now
+    await db.commit()
+
+    return DailyEmailSentResponse(sent_at=now)

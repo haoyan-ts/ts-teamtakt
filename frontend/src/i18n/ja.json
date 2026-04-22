@@ -33,7 +33,29 @@
     "save": "保存",
     "saving": "保存中…",
     "saved": "保存しました ✓",
-    "saveError": "保存に失敗しました。もう一度お試しください。"
+    "saveError": "保存に失敗しました。もう一度お試しください。",
+    "avatarSync": "MS365から写真を同期",
+    "avatarSyncing": "同期中…",
+    "avatarSyncError": "写真の同期に失敗しました。もう一度お試しください。",
+    "avatarSyncReconnect": "写真の同期を有効にするには、MS365を再接続してください。",
+    "permissions": {
+      "title": "連携済みの権限",
+      "connected": "連携済み",
+      "notConnected": "未連携",
+      "comingSoon": "近日公開",
+      "connect": "連携する",
+      "reconnect": "MS365を再接続",
+      "disconnect": "連携解除",
+      "disconnecting": "解除中…",
+      "ms365": {
+        "label": "Microsoft 365",
+        "description": "週次メールレポートの送信やMSTeamsチャンネルへの投稿に必要です。"
+      },
+      "github": {
+        "label": "GitHub",
+        "description": "GitHubのIssueやPull Requestからタスクを自動入力できるようになります。"
+      }
+    }
   },
   "adminLists": {
     "pageTitle": "管理リスト（管理者）",
