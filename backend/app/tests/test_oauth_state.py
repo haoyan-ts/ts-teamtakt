@@ -81,10 +81,11 @@ def test_consume_removes_entry():
 # 5. Exactly at TTL boundary (not yet expired)
 # ---------------------------------------------------------------------------
 def test_consume_at_ttl_boundary_is_valid():
-    store_state("state-boundary", code_verifier="verifier-boundary")
-    # Exactly TTL_MINUTES — should still be valid (age == TTL, not > TTL)
-    at_boundary = datetime.now(UTC) + timedelta(minutes=TTL_MINUTES)
+    base_time = datetime.now(UTC)
+    at_boundary = base_time + timedelta(minutes=TTL_MINUTES)
     with patch("app.core.oauth_state.datetime") as mock_dt:
+        mock_dt.now.return_value = base_time
+        store_state("state-boundary", code_verifier="verifier-boundary")
         mock_dt.now.return_value = at_boundary
         result = consume_state("state-boundary")
     assert result is not None
