@@ -82,9 +82,11 @@ async def create_task(
         created_by=current_user.id,
         project_id=body.project_id,
         category_id=body.category_id,
-        sub_type_id=body.sub_type_id,
+        work_type_id=body.work_type_id,
         status=task_status,
+        priority=body.priority,
         estimated_effort=body.estimated_effort,
+        due_date=body.due_date,
         blocker_type_id=body.blocker_type_id,
         github_issue_url=body.github_issue_url,
         insight=body.insight,
@@ -184,10 +186,14 @@ async def update_task(
         task.project_id = body.project_id
     if body.category_id is not None:
         task.category_id = body.category_id
-    if body.sub_type_id is not None:
-        task.sub_type_id = body.sub_type_id
+    if body.work_type_id is not None:
+        task.work_type_id = body.work_type_id
+    if body.priority is not None:
+        task.priority = body.priority
     if body.estimated_effort is not None:
         task.estimated_effort = body.estimated_effort
+    if body.due_date is not None:
+        task.due_date = body.due_date
     if body.blocker_type_id is not None:
         task.blocker_type_id = body.blocker_type_id
     if body.is_active is not None:

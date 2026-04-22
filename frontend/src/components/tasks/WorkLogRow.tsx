@@ -40,7 +40,7 @@ export const WorkLogRow = ({
   accentColor,
 }: WorkLogRowProps) => {
   const [showBlocker, setShowBlocker] = useState(
-    log.task.status === 'blocked' || !!log.blocker_type_id
+    log.task.status === 'blocked' || !!log.task.blocker_type_id
   );
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -96,6 +96,16 @@ export const WorkLogRow = ({
         is_primary: t.self_assessment_tag_id === tagId,
       })),
     });
+  };
+
+  const handleBlockerTypeChange = async (value: string | null) => {
+    setUpdateError(null);
+    try {
+      const updated = await updateTask(log.task.id, { blocker_type_id: value });
+      onTaskUpdated(index, updated);
+    } catch {
+      setUpdateError('Failed to update blocker type.');
+    }
   };
 
   const handleStatusChange = async (newStatus: Task['status']) => {
@@ -420,10 +430,8 @@ export const WorkLogRow = ({
           <div style={s.fieldRow}>
             <label style={s.label}>Blocker type</label>
             <select
-              value={log.blocker_type_id ?? ''}
-              onChange={(e) =>
-                onChange(index, { blocker_type_id: e.target.value || null })
-              }
+              value={log.task.blocker_type_id ?? ''}
+              onChange={(e) => handleBlockerTypeChange(e.target.value || null)}
               style={s.select}
               disabled={!isEditable}
             >
@@ -435,7 +443,7 @@ export const WorkLogRow = ({
             {isEditable && (
               <button
                 type="button"
-                onClick={() => { setShowBlocker(false); onChange(index, { blocker_type_id: null, blocker_text: null }); }}
+                onClick={() => { setShowBlocker(false); void handleBlockerTypeChange(null); onChange(index, { blocker_text: null }); }}
                 style={{ ...s.iconBtn, marginLeft: '0.5rem' }}
               >
                 ✕

@@ -251,7 +251,7 @@ const BlockerHistoryCard = ({ records }: BlockerHistoryCardProps) => {
   const blockers: { date: string; description: string; status: string }[] = [];
   for (const rec of recentRecords) {
     for (const te of rec.daily_work_logs) {
-      if (te.blocker_text || te.blocker_type_id) {
+      if (te.blocker_text || te.task?.blocker_type_id) {
         blockers.push({
           date: rec.record_date,
           description: te.task?.title ?? `Task ${te.task_id.slice(0, 6)}`,

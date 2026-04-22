@@ -29,6 +29,13 @@ class TaskStatus(enum.StrEnum):
     blocked = "blocked"
 
 
+class TaskPriority(enum.StrEnum):
+    p0_critical = "p0_critical"
+    p1_high = "p1_high"
+    p2_medium = "p2_medium"
+    p3_low = "p3_low"
+
+
 class EnergyType(enum.StrEnum):
     deep_focus = "deep_focus"
     collaborative = "collaborative"
@@ -61,19 +68,23 @@ class Task(Base):
     created_by: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("projects.id"), nullable=False
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("projects.id"), nullable=True
     )
     category_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("categories.id"), nullable=False
     )
-    sub_type_id: Mapped[uuid.UUID | None] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("category_sub_types.id"), nullable=True
+    work_type_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("work_types.id"), nullable=True
     )
     status: Mapped[TaskStatus] = mapped_column(
         SAEnum(TaskStatus, name="task_status", native_enum=False), nullable=False
     )
+    priority: Mapped[TaskPriority | None] = mapped_column(
+        SAEnum(TaskPriority, name="task_priority", native_enum=False), nullable=True
+    )
     estimated_effort: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     blocker_type_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("blocker_types.id"), nullable=True
     )
@@ -106,9 +117,6 @@ class DailyWorkLog(Base):
         SAEnum(EnergyType, name="energy_type", native_enum=False), nullable=True
     )
     insight: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    blocker_type_id: Mapped[uuid.UUID | None] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("blocker_types.id"), nullable=True
-    )
     blocker_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -120,6 +128,13 @@ class DailyWorkLogSelfAssessmentTag(Base):
             "daily_work_log_id",
             "self_assessment_tag_id",
             name="uq_dwl_tag",
+        ),
+        Index(
+            "uq_dwl_tag_primary",
+            "daily_work_log_id",
+            unique=True,
+            postgresql_where=text("is_primary = TRUE"),
+            sqlite_where=text("is_primary = 1"),
         ),
     )
 

@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
 from app.db.engine import get_db
-from app.db.models.category import BlockerType, Category, CategorySubType
+from app.db.models.category import BlockerType, Category, WorkType
 from app.db.models.daily_record import DailyRecord
 from app.db.models.project import Project
 from app.db.models.task import DailyWorkLog, Task
@@ -94,14 +94,14 @@ async def _build_lookup_maps(db: AsyncSession) -> dict:
     """
     users = (await db.execute(select(User))).scalars().all()
     cats = (await db.execute(select(Category))).scalars().all()
-    subtypes = (await db.execute(select(CategorySubType))).scalars().all()
+    work_types = (await db.execute(select(WorkType))).scalars().all()
     projs = (await db.execute(select(Project))).scalars().all()
     blocker_types = (await db.execute(select(BlockerType))).scalars().all()
 
     return {
         "users": {u.id: u.display_name for u in users},
         "categories": {c.id: c.name for c in cats},
-        "subtypes": {s.id: s.name for s in subtypes},
+        "work_types": {w.id: w.name for w in work_types},
         "projects": {p.id: p.name for p in projs},
         "blocker_types": {bt.id: bt.name for bt in blocker_types},
     }
@@ -124,7 +124,7 @@ _LOG_HEADERS = [
     "task_id",
     "task_title",
     "category",
-    "sub_type",
+    "work_type",
     "project",
     "effort",
     "insight",
@@ -158,14 +158,16 @@ def _log_row(
         str(task.id),
         task.title,
         maps["categories"].get(task.category_id, str(task.category_id)),
-        maps["subtypes"].get(task.sub_type_id, "") if task.sub_type_id else "",
-        maps["projects"].get(task.project_id, str(task.project_id)),
+        maps["work_types"].get(task.work_type_id, "") if task.work_type_id else "",
+        maps["projects"].get(task.project_id, str(task.project_id))
+        if task.project_id
+        else "",
         log.effort,
         log.insight or "",
         task.status,
         (
-            maps["blocker_types"].get(log.blocker_type_id, "")
-            if log.blocker_type_id
+            maps["blocker_types"].get(task.blocker_type_id, "")
+            if task.blocker_type_id
             else ""
         ),
         (log.blocker_text or "") if include_private else "",
@@ -428,9 +430,11 @@ async def export_bulk(
             "assignee_id",
             "project_id",
             "category_id",
-            "sub_type_id",
+            "work_type_id",
             "status",
+            "priority",
             "estimated_effort",
+            "due_date",
             "github_issue_url",
             "created_at",
             "closed_at",
@@ -441,11 +445,13 @@ async def export_bulk(
                 str(t.id),
                 t.title,
                 str(t.assignee_id),
-                str(t.project_id),
+                str(t.project_id) if t.project_id else "",
                 str(t.category_id),
-                str(t.sub_type_id) if t.sub_type_id else "",
+                str(t.work_type_id) if t.work_type_id else "",
                 t.status,
+                t.priority or "",
                 t.estimated_effort or "",
+                str(t.due_date) if t.due_date else "",
                 t.github_issue_url or "",
                 str(t.created_at),
                 str(t.closed_at) if t.closed_at else "",
@@ -462,7 +468,6 @@ async def export_bulk(
             "daily_record_id",
             "effort",
             "insight",
-            "blocker_type_id",
             "blocker_text",
             "sort_order",
         ],
@@ -473,7 +478,6 @@ async def export_bulk(
                 str(log.daily_record_id),
                 log.effort,
                 log.insight or "",
-                str(log.blocker_type_id) if log.blocker_type_id else "",
                 log.blocker_text or "",
                 log.sort_order,
             ]

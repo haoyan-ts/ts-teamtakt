@@ -144,7 +144,6 @@ async def _build_work_log_response(
         effort=log.effort,
         energy_type=log.energy_type,
         insight=log.insight,
-        blocker_type_id=log.blocker_type_id,
         blocker_text=log.blocker_text,
         sort_order=log.sort_order,
         self_assessment_tags=tags,
@@ -235,7 +234,6 @@ async def _create_daily_work_logs(
             effort=log_data.effort,
             energy_type=log_data.energy_type,
             insight=log_data.insight,
-            blocker_type_id=log_data.blocker_type_id,
             blocker_text=log_data.blocker_text,
             sort_order=log_data.sort_order,
         )

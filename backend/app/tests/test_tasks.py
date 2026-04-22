@@ -464,3 +464,94 @@ async def test_task_update_estimated_effort_to_eight_accepted(client, db_session
     )
     assert resp.status_code == 200
     assert resp.json()["estimated_effort"] == 8
+
+
+# ===========================================================================
+# New fields: work_type_id, priority, due_date, nullable project_id
+# ===========================================================================
+
+
+async def test_task_create_with_work_type(client, db_session):
+    """work_type_id is accepted and returned on create."""
+    from app.db.models.category import WorkType
+
+    user, tok = await make_user(db_session, "wt01@t.com")
+    await make_team_with_member(db_session, user.id)
+    cat = await make_category(db_session, "wt01_cat")
+
+    wt = WorkType(name="wt01_Software", is_active=True, sort_order=0)
+    db_session.add(wt)
+    await db_session.commit()
+    await db_session.refresh(wt)
+
+    resp = await client.post(
+        "/api/v1/tasks",
+        json={
+            "title": "WType Task",
+            "category_id": str(cat.id),
+            "work_type_id": str(wt.id),
+            "status": "todo",
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 201
+    assert resp.json()["work_type_id"] == str(wt.id)
+
+
+async def test_task_create_with_priority(client, db_session):
+    """priority field is accepted and returned on create."""
+    user, tok = await make_user(db_session, "pri01@t.com")
+    await make_team_with_member(db_session, user.id)
+    cat = await make_category(db_session, "pri01_cat")
+
+    for priority in ("p0_critical", "p1_high", "p2_medium", "p3_low"):
+        resp = await client.post(
+            "/api/v1/tasks",
+            json={
+                "title": f"Priority {priority}",
+                "category_id": str(cat.id),
+                "status": "todo",
+                "priority": priority,
+            },
+            headers=auth(tok),
+        )
+        assert resp.status_code == 201, f"priority={priority!r} should be accepted"
+        assert resp.json()["priority"] == priority
+
+
+async def test_task_create_with_due_date(client, db_session):
+    """due_date is accepted and returned on create."""
+    from datetime import date, timedelta
+
+    user, tok = await make_user(db_session, "due01@t.com")
+    await make_team_with_member(db_session, user.id)
+    cat = await make_category(db_session, "due01_cat")
+    due = str(date.today() + timedelta(days=7))
+
+    resp = await client.post(
+        "/api/v1/tasks",
+        json={
+            "title": "Due Date Task",
+            "category_id": str(cat.id),
+            "status": "todo",
+            "due_date": due,
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 201
+    assert resp.json()["due_date"] == due
+
+
+async def test_task_create_without_project_id(client, db_session):
+    """project_id is now optional; omitting it creates a standalone task."""
+    user, tok = await make_user(db_session, "noproj01@t.com")
+    await make_team_with_member(db_session, user.id)
+    cat = await make_category(db_session, "noproj01_cat")
+
+    resp = await client.post(
+        "/api/v1/tasks",
+        json={"title": "No Project Task", "category_id": str(cat.id), "status": "todo"},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 201
+    assert resp.json()["project_id"] is None

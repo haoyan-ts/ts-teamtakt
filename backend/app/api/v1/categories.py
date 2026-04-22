@@ -9,8 +9,8 @@ from app.db.engine import get_db
 from app.db.models.category import (
     BlockerType,
     Category,
-    CategorySubType,
     SelfAssessmentTag,
+    WorkType,
 )
 from app.db.models.user import User
 from app.db.schemas.category import (
@@ -20,12 +20,12 @@ from app.db.schemas.category import (
     CategoryCreate,
     CategoryResponse,
     CategoryUpdate,
-    SubTypeCreate,
-    SubTypeResponse,
-    SubTypeUpdate,
     TagCreate,
     TagResponse,
     TagUpdate,
+    WorkTypeCreate,
+    WorkTypeResponse,
+    WorkTypeUpdate,
 )
 
 router = APIRouter()
@@ -78,20 +78,13 @@ async def list_categories(
 
     out = []
     for cat in categories:
-        sub_q = select(CategorySubType).where(CategorySubType.category_id == cat.id)
-        if not include_inactive:
-            sub_q = sub_q.where(CategorySubType.is_active.is_(True))
-        sub_result = await db.execute(sub_q.order_by(CategorySubType.sort_order))
-        sub_types = [
-            SubTypeResponse.model_validate(st) for st in sub_result.scalars().all()
-        ]
         out.append(
             CategoryResponse(
                 id=cat.id,
                 name=cat.name,
                 is_active=cat.is_active,
                 sort_order=cat.sort_order,
-                sub_types=sub_types,
+                sub_types=[],
             )
         )
     return out
@@ -121,77 +114,80 @@ async def update_category(
     await db.commit()
     await db.refresh(cat)
 
-    sub_result = await db.execute(
-        select(CategorySubType).where(CategorySubType.category_id == cat.id)
-    )
-    sub_types = [
-        SubTypeResponse.model_validate(st) for st in sub_result.scalars().all()
-    ]
     return CategoryResponse(
         id=cat.id,
         name=cat.name,
         is_active=cat.is_active,
         sort_order=cat.sort_order,
-        sub_types=sub_types,
+        sub_types=[],
     )
+
+
+# ---------------------------------------------------------------------------
+# Work Types
+# ---------------------------------------------------------------------------
 
 
 @router.post(
-    "/categories/{cat_id}/sub-types",
-    response_model=SubTypeResponse,
+    "/work-types",
+    response_model=WorkTypeResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_sub_type(
-    cat_id: uuid.UUID,
-    body: SubTypeCreate,
+async def create_work_type(
+    body: WorkTypeCreate,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(require_admin),
 ):
-    result = await db.execute(select(Category).where(Category.id == cat_id))
-    if result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
-        )
-
-    st = CategorySubType(
-        id=uuid.uuid4(),
-        category_id=cat_id,
-        name=body.name,
-        sort_order=body.sort_order,
-        is_active=True,
+    wt = WorkType(
+        id=uuid.uuid4(), name=body.name, sort_order=body.sort_order, is_active=True
     )
-    db.add(st)
+    db.add(wt)
     await db.commit()
-    await db.refresh(st)
-    return SubTypeResponse.model_validate(st)
+    await db.refresh(wt)
+    return WorkTypeResponse.model_validate(wt)
 
 
-@router.patch("/category-sub-types/{sub_id}", response_model=SubTypeResponse)
-async def update_sub_type(
-    sub_id: uuid.UUID,
-    body: SubTypeUpdate,
+@router.get("/work-types", response_model=list[WorkTypeResponse])
+async def list_work_types(
+    include_inactive: bool = False,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_active_user),
+):
+    if include_inactive and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
+    q = select(WorkType)
+    if not include_inactive:
+        q = q.where(WorkType.is_active.is_(True))
+    result = await db.execute(q.order_by(WorkType.sort_order))
+    return [WorkTypeResponse.model_validate(wt) for wt in result.scalars().all()]
+
+
+@router.patch("/work-types/{wt_id}", response_model=WorkTypeResponse)
+async def update_work_type(
+    wt_id: uuid.UUID,
+    body: WorkTypeUpdate,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(require_admin),
 ):
-    result = await db.execute(
-        select(CategorySubType).where(CategorySubType.id == sub_id)
-    )
-    st = result.scalar_one_or_none()
-    if st is None:
+    result = await db.execute(select(WorkType).where(WorkType.id == wt_id))
+    wt = result.scalar_one_or_none()
+    if wt is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="SubType not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="WorkType not found"
         )
 
     if body.name is not None:
-        st.name = body.name
+        wt.name = body.name
     if body.sort_order is not None:
-        st.sort_order = body.sort_order
+        wt.sort_order = body.sort_order
     if body.is_active is not None:
-        st.is_active = body.is_active
+        wt.is_active = body.is_active
 
     await db.commit()
-    await db.refresh(st)
-    return SubTypeResponse.model_validate(st)
+    await db.refresh(wt)
+    return WorkTypeResponse.model_validate(wt)
 
 
 # ---------------------------------------------------------------------------

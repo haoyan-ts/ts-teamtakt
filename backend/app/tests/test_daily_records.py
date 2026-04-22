@@ -100,17 +100,14 @@ async def test_duplicate_daily_record_rejected(client, db_session):
     team = await make_team(db_session, "dr02_team")
     await make_membership(db_session, user.id, team.id)
 
-    for _ in range(2):
-        resp = await client.post(
-            "/api/v1/daily-records",
-            json={
-                "record_date": str(date.today()),
-                "day_load": 50,
-                "form_opened_at": datetime.now(UTC).isoformat(),
-                "daily_work_logs": [],
-            },
-            headers=auth(tok),
-        )
+    payload = {
+        "record_date": str(date.today()),
+        "day_load": 50,
+        "form_opened_at": datetime.now(UTC).isoformat(),
+        "daily_work_logs": [],
+    }
+    await client.post("/api/v1/daily-records", json=payload, headers=auth(tok))
+    resp = await client.post("/api/v1/daily-records", json=payload, headers=auth(tok))
 
     assert resp.status_code == 409
 
@@ -320,7 +317,6 @@ def _work_log_payload(task_id: str, effort: int, **overrides):
         "effort": effort,
         "energy_type": None,
         "insight": None,
-        "blocker_type_id": None,
         "blocker_text": None,
         "sort_order": 0,
         "self_assessment_tags": [],
@@ -727,3 +723,186 @@ async def test_breakdown_total_effort_is_fibonacci_sum(client, db_session):
     by_type = {e["energy_type"]: e["effort"] for e in data["by_energy_type"]}
     assert by_type["deep_focus"] == 3  # 1+2
     assert by_type["reactive"] == 13  # 5+8
+
+
+# ---------------------------------------------------------------------------
+# is_primary validation — self-assessment tags
+# ---------------------------------------------------------------------------
+
+
+async def _create_task_and_tag(db, user_id):
+    """Helper: insert a Task and a SelfAssessmentTag directly, return their IDs."""
+    import uuid as _uuid
+
+    from sqlalchemy import select
+
+    from app.db.models.category import Category, SelfAssessmentTag
+    from app.db.models.task import Task
+
+    # Ensure we have a category
+    existing_cat = (
+        await db.execute(select(Category).where(Category.name == "is_primary_cat"))
+    ).scalar_one_or_none()
+    if existing_cat is None:
+        cat = Category(
+            id=_uuid.uuid4(), name="is_primary_cat", is_active=True, sort_order=99
+        )
+        db.add(cat)
+        await db.flush()
+        cat_id = cat.id
+    else:
+        cat_id = existing_cat.id
+
+    # Ensure we have a self-assessment tag
+    existing_tag = (
+        await db.execute(
+            select(SelfAssessmentTag).where(SelfAssessmentTag.name == "OKR")
+        )
+    ).scalar_one_or_none()
+    if existing_tag is None:
+        tag = SelfAssessmentTag(id=_uuid.uuid4(), name="OKR", is_active=True)
+        db.add(tag)
+        await db.flush()
+        tag_id = tag.id
+    else:
+        tag_id = existing_tag.id
+
+    task = Task(
+        id=_uuid.uuid4(),
+        title="is_primary test task",
+        assignee_id=user_id,
+        created_by=user_id,
+        category_id=cat_id,
+        status="todo",
+        is_active=True,
+    )
+    db.add(task)
+    await db.commit()
+    return str(task.id), str(tag_id)
+
+
+async def test_work_log_zero_primary_tags_rejected(client, db_session):
+    """Submitting a work log with no primary tag (is_primary=False for all) → 422."""
+    user, tok = await make_user(db_session, "isprim01@t.com")
+    team = await make_team(db_session, "isprim01_team")
+    await make_membership(db_session, user.id, team.id)
+    task_id, tag_id = await _create_task_and_tag(db_session, user.id)
+
+    resp = await client.post(
+        "/api/v1/daily-records",
+        json={
+            "record_date": str(date.today()),
+            "day_load": 80,
+            "form_opened_at": datetime.now(UTC).isoformat(),
+            "daily_work_logs": [
+                _work_log_payload(
+                    task_id,
+                    3,
+                    self_assessment_tags=[
+                        {"self_assessment_tag_id": tag_id, "is_primary": False}
+                    ],
+                )
+            ],
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 400
+
+
+async def test_work_log_multiple_primary_tags_rejected(client, db_session):
+    """Submitting a work log with >1 primary tag → 422."""
+    import uuid
+
+    from sqlalchemy import select
+
+    from app.db.models.category import SelfAssessmentTag
+
+    user, tok = await make_user(db_session, "isprim02@t.com")
+    team = await make_team(db_session, "isprim02_team")
+    await make_membership(db_session, user.id, team.id)
+    task_id, tag_id = await _create_task_and_tag(db_session, user.id)
+
+    # Get a second tag
+    result = await db_session.execute(
+        select(SelfAssessmentTag).where(SelfAssessmentTag.is_active.is_(True)).limit(2)
+    )
+    tags = result.scalars().all()
+    if len(tags) < 2:
+        second_tag = SelfAssessmentTag(
+            id=uuid.uuid4(), name="Routine_isprim02", is_active=True
+        )
+        db_session.add(second_tag)
+        await db_session.commit()
+        second_tag_id = str(second_tag.id)
+    else:
+        second_tag_id = str(tags[1].id)
+
+    resp = await client.post(
+        "/api/v1/daily-records",
+        json={
+            "record_date": str(date.today()),
+            "day_load": 80,
+            "form_opened_at": datetime.now(UTC).isoformat(),
+            "daily_work_logs": [
+                _work_log_payload(
+                    task_id,
+                    3,
+                    self_assessment_tags=[
+                        {"self_assessment_tag_id": tag_id, "is_primary": True},
+                        {"self_assessment_tag_id": second_tag_id, "is_primary": True},
+                    ],
+                )
+            ],
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 400
+
+
+async def test_work_log_exactly_one_primary_tag_accepted(client, db_session):
+    """Submitting a work log with exactly one is_primary=True tag → 201."""
+    import uuid
+
+    from sqlalchemy import select
+
+    from app.db.models.category import SelfAssessmentTag
+
+    user, tok = await make_user(db_session, "isprim03@t.com")
+    team = await make_team(db_session, "isprim03_team")
+    await make_membership(db_session, user.id, team.id)
+    task_id, tag_id = await _create_task_and_tag(db_session, user.id)
+
+    result = await db_session.execute(
+        select(SelfAssessmentTag).where(SelfAssessmentTag.is_active.is_(True)).limit(2)
+    )
+    tags = result.scalars().all()
+    if len(tags) < 2:
+        second_tag = SelfAssessmentTag(
+            id=uuid.uuid4(), name="Routine_isprim03", is_active=True
+        )
+        db_session.add(second_tag)
+        await db_session.commit()
+        second_tag_id = str(second_tag.id)
+    else:
+        second_tag_id = str(tags[1].id)
+
+    resp = await client.post(
+        "/api/v1/daily-records",
+        json={
+            "record_date": str(date.today()),
+            "day_load": 80,
+            "form_opened_at": datetime.now(UTC).isoformat(),
+            "daily_work_logs": [
+                _work_log_payload(
+                    task_id,
+                    3,
+                    self_assessment_tags=[
+                        {"self_assessment_tag_id": tag_id, "is_primary": True},
+                        {"self_assessment_tag_id": second_tag_id, "is_primary": False},
+                    ],
+                )
+            ],
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 201

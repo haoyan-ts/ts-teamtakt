@@ -1,5 +1,5 @@
 import client from './client';
-import type { Task } from '../types/dailyRecord';
+import type { Task, WorkType } from '../types/dailyRecord';
 
 // ---- Task CRUD ----
 
@@ -8,9 +8,11 @@ export interface CreateTaskPayload {
   description?: string | null;
   project_id: string;
   category_id: string;
-  sub_type_id?: string | null;
+  work_type_id: string;
   status: 'todo' | 'running' | 'done' | 'blocked';
+  priority?: 'p0_critical' | 'p1_high' | 'p2_medium' | 'p3_low' | null;
   estimated_effort?: number | null;
+  due_date?: string | null;
   blocker_type_id?: string | null;
   github_issue_url?: string | null;
   insight?: string | null;
@@ -22,11 +24,14 @@ export interface UpdateTaskPayload {
   description?: string | null;
   project_id?: string;
   category_id?: string;
-  sub_type_id?: string | null;
+  work_type_id?: string | null;
   status?: 'todo' | 'running' | 'done' | 'blocked';
+  priority?: 'p0_critical' | 'p1_high' | 'p2_medium' | 'p3_low' | null;
   estimated_effort?: number | null;
+  due_date?: string | null;
   blocker_type_id?: string | null;
   insight?: string | null;
+  is_active?: boolean;
 }
 
 export async function getTasks(params?: {
@@ -68,10 +73,9 @@ export interface GithubAutofillResult {
   description: string | null;
   project_id: string | null;
   category_id: string | null;
-  sub_type_id: string | null;
+  work_type_id: string | null;
   estimated_effort: number | null;
   status: 'todo' | 'done' | null;
-  blocker_type_id: string | null;
   insight: string | null;
 }
 
@@ -81,5 +85,10 @@ export async function prefillFromGithubIssue(
   const res = await client.get<GithubAutofillResult>('/tasks/autofill', {
     params: { url },
   });
+  return res.data;
+}
+
+export async function getWorkTypes(): Promise<WorkType[]> {
+  const res = await client.get<WorkType[]>('/categories/work-types');
   return res.data;
 }

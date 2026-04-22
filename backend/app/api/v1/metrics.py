@@ -201,27 +201,26 @@ async def blocker_summary(
     if not members:
         return BlockerSummary(by_type=[], recurring=[])
 
-    # A log counts as "blocked" if it has a per-day blocker_type_id (override),
-    # or if the parent Task.status is "blocked".  The day-level type takes
-    # precedence for classification; fall back to Task.blocker_type_id.
+    # A log counts as "blocked" if the parent Task.status is "blocked".
+    # Blocker classification comes from Task.blocker_type_id.
     r = await db.execute(
         select(
-            DailyWorkLog.blocker_type_id.label("log_blocker_type_id"),
             Task.blocker_type_id.label("task_blocker_type_id"),
             Task.title.label("task_title"),
             Project.name.label("proj_name"),
             DailyRecord.record_date,
             Task.id.label("task_id"),
         )
+        .select_from(DailyWorkLog)
         .join(Task, DailyWorkLog.task_id == Task.id)
         .join(DailyRecord, DailyWorkLog.daily_record_id == DailyRecord.id)
-        .join(Project, Task.project_id == Project.id)
+        .outerjoin(Project, Task.project_id == Project.id)
         .where(
             DailyRecord.user_id.in_(members.keys()),
             DailyRecord.record_date >= start_date,
             DailyRecord.record_date <= end_date,
         )
-        .where((DailyWorkLog.blocker_type_id.isnot(None)) | (Task.status == "blocked"))
+        .where(Task.status == "blocked")
     )
     rows = r.all()
 
@@ -229,7 +228,7 @@ async def blocker_summary(
     recurring_map: dict[tuple[str, str], set[date]] = defaultdict(set)
 
     for row in rows:
-        effective_type = row.log_blocker_type_id or row.task_blocker_type_id
+        effective_type = row.task_blocker_type_id
         type_counts[effective_type] += 1
         recurring_map[(row.task_title, row.proj_name)].add(row.record_date)
 
