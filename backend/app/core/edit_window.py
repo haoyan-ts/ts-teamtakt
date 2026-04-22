@@ -52,5 +52,3 @@ def check_edit_window(record_date: date, form_opened_at: datetime) -> tuple[bool
         return True, ""  # grace period
 
     return False, "Edit window closed. Contact your leader for an unlock."
-
-
