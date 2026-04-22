@@ -54,13 +54,3 @@ def check_edit_window(record_date: date, form_opened_at: datetime) -> tuple[bool
     return False, "Edit window closed. Contact your leader for an unlock."
 
 
-def has_active_unlock(unlock_grants, user_id, record_date: date) -> bool:
-    """Check if there's an active unlock grant for (user_id, record_date)."""
-    for grant in unlock_grants:
-        if (
-            grant.user_id == user_id
-            and grant.record_date == record_date
-            and grant.revoked_at is None
-        ):
-            return True
-    return False

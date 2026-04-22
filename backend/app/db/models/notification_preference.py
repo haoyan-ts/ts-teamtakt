@@ -33,6 +33,7 @@ TRIGGER_DEFAULTS: dict[str, tuple[bool, bool]] = {
     "weekly_report_ready": (True, False),
     "quarterly_draft_ready": (True, False),
     "team_join_request": (False, True),
+    "record_checked": (False, False),
 }
 
 
