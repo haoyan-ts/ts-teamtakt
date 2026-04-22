@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { createProject } from '../../api/projects';
-import { createTask, prefillFromGithubIssue } from '../../api/tasks';
+import { createTask, getWorkTypes, prefillFromGithubIssue } from '../../api/tasks';
 import type {
   Category,
   Project,
   BlockerType,
   Task,
+  WorkType,
 } from '../../types/dailyRecord';
 
 interface TaskCreateModalProps {
@@ -34,12 +35,16 @@ export const TaskCreateModal = ({
   const [githubUrl, setGithubUrl] = useState('');
   const [urlLocked, setUrlLocked] = useState(false); // true if editing an existing task with URL
   const [categoryId, setCategoryId] = useState('');
-  const [subTypeId, setSubTypeId] = useState<string | null>(null);
+  const [workTypeId, setWorkTypeId] = useState('');
   const [projectId, setProjectId] = useState('');
   const [status, setStatus] = useState<Task['status']>('todo');
+  const [priority, setPriority] = useState<Task['priority']>(null);
   const [estimatedEffort, setEstimatedEffort] = useState<number | null>(null);
+  const [dueDate, setDueDate] = useState('');
   const [blockerTypeId, setBlockerTypeId] = useState<string | null>(null);
   const [description, setDescription] = useState('');
+
+  const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
 
   const [autofilling, setAutofilling] = useState(false);
   const [autofillMsg, setAutofillMsg] = useState<string | null>(null);
@@ -63,10 +68,12 @@ export const TaskCreateModal = ({
       setGithubUrl('');
       setUrlLocked(false);
       setCategoryId('');
-      setSubTypeId(null);
+      setWorkTypeId('');
       setProjectId('');
       setStatus('todo');
+      setPriority(null);
       setEstimatedEffort(null);
+      setDueDate('');
       setBlockerTypeId(null);
       setDescription('');
       setAutofilling(false);
@@ -77,6 +84,11 @@ export const TaskCreateModal = ({
     }
   }, [open]);
 
+  // Fetch work types once on mount
+  useEffect(() => {
+    getWorkTypes().then(setWorkTypes).catch(() => {});
+  }, []);
+
   const triggerAutofill = async (url: string) => {
     if (!GITHUB_URL_PATTERN.test(url)) return;
     setAutofilling(true);
@@ -85,12 +97,11 @@ export const TaskCreateModal = ({
     try {
       const result = await prefillFromGithubIssue(url);
       if (result.title) setTitle(result.title);
-      if (result.category_id) { setCategoryId(result.category_id); setSubTypeId(null); }
-      if (result.sub_type_id) setSubTypeId(result.sub_type_id);
+      if (result.category_id) setCategoryId(result.category_id);
+      if (result.work_type_id) setWorkTypeId(result.work_type_id);
       if (result.project_id) setProjectId(result.project_id);
       if (result.estimated_effort != null) setEstimatedEffort(result.estimated_effort);
       if (result.status) setStatus(result.status === 'done' ? 'done' : 'todo');
-      if (result.blocker_type_id) setBlockerTypeId(result.blocker_type_id);
       setAutofillMsg('Auto-filled from GitHub Issue — please review.');
     } catch {
       setAutofillError('Could not fetch GitHub Issue. Check the URL and try again.');
@@ -130,6 +141,7 @@ export const TaskCreateModal = ({
     if (!cleanTitle) { setFormError('Title is required.'); return; }
     if (!categoryId) { setFormError('Category is required.'); return; }
     if (!projectId) { setFormError('Project is required.'); return; }
+    if (!workTypeId) { setFormError('Work type is required.'); return; }
 
     setSaving(true);
     setFormError(null);
@@ -139,9 +151,11 @@ export const TaskCreateModal = ({
         description: description.trim() || null,
         project_id: projectId,
         category_id: categoryId,
-        sub_type_id: subTypeId,
+        work_type_id: workTypeId,
         status,
+        priority: priority ?? null,
         estimated_effort: estimatedEffort,
+        due_date: dueDate || null,
         blocker_type_id: blockerTypeId,
         github_issue_url: githubUrl.trim() || null,
       });
@@ -159,7 +173,7 @@ export const TaskCreateModal = ({
     }
   };
 
-  const hasContent = !!(title || githubUrl || description || categoryId || projectId);
+  const hasContent = !!(title || githubUrl || description || categoryId || projectId || workTypeId);
 
   const handleClose = () => {
     if (hasContent && !saving && !window.confirm('Discard unsaved task?')) return;
@@ -168,8 +182,6 @@ export const TaskCreateModal = ({
 
   if (!open) return null;
 
-  const selectedCategory = categories.find((c) => c.id === categoryId);
-  const subTypes = selectedCategory?.sub_types.filter((s) => s.is_active) ?? [];
   const s = modalStyles;
 
   return (
@@ -233,12 +245,12 @@ export const TaskCreateModal = ({
             />
           </div>
 
-          {/* Category + Sub-type */}
+          {/* Category */}
           <div style={s.fieldRow}>
             <label style={s.label}>Category *</label>
             <select
               value={categoryId}
-              onChange={(e) => { setCategoryId(e.target.value); setSubTypeId(null); }}
+              onChange={(e) => setCategoryId(e.target.value)}
               style={s.select}
               required
             >
@@ -247,21 +259,22 @@ export const TaskCreateModal = ({
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-            {subTypes.length > 0 && (
-              <>
-                <label style={{ ...s.label, marginLeft: '0.75rem' }}>Sub-type</label>
-                <select
-                  value={subTypeId ?? ''}
-                  onChange={(e) => setSubTypeId(e.target.value || null)}
-                  style={s.select}
-                >
-                  <option value="">— none —</option>
-                  {subTypes.map((st) => (
-                    <option key={st.id} value={st.id}>{st.name}</option>
-                  ))}
-                </select>
-              </>
-            )}
+          </div>
+
+          {/* Work Type */}
+          <div style={s.fieldRow}>
+            <label style={s.label}>Work Type *</label>
+            <select
+              value={workTypeId}
+              onChange={(e) => setWorkTypeId(e.target.value)}
+              style={s.select}
+              required
+            >
+              <option value="">— select —</option>
+              {workTypes.filter((wt) => wt.is_active).map((wt) => (
+                <option key={wt.id} value={wt.id}>{wt.name}</option>
+              ))}
+            </select>
           </div>
 
           {/* Project */}
@@ -352,6 +365,30 @@ export const TaskCreateModal = ({
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
+          </div>
+
+          {/* Priority + Due Date */}
+          <div style={s.fieldRow}>
+            <label style={s.label}>Priority</label>
+            <select
+              value={priority ?? ''}
+              onChange={(e) => setPriority((e.target.value || null) as Task['priority'])}
+              style={s.select}
+            >
+              <option value="">— none —</option>
+              <option value="p0_critical">P0 Critical</option>
+              <option value="p1_high">P1 High</option>
+              <option value="p2_medium">P2 Medium</option>
+              <option value="p3_low">P3 Low</option>
+            </select>
+
+            <label style={{ ...s.label, marginLeft: '1rem' }}>Due Date</label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              style={{ ...s.input, flex: 'none', minWidth: '9rem' }}
+            />
           </div>
 
           {/* Blocker type (when blocked) */}

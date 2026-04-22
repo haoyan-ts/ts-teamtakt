@@ -41,6 +41,13 @@ export interface SelfAssessmentTagRef {
 
 // ---- Task entity (persists across days) ----
 
+export interface WorkType {
+  id: string;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -48,9 +55,11 @@ export interface Task {
   assignee_id: string;
   project_id: string;
   category_id: string;
-  sub_type_id: string | null;
+  work_type_id: string | null;
   status: 'todo' | 'running' | 'done' | 'blocked';
+  priority: 'p0_critical' | 'p1_high' | 'p2_medium' | 'p3_low' | null;
   estimated_effort: number | null;
+  due_date: string | null;
   blocker_type_id: string | null;
   github_issue_url: string | null; // immutable after set
   insight: string | null;
@@ -72,7 +81,6 @@ export interface DailyWorkLog {
   effort: number; // Fibonacci: 1, 2, 3, 5, 8
   energy_type: EnergyType | null;
   insight: string | null;
-  blocker_type_id: string | null;
   blocker_text: string | null; // private
   sort_order: number;
   self_assessment_tags: SelfAssessmentTagRef[];
@@ -86,7 +94,6 @@ export interface DailyWorkLogFormEntry {
   effort: number;
   energy_type: EnergyType | null;
   insight: string | null;
-  blocker_type_id: string | null;
   blocker_text: string | null;
   sort_order: number;
   self_assessment_tags: SelfAssessmentTagRef[];
