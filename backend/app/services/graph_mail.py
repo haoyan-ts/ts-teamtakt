@@ -16,12 +16,13 @@ import logging
 
 import httpx
 
-from app.config import settings
+from app.services.graph_auth import refresh_graph_token as _refresh
 
 logger = logging.getLogger(__name__)
 
-_GRAPH_TOKEN_URL = "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
 _GRAPH_SEND_URL = "https://graph.microsoft.com/v1.0/me/sendMail"
+
+_MAIL_SCOPE = "https://graph.microsoft.com/Mail.Send offline_access"
 
 
 async def refresh_graph_token(refresh_token: str) -> tuple[str, str]:
@@ -30,22 +31,7 @@ async def refresh_graph_token(refresh_token: str) -> tuple[str, str]:
     Returns (access_token, new_refresh_token).
     Raises RuntimeError on failure.
     """
-    url = _GRAPH_TOKEN_URL.format(tenant_id=settings.AZURE_TENANT_ID)
-    async with httpx.AsyncClient(timeout=30) as http:
-        resp = await http.post(
-            url,
-            data={
-                "client_id": settings.AZURE_CLIENT_ID,
-                "client_secret": settings.AZURE_CLIENT_SECRET,
-                "grant_type": "refresh_token",
-                "refresh_token": refresh_token,
-                "scope": "https://graph.microsoft.com/Mail.Send offline_access",
-            },
-        )
-    if resp.status_code != 200:
-        raise RuntimeError(f"Token refresh failed: {resp.text}")
-    data = resp.json()
-    return data["access_token"], data["refresh_token"]
+    return await _refresh(refresh_token, _MAIL_SCOPE)
 
 
 async def send_mail(
