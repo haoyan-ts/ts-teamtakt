@@ -1,15 +1,21 @@
 """
 Shared Microsoft Graph API authentication helpers.
 
-Provides token refresh used by both graph_mail and graph_teams.
+Provides token refresh used by both graph_mail and graph_teams,
+plus JWKS-based id_token verification for the PKCE auth flow.
 """
 
 from __future__ import annotations
 
 import base64
 import json
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import httpx
+from fastapi import HTTPException, status
+from jose import JWTError, jwk
+from jose import jwt as jose_jwt
 
 from app.config import settings
 
@@ -100,3 +106,98 @@ async def fetch_ms365_avatar(refresh_token: str) -> tuple[str, str]:
     encoded = base64.b64encode(resp.content).decode("ascii")
     data_url = f"data:{content_type};base64,{encoded}"
     return data_url, new_refresh_token
+
+
+# ---------------------------------------------------------------------------
+# JWKS-based id_token verification
+# ---------------------------------------------------------------------------
+
+_JWKS_URL = "https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys"
+_JWKS_TTL = timedelta(hours=1)
+
+# kid → public key dict, plus a timestamp for TTL-based refresh
+_jwks_cache: dict[str, Any] = {}
+_jwks_fetched_at: datetime | None = None
+
+
+async def _fetch_jwks() -> None:
+    """Refresh the in-memory JWKS cache from Microsoft's discovery endpoint."""
+    global _jwks_cache, _jwks_fetched_at
+    url = _JWKS_URL.format(tenant_id=settings.AZURE_TENANT_ID)
+    async with httpx.AsyncClient(timeout=30) as http:
+        resp = await http.get(url)
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Failed to fetch JWKS from Microsoft",
+        )
+    keys: list[dict[str, Any]] = resp.json().get("keys", [])
+    _jwks_cache = {k["kid"]: k for k in keys if "kid" in k}
+    _jwks_fetched_at = datetime.now(UTC)
+
+
+async def verify_id_token(id_token: str) -> dict[str, Any]:
+    """
+    Verify a Microsoft Azure AD id_token and return the claims dict.
+
+    Validates:
+    - Signature using RS256 with the public key identified by the token ``kid``
+    - ``iss``: must match the Azure AD issuer for the configured tenant
+    - ``aud``: must match ``AZURE_CLIENT_ID``
+    - ``exp``: token must not be expired
+
+    Raises ``HTTPException(401)`` on any verification failure.
+    """
+    global _jwks_cache, _jwks_fetched_at
+
+    # Decode header without verification to extract kid
+    try:
+        header = jose_jwt.get_unverified_header(id_token)
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid id_token header",
+        )
+
+    kid: str = header.get("kid", "")
+    alg: str = header.get("alg", "")
+    if alg != "RS256":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Unsupported id_token algorithm: {alg}",
+        )
+
+    # Refresh cache if expired or kid is missing
+    cache_stale = _jwks_fetched_at is None or (
+        datetime.now(UTC) - _jwks_fetched_at > _JWKS_TTL
+    )
+    if cache_stale or kid not in _jwks_cache:
+        await _fetch_jwks()
+
+    # Second lookup after potential refresh
+    if kid not in _jwks_cache:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unknown kid in id_token",
+        )
+
+    key_data = _jwks_cache[kid]
+    expected_issuer = (
+        f"https://login.microsoftonline.com/{settings.AZURE_TENANT_ID}/v2.0"
+    )
+    try:
+        public_key = jwk.construct(key_data)
+        claims: dict[str, Any] = jose_jwt.decode(
+            id_token,
+            public_key,
+            algorithms=["RS256"],
+            audience=settings.AZURE_CLIENT_ID,
+            issuer=expected_issuer,
+        )
+    except JWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"id_token verification failed: {exc}",
+        )
+
+    return claims

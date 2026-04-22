@@ -1,8 +1,12 @@
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from jose import JWTError
 from jose import jwt as jose_jwt
 
+import app.services.graph_auth as _graph_auth_mod
 from app.api.v1.auth import _generate_state
+from app.services.graph_auth import verify_id_token
 
 
 def make_fake_id_token(email: str, name: str) -> str:
@@ -337,3 +341,158 @@ async def test_local_login_nonexistent_user(client):
     )
     assert resp.status_code == 401
     assert resp.json()["detail"] == "Invalid credentials"
+
+
+# ---------------------------------------------------------------------------
+# verify_id_token tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def _reset_jwks_cache():
+    """Reset JWKS module-level cache between tests."""
+    _graph_auth_mod._jwks_cache = {}
+    _graph_auth_mod._jwks_fetched_at = None
+    yield
+    _graph_auth_mod._jwks_cache = {}
+    _graph_auth_mod._jwks_fetched_at = None
+
+
+async def test_valid_token_returns_claims(mocker, _reset_jwks_cache):
+    expected_claims = {"sub": "user-1", "email": "u@example.com"}
+
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.get_unverified_header",
+        return_value={"kid": "test-kid", "alg": "RS256"},
+    )
+    mock_fetch = AsyncMock()
+    mocker.patch("app.services.graph_auth._fetch_jwks", mock_fetch)
+    _graph_auth_mod._jwks_cache = {"test-kid": {"kid": "test-kid", "kty": "RSA"}}
+
+    mocker.patch(
+        "app.services.graph_auth.jwk.construct",
+        return_value=MagicMock(),
+    )
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.decode",
+        return_value=expected_claims,
+    )
+
+    result = await verify_id_token("fake.token.here")
+    assert result == expected_claims
+
+
+async def test_expired_token_raises_401(mocker, _reset_jwks_cache):
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.get_unverified_header",
+        return_value={"kid": "test-kid", "alg": "RS256"},
+    )
+    _graph_auth_mod._jwks_cache = {"test-kid": {"kid": "test-kid", "kty": "RSA"}}
+    mocker.patch(
+        "app.services.graph_auth.jwk.construct",
+        return_value=MagicMock(),
+    )
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.decode",
+        side_effect=JWTError("Signature has expired"),
+    )
+
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        await verify_id_token("expired.token.here")
+    assert exc_info.value.status_code == 401
+
+
+async def test_wrong_audience_raises_401(mocker, _reset_jwks_cache):
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.get_unverified_header",
+        return_value={"kid": "test-kid", "alg": "RS256"},
+    )
+    _graph_auth_mod._jwks_cache = {"test-kid": {"kid": "test-kid", "kty": "RSA"}}
+    mocker.patch(
+        "app.services.graph_auth.jwk.construct",
+        return_value=MagicMock(),
+    )
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.decode",
+        side_effect=JWTError("Invalid audience"),
+    )
+
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        await verify_id_token("wrong-aud.token.here")
+    assert exc_info.value.status_code == 401
+
+
+async def test_kid_miss_triggers_jwks_refresh(mocker, _reset_jwks_cache):
+    """kid not in cache → _fetch_jwks called → cache populated → decode succeeds."""
+    expected_claims = {"sub": "user-2"}
+
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.get_unverified_header",
+        return_value={"kid": "new-kid", "alg": "RS256"},
+    )
+
+    async def _populate_cache():
+        _graph_auth_mod._jwks_cache = {"new-kid": {"kid": "new-kid", "kty": "RSA"}}
+        from datetime import UTC, datetime
+
+        _graph_auth_mod._jwks_fetched_at = datetime.now(UTC)
+
+    mocker.patch("app.services.graph_auth._fetch_jwks", side_effect=_populate_cache)
+    mocker.patch(
+        "app.services.graph_auth.jwk.construct",
+        return_value=MagicMock(),
+    )
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.decode",
+        return_value=expected_claims,
+    )
+
+    result = await verify_id_token("kid-miss.token.here")
+    assert result == expected_claims
+
+
+async def test_unsupported_algorithm_raises_401(mocker, _reset_jwks_cache):
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.get_unverified_header",
+        return_value={"kid": "test-kid", "alg": "HS256"},
+    )
+
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        await verify_id_token("hs256.token.here")
+    assert exc_info.value.status_code == 401
+
+
+async def test_stale_cache_triggers_refresh(mocker, _reset_jwks_cache):
+    """TTL-expired cache triggers refresh even when kid is present."""
+    from datetime import UTC, datetime, timedelta
+
+    _graph_auth_mod._jwks_cache = {"old-kid": {"kid": "old-kid", "kty": "RSA"}}
+    _graph_auth_mod._jwks_fetched_at = datetime.now(UTC) - timedelta(hours=2)
+
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.get_unverified_header",
+        return_value={"kid": "old-kid", "alg": "RS256"},
+    )
+
+    fetch_called = []
+
+    async def _mock_fetch():
+        fetch_called.append(True)
+        _graph_auth_mod._jwks_cache = {"old-kid": {"kid": "old-kid", "kty": "RSA"}}
+        _graph_auth_mod._jwks_fetched_at = datetime.now(UTC)
+
+    mocker.patch("app.services.graph_auth._fetch_jwks", side_effect=_mock_fetch)
+    mocker.patch("app.services.graph_auth.jwk.construct", return_value=MagicMock())
+    mocker.patch(
+        "app.services.graph_auth.jose_jwt.decode",
+        return_value={"sub": "user-3"},
+    )
+
+    await verify_id_token("stale.token.here")
+    assert fetch_called, "_fetch_jwks should have been called on stale cache"
