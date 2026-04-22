@@ -44,6 +44,7 @@
       "notConnected": "미연결",
       "comingSoon": "출시 예정",
       "connect": "연결",
+      "reconnect": "MS365 다시 연결",
       "disconnect": "연결 해제",
       "disconnecting": "해제 중…",
       "ms365": {

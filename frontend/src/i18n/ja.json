@@ -44,6 +44,7 @@
       "notConnected": "未連携",
       "comingSoon": "近日公開",
       "connect": "連携する",
+      "reconnect": "MS365を再接続",
       "disconnect": "連携解除",
       "disconnecting": "解除中…",
       "ms365": {

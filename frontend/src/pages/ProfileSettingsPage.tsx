@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getCurrentUser, disconnectMs365, updateUserProfile, syncAvatarFromMs365 } from '../api/users';
+import { getCurrentUser, disconnectMs365, ms365Reconnect, updateUserProfile, syncAvatarFromMs365 } from '../api/users';
 import { useAuthStore } from '../stores/authStore';
 
 const LOCALES = ['en', 'ja', 'zh', 'ko'] as const;
@@ -8,7 +8,7 @@ const LOCALE_LABELS: Record<string, string> = { en: 'English', ja: '日本語', 
 
 export const ProfileSettingsPage = () => {
   const { t } = useTranslation();
-  const { user, setUser, token } = useAuthStore();
+  const { user, setUser } = useAuthStore();
 
   const [displayName, setDisplayName] = useState('');
   const [locale, setLocale] = useState('en');
@@ -54,9 +54,9 @@ export const ProfileSettingsPage = () => {
     }
   };
 
-  const handleMs365Connect = () => {
-    if (!token) return;
-    window.location.href = `/api/v1/auth/ms365/connect?token=${encodeURIComponent(token)}`;
+  const handleMs365Reconnect = async () => {
+    const redirectUrl = await ms365Reconnect();
+    window.location.href = redirectUrl;
   };
 
   const handleMs365Disconnect = async () => {
@@ -277,7 +277,7 @@ export const ProfileSettingsPage = () => {
           </button>
         ) : (
           <button
-            onClick={handleMs365Connect}
+            onClick={handleMs365Reconnect}
             style={{
               padding: '0.4rem 1rem',
               fontSize: '0.85rem',
@@ -289,7 +289,7 @@ export const ProfileSettingsPage = () => {
               fontWeight: 600,
             }}
           >
-            {t('profile.permissions.connect')}
+            {t('profile.permissions.reconnect')}
           </button>
         )}
       </div>
