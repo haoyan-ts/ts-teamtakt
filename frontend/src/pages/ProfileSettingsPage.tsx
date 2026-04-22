@@ -75,8 +75,16 @@ export const ProfileSettingsPage = () => {
     try {
       const { avatar_url } = await syncAvatarFromMs365();
       if (user) setUser({ ...user, avatar_url });
-    } catch {
-      setAvatarSyncError(t('profile.avatarSyncError'));
+    } catch (err: unknown) {
+      const status =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { status?: number } }).response?.status
+          : undefined;
+      setAvatarSyncError(
+        status === 422
+          ? t('profile.avatarSyncReconnect')
+          : t('profile.avatarSyncError'),
+      );
     } finally {
       setAvatarSyncing(false);
     }

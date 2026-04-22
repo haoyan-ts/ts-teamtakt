@@ -37,6 +37,7 @@
     "avatarSync": "从MS365同步头像",
     "avatarSyncing": "同步中…",
     "avatarSyncError": "无法同步头像，请重试。",
+    "avatarSyncReconnect": "请断开并重新连接MS365以启用头像同步。",
     "permissions": {
       "title": "已连接的权限",
       "connected": "已连接",

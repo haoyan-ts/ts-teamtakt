@@ -7,6 +7,7 @@ Provides token refresh used by both graph_mail and graph_teams.
 from __future__ import annotations
 
 import base64
+import json
 
 import httpx
 
@@ -24,6 +25,17 @@ MS365_GRAPH_SCOPE = (
     "https://graph.microsoft.com/User.Read "
     "offline_access"
 )
+
+# Minimal scope needed to read the profile photo.
+_PHOTO_SCOPE = "https://graph.microsoft.com/User.Read offline_access"
+
+# Azure AD error codes that mean the user must re-consent before we can
+# get tokens for the requested scope.
+_CONSENT_REQUIRED_CODES = {65001, 70011, 70043}
+
+
+class ConsentRequiredError(RuntimeError):
+    """Raised when the stored refresh token lacks the requested scope consent."""
 
 
 async def refresh_graph_token(refresh_token: str, scope: str) -> tuple[str, str]:
@@ -45,6 +57,19 @@ async def refresh_graph_token(refresh_token: str, scope: str) -> tuple[str, str]
             },
         )
     if resp.status_code != 200:
+        # Detect Azure AD consent / scope errors so callers can prompt re-auth
+        # instead of surfacing a generic 502.
+        try:
+            err_body = resp.json()
+        except (json.JSONDecodeError, ValueError):
+            err_body = {}
+        error_codes: list[int] = err_body.get("error_codes") or []
+        if any(c in _CONSENT_REQUIRED_CODES for c in error_codes) or err_body.get(
+            "error"
+        ) in {"invalid_grant", "interaction_required"}:
+            raise ConsentRequiredError(
+                "MS365 consent required — please reconnect your account"
+            )
         raise RuntimeError(f"Token refresh failed: {resp.text}")
     data = resp.json()
     new_refresh = data.get("refresh_token") or refresh_token
@@ -59,7 +84,7 @@ async def fetch_ms365_avatar(refresh_token: str) -> tuple[str, str]:
     Raises RuntimeError if no photo is available or fetch fails.
     """
     access_token, new_refresh_token = await refresh_graph_token(
-        refresh_token, MS365_GRAPH_SCOPE
+        refresh_token, _PHOTO_SCOPE
     )
     async with httpx.AsyncClient(timeout=30) as http:
         resp = await http.get(

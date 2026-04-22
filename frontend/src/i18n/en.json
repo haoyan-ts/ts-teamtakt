@@ -37,6 +37,7 @@
     "avatarSync": "Sync photo from MS365",
     "avatarSyncing": "Syncing…",
     "avatarSyncError": "Could not sync photo. Please try again.",
+    "avatarSyncReconnect": "Please disconnect and reconnect MS365 to enable photo sync.",
     "permissions": {
       "title": "Connected Permissions",
       "connected": "Connected",

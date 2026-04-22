@@ -9,7 +9,7 @@ from app.db.engine import get_db
 from app.db.models.team import Team, TeamMembership
 from app.db.models.user import User
 from app.db.schemas.user import UserResponse, UserRoleUpdate, UserUpdate
-from app.services.graph_auth import fetch_ms365_avatar
+from app.services.graph_auth import ConsentRequiredError, fetch_ms365_avatar
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -86,6 +86,11 @@ async def sync_avatar(
         data_url, new_refresh_token = await fetch_ms365_avatar(
             current_user.ms_graph_refresh_token
         )
+    except ConsentRequiredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="ms365_reconnect_required",
+        ) from exc
     except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
