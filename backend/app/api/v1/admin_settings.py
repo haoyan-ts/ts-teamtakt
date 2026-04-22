@@ -117,10 +117,8 @@ async def upsert_teams_config(
         )
         db.add(row)
     else:
-        if body.teams_channel_id is not None:
-            row.teams_channel_id = body.teams_channel_id
-        if body.teams_team_id is not None:
-            row.teams_team_id = body.teams_team_id
+        row.teams_channel_id = body.teams_channel_id or None
+        row.teams_team_id = body.teams_team_id or None
 
     await db.commit()
     await db.refresh(row)
