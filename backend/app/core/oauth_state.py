@@ -64,19 +64,16 @@ _github_store: dict[str, _GitHubEntry] = {}
 
 
 class _GitHubEntry(TypedDict):
-    code_verifier: str
     user_id: str
     created_at: datetime
 
 
 def store_github_state(
     state: str,
-    code_verifier: str,
     user_id: str,
 ) -> None:
     """Persist a new GitHub OAuth state entry."""
     _github_store[state] = _GitHubEntry(
-        code_verifier=code_verifier,
         user_id=user_id,
         created_at=datetime.now(UTC),
     )

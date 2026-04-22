@@ -296,7 +296,7 @@ async def ms365_disconnect(
 # ---------------------------------------------------------------------------
 
 _GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
-_GITHUB_TOKEN_URL = "https://github.com/login/oauth/token"
+_GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 _GITHUB_API_USER_URL = "https://api.github.com/user"
 _GITHUB_API_REVOKE_URL = "https://api.github.com/applications/{client_id}/token"
 
@@ -309,26 +309,16 @@ async def github_authorize(
     if not settings.GITHUB_CLIENT_ID:
         raise HTTPException(status_code=503, detail="GitHub OAuth is not configured")
 
-    code_verifier = secrets.token_urlsafe(64)
-    code_challenge = (
-        base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode()).digest())
-        .rstrip(b"=")
-        .decode()
-    )
     state = secrets.token_urlsafe(32)
-    oauth_state.store_github_state(state, code_verifier, user_id=str(current_user.id))
+    oauth_state.store_github_state(state, user_id=str(current_user.id))
 
     params = {
         "client_id": settings.GITHUB_CLIENT_ID,
         "redirect_uri": settings.GITHUB_REDIRECT_URI,
         "scope": "repo read:user",
         "state": state,
-        "code_challenge": code_challenge,
-        "code_challenge_method": "S256",
     }
-    return RedirectResponse(
-        url=f"{_GITHUB_AUTHORIZE_URL}?{urlencode(params)}", status_code=307
-    )
+    return {"url": f"{_GITHUB_AUTHORIZE_URL}?{urlencode(params)}"}
 
 
 @router.get("/github/callback")
@@ -358,12 +348,14 @@ async def github_callback(
                 "client_secret": settings.GITHUB_CLIENT_SECRET,
                 "code": code,
                 "redirect_uri": settings.GITHUB_REDIRECT_URI,
-                "code_verifier": entry["code_verifier"],
             },
         )
 
     if token_resp.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to exchange code for token")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to exchange code for token: {token_resp.text}",
+        )
 
     token_data = token_resp.json()
     if "error" in token_data:
@@ -374,7 +366,9 @@ async def github_callback(
 
     access_token = token_data.get("access_token")
     if not access_token:
-        raise HTTPException(status_code=400, detail="No access_token in GitHub response")
+        raise HTTPException(
+            status_code=400, detail="No access_token in GitHub response"
+        )
 
     # Fetch the GitHub username
     async with httpx.AsyncClient() as http_client:
@@ -442,7 +436,8 @@ async def github_unlink(
                 client_id=settings.GITHUB_CLIENT_ID
             )
             async with httpx.AsyncClient() as http_client:
-                await http_client.delete(
+                await http_client.request(
+                    "DELETE",
                     revoke_url,
                     auth=(settings.GITHUB_CLIENT_ID, settings.GITHUB_CLIENT_SECRET),
                     json={"access_token": raw_token},

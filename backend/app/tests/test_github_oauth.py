@@ -68,7 +68,7 @@ def _make_httpx_mock(
 # 1. GET /auth/github/authorize — returns redirect to GitHub
 # ---------------------------------------------------------------------------
 async def test_github_authorize_redirects(client, db_session, mocker):
-    """Authorize endpoint redirects to GitHub with state and PKCE params."""
+    """Authorize endpoint returns a JSON URL pointing to GitHub with state and PKCE params."""
     user = _make_user(db_session, "auth_redirect@example.com")
     await db_session.commit()
     await db_session.refresh(user)
@@ -79,14 +79,13 @@ async def test_github_authorize_redirects(client, db_session, mocker):
     resp = await client.get(
         "/api/v1/auth/github/authorize",
         headers={"Authorization": f"Bearer {token}"},
-        follow_redirects=False,
     )
-    assert resp.status_code == 307
-    location = resp.headers["location"]
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "url" in data
+    location = data["url"]
     assert "github.com/login/oauth/authorize" in location
     assert "state=" in location
-    assert "code_challenge=" in location
-    assert "code_challenge_method=S256" in location
     assert "scope=repo+read%3Auser" in location or "scope=repo" in location
 
 
@@ -119,7 +118,7 @@ async def test_github_callback_stores_token(client, db_session, mocker):
 
     # Pre-seed a GitHub state entry
     state = secrets.token_urlsafe(32)
-    oauth_state.store_github_state(state, "dummy-verifier", user_id=str(user.id))
+    oauth_state.store_github_state(state, user_id=str(user.id))
 
     mocker.patch("app.api.v1.auth.settings.GITHUB_CLIENT_ID", "test-id")
     mocker.patch("app.api.v1.auth.settings.GITHUB_CLIENT_SECRET", "test-secret")

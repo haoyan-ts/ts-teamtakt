@@ -75,11 +75,8 @@ export async function syncAvatarFromMs365(): Promise<{ avatar_url: string }> {
 }
 
 export async function connectGithub(): Promise<string> {
-  const res = await client.get<never>('/auth/github/authorize', {
-    maxRedirects: 0,
-    validateStatus: (status) => status === 307,
-  });
-  return res.headers['location'] as string;
+  const res = await client.get<{ url: string }>('/auth/github/authorize');
+  return res.data.url;
 }
 
 export async function unlinkGithub(): Promise<void> {
