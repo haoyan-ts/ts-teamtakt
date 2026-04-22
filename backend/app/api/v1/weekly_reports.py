@@ -339,7 +339,7 @@ async def post_weekly_report_to_teams(
             current_user.id,
         )
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="No active team membership found.",
         )
 
@@ -357,13 +357,13 @@ async def post_weekly_report_to_teams(
             membership.team_id,
         )
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="MS Teams channel is not configured for this team.",
         )
 
     if not current_user.ms_graph_refresh_token:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="No MS Graph refresh token on file. Please re-authenticate.",
         )
 
