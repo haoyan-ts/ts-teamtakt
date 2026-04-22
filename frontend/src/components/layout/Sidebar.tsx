@@ -30,7 +30,6 @@ export const Sidebar = ({ isOpen }: { isOpen: boolean }) => {
         TeamTakt
       </div>
       <NavLink to="/" end style={navLinkStyle}>{t('nav.dashboard')}</NavLink>
-      <NavLink to="/feed" style={navLinkStyle}>{t('nav.feed')}</NavLink>
       <NavLink to="/reports/quarterly" style={navLinkStyle}>{t('nav.quarterlyReport')}</NavLink>
       {!user?.lobby && user?.team && (
         <NavLink to="/team/members" style={navLinkStyle}>{t('nav.myTeam', 'My Team')}</NavLink>

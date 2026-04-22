@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 from pydantic import BaseModel, field_validator
 
 _ALLOWED_LANGUAGES = {"en", "ja", "ko", "zh"}
@@ -20,3 +22,14 @@ class AdminSettingsUpdate(BaseModel):
                 f"output_language must be one of {sorted(_ALLOWED_LANGUAGES)}"
             )
         return v
+
+
+class TeamsConfigResponse(BaseModel):
+    team_id: uuid.UUID
+    teams_channel_id: str | None
+    teams_team_id: str | None
+
+
+class TeamsConfigUpsert(BaseModel):
+    teams_channel_id: str | None = None
+    teams_team_id: str | None = None

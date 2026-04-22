@@ -576,26 +576,30 @@ export const DailyFormPage = () => {
               <label style={s.label}>
                 Battery % <span style={s.privateLabel}>[private]</span>
               </label>
-              <div style={{ display: 'flex', gap: '0.4rem', margin: '0 0.75rem' }}>
-                {[0, 25, 50, 75, 100].map((pct) => (
-                  <button
-                    key={pct}
-                    type="button"
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', margin: '0 0.75rem', flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <datalist id="battery-ticks">
+                    <option value="0" />
+                    <option value="25" />
+                    <option value="50" />
+                    <option value="75" />
+                    <option value="100" />
+                  </datalist>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={25}
+                    list="battery-ticks"
+                    value={dayLoad}
                     disabled={!isEditable}
-                    onClick={() => { isDirty.current = true; setDayLoad(pct); }}
-                    style={{
-                      padding: '0.25rem 0.6rem',
-                      borderRadius: '4px',
-                      border: '1px solid var(--border)',
-                      cursor: isEditable ? 'pointer' : 'not-allowed',
-                      background: dayLoad === pct ? 'var(--accent)' : 'var(--bg-secondary)',
-                      color: dayLoad === pct ? '#fff' : 'var(--text-body)',
-                      fontWeight: dayLoad === pct ? 700 : 400,
-                    }}
-                  >
-                    {pct}%
-                  </button>
-                ))}
+                    onChange={(e) => { isDirty.current = true; setDayLoad(Number(e.target.value)); }}
+                    style={{ flex: 1, cursor: isEditable ? 'pointer' : 'not-allowed', accentColor: 'var(--accent)' }}
+                  />
+                  <span style={{ minWidth: '3rem', textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>
+                    {dayLoad}%
+                  </span>
+                </div>
               </div>
             </div>
 

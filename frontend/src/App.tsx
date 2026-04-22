@@ -20,7 +20,6 @@ import { MonthlyReportPage } from './pages/MonthlyReportPage';
 import { ExportPage } from './pages/ExportPage';
 import { UnlockPage } from './pages/UnlockPage';
 import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage';
-import { FeedPage } from './pages/FeedPage';
 import { QuarterlyReportPage } from './pages/QuarterlyReportPage';
 import { TeamQuarterlyReportPage } from './pages/TeamQuarterlyReportPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -50,7 +49,6 @@ function App() {
           <Route path="reports/weekly/:week_start?" element={<WeeklyReportPage />} />
           <Route path="reports/monthly/:ym?" element={<MonthlyReportPage />} />
           <Route path="reports/quarterly/:quarter?" element={<QuarterlyReportPage />} />
-          <Route path="feed" element={<FeedPage />} />
           <Route path="team/quarterly/:quarter?" element={<ProtectedRoute requireLeader><TeamQuarterlyReportPage /></ProtectedRoute>} />
           <Route path="export" element={<ExportPage />} />
           <Route path="settings/notifications" element={<NotificationPreferencesPage />} />

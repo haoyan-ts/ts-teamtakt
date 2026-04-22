@@ -62,3 +62,14 @@ class WeeklyEmailDraftResponse(BaseModel):
 class WeeklyEmailDraftUpdate(BaseModel):
     subject: str | None = None
     body_sections: EmailDraftBodySections | None = None
+
+
+class TeamsPostRecordResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    week_start: date
+    status: str
+    posted_at: str | None = None
+    error_message: str | None = None
+
+    model_config = {"from_attributes": True}

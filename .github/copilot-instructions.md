@@ -55,10 +55,10 @@ Rules that MUST be followed in every coding task. Violating any of these is a bu
 ## Tooling
 
 - Dev environment is **Windows**. Use Windows-compatible commands and paths.
-- Backend: Python FastAPI. Use **uv** for dependency management (not pip, poetry, pipenv).
+- Backend: Python FastAPI **0.135.3**. Use **uv** for dependency management (not pip, poetry, pipenv).
 - Frontend: React + TypeScript + Vite + React Router. Use **yarn** (not npm, pnpm).
 - Monorepo: `backend/` and `frontend/` directories at repo root.
-- All GitHub operations (create/view issues, PRs, labels, milestones, releases, etc.) use **`gh` CLI** (not the GitHub REST API directly, not `curl`, not the GitHub web UI).
+- All GitHub operations (create/view issues, PRs, labels, milestones, releases, etc.) use **`gh` CLI** (not the GitHub REST API directly, not `curl`, not the GitHub web UI). When using `gh` CLI with body content, save the body to a temp file first, then pass the file (avoid sending body directly via command-line arguments).
 
 ## Code Style
 

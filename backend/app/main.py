@@ -8,8 +8,8 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.types import ExceptionHandler
 
 from app.api.v1 import router as v1_router
-from app.api.v1.social import limiter
 from app.config import settings
+from app.core.limiter import limiter
 from app.core.scheduler import start_scheduler, stop_scheduler
 from app.db.engine import async_session_factory
 from app.db.seed import seed_initial_data

@@ -10,26 +10,40 @@ POST /weekly-reports/team-summary?team_id=&week_start=
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import false, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.deps import require_active_user
 from app.db.engine import get_db
+from app.db.models.admin_settings import AdminSettings
 from app.db.models.category import Category, CategorySubType
 from app.db.models.daily_record import DailyRecord
 from app.db.models.project import Project
 from app.db.models.task import DailyWorkLog, DailyWorkLogSelfAssessmentTag, Task
+from app.db.models.team import TeamMembership
 from app.db.models.user import User
-from app.db.models.weekly_report import WeeklyReport
-from app.db.schemas.weekly_report import WeeklyReportData, WeeklyReportSummaryResponse
+from app.db.models.weekly_report import TeamsPostRecord, TeamsPostStatus, WeeklyReport
+from app.db.schemas.weekly_report import (
+    TeamsPostRecordResponse,
+    WeeklyReportData,
+    WeeklyReportSummaryResponse,
+)
+from app.services import graph_teams
 from app.services.notification import NotificationService
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/weekly-reports", tags=["weekly-reports"])
+
+_MS_TEAMS_CONFIG_KEY = "ms_teams_config"
+_TEAMS_COOLDOWN_MINUTES = 5
 
 
 def _week_dates(week_start: date) -> list[date]:
@@ -246,3 +260,167 @@ async def get_weekly_reports(
         )
         for rep in reports
     ]
+
+
+def _teams_idempotency_key(user_id: uuid.UUID, week_start: date) -> str:
+    return f"teams:{user_id}:{week_start}"
+
+
+@router.post(
+    "/{report_id}/teams-post",
+    response_model=TeamsPostRecordResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def post_weekly_report_to_teams(
+    report_id: uuid.UUID,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> TeamsPostRecordResponse:
+    """
+    Post the weekly report summary to the team's MS Teams channel.
+    Idempotency key: (user_id, week_start) with 5-minute cooldown.
+    Private fields (day_load, blocker free-text) are always excluded from
+    the Teams message (channel is not private to the member).
+    """
+    # Fetch the report (owner check)
+    rep_r = await db.execute(select(WeeklyReport).where(WeeklyReport.id == report_id))
+    report = rep_r.scalar_one_or_none()
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Report not found"
+        )
+    if report.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
+
+    week_start = report.week_start
+    idem_key = _teams_idempotency_key(current_user.id, week_start)
+
+    # Find or create TeamsPostRecord
+    tpr_r = await db.execute(
+        select(TeamsPostRecord).where(TeamsPostRecord.idempotency_key == idem_key)
+    )
+    tpr = tpr_r.scalar_one_or_none()
+
+    # Cooldown: 5 min since last attempt
+    if tpr and tpr.posted_at:
+        posted_at = (
+            tpr.posted_at if tpr.posted_at.tzinfo else tpr.posted_at.replace(tzinfo=UTC)
+        )
+        if datetime.now(UTC) - posted_at < timedelta(minutes=_TEAMS_COOLDOWN_MINUTES):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Already posted. Wait for cooldown to repost.",
+            )
+
+    if tpr is None:
+        tpr = TeamsPostRecord(
+            user_id=current_user.id,
+            week_start=week_start,
+            idempotency_key=idem_key,
+            status=TeamsPostStatus.pending,
+        )
+        db.add(tpr)
+        await db.flush()
+
+    # Look up Teams channel config for user's current team
+    mem_r = await db.execute(
+        select(TeamMembership).where(
+            TeamMembership.user_id == current_user.id,
+            TeamMembership.left_at.is_(None),
+        )
+    )
+    membership = mem_r.scalar_one_or_none()
+
+    if membership is None:
+        logger.warning(
+            "teams_post: user %s has no active team membership; skipping",
+            current_user.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="No active team membership found.",
+        )
+
+    cfg_r = await db.execute(
+        select(AdminSettings).where(
+            AdminSettings.key == _MS_TEAMS_CONFIG_KEY,
+            AdminSettings.team_id == membership.team_id,
+        )
+    )
+    cfg = cfg_r.scalar_one_or_none()
+
+    if cfg is None or not cfg.teams_team_id or not cfg.teams_channel_id:
+        logger.warning(
+            "teams_post: MS Teams channel not configured for team %s; skipping",
+            membership.team_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="MS Teams channel is not configured for this team.",
+        )
+
+    if not current_user.ms_graph_refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="No MS Graph refresh token on file. Please re-authenticate.",
+        )
+
+    # Build message — always use public (filtered) view; never include private fields
+    data: dict = report.data or {}
+    effort_summary: dict[str, int] = data.get("category_breakdown", {})
+    week_end = week_start + timedelta(days=6)
+    report_url = f"{settings.FRONTEND_URL}/weekly-reports/{report.id}"
+    html_body = graph_teams.build_teams_message(
+        member_name=current_user.display_name,
+        week_start=str(week_start),
+        week_end=str(week_end),
+        effort_summary=effort_summary,
+        report_url=report_url,
+    )
+
+    now = datetime.now(UTC)
+    tpr.posted_at = now
+
+    try:
+        access_token, new_refresh = await graph_teams.refresh_graph_token(
+            current_user.ms_graph_refresh_token
+        )
+        current_user.ms_graph_refresh_token = new_refresh
+        db.add(current_user)
+
+        await graph_teams.post_channel_message(
+            access_token=access_token,
+            teams_team_id=cfg.teams_team_id,
+            teams_channel_id=cfg.teams_channel_id,
+            html_body=html_body,
+        )
+        tpr.status = TeamsPostStatus.posted
+        tpr.error_message = None
+    except Exception as exc:
+        tpr.status = TeamsPostStatus.failed
+        tpr.error_message = str(exc)[:500]
+        logger.warning("teams_post failed for user %s: %s", current_user.id, exc)
+
+        # Notify the member about the failure
+        notif_svc = NotificationService(db)
+        await notif_svc.send(
+            user_id=current_user.id,
+            trigger_type="weekly_report_ready",
+            title="Teams投稿に失敗しました",
+            body=f"Week of {week_start}: {tpr.error_message}",
+            data={"week_start": str(week_start), "error": tpr.error_message},
+        )
+
+    await db.commit()
+    await db.refresh(tpr)
+    posted_at = tpr.posted_at
+    return TeamsPostRecordResponse(
+        id=tpr.id,
+        user_id=tpr.user_id,
+        week_start=tpr.week_start,
+        status=tpr.status.value,
+        posted_at=posted_at.isoformat() if posted_at is not None else None,
+        error_message=tpr.error_message,
+    )

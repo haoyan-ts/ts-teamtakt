@@ -16,7 +16,6 @@ from app.db.models import (  # noqa: E402, F401
     notification_preference,
     project,
     quarterly_report,
-    social,
     task,
     team,
     user,

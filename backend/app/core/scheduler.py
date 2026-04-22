@@ -8,22 +8,40 @@ Jobs:
   - check_edit_window_closing: Friday at 17:00 JST
       For each user whose current-week records are incomplete and whose
       edit window is still open, send an edit_window_closing notification.
+  - publish_teams_weekly_reports: Saturday 00:00 JST
+      For each team with a configured MS Teams channel, post each active
+      member's finalized weekly report to the channel.
 """
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+import logging
+from datetime import UTC, date, datetime, timedelta
 
 import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
 
+from app.config import settings
 from app.core.working_days import is_working_day_db
 from app.db.engine import async_session_factory
+from app.db.models.admin_settings import AdminSettings
 from app.db.models.daily_record import DailyRecord
-from app.db.models.team import TeamMembership
+from app.db.models.team import Team, TeamMembership
 from app.db.models.user import User
+from app.db.models.weekly_report import TeamsPostRecord, TeamsPostStatus, WeeklyReport
+from app.services import graph_teams
 from app.services.notification import NotificationService
+
+logger = logging.getLogger(__name__)
+
+_MS_TEAMS_CONFIG_KEY = "ms_teams_config"
+_TEAMS_COOLDOWN_MINUTES = 5
+
+
+def _teams_idempotency_key(user_id: object, week_start: date) -> str:
+    return f"teams:{user_id}:{week_start}"
+
 
 JST = pytz.timezone("Asia/Tokyo")
 
@@ -141,6 +159,160 @@ async def check_edit_window_closing() -> None:
         await db.commit()
 
 
+async def publish_teams_weekly_reports() -> None:
+    """Saturday 00:00 JST: post each member's finalized weekly report to MS Teams."""
+    today = date.today()
+    # Saturday's week_start is the Monday 5 days prior
+    week_start = today - timedelta(days=5)
+
+    async with async_session_factory() as db:
+        teams_result = await db.execute(select(Team))
+        teams = teams_result.scalars().all()
+
+        for team in teams:
+            # Resolve MS Teams channel config for this team
+            cfg_r = await db.execute(
+                select(AdminSettings).where(
+                    AdminSettings.key == _MS_TEAMS_CONFIG_KEY,
+                    AdminSettings.team_id == team.id,
+                )
+            )
+            cfg = cfg_r.scalar_one_or_none()
+
+            if cfg is None or not cfg.teams_team_id or not cfg.teams_channel_id:
+                logger.debug(
+                    "publish_teams_weekly_reports: team %s has no Teams channel config; skipping",
+                    team.id,
+                )
+                continue
+
+            # Get active members for this team
+            mem_r = await db.execute(
+                select(TeamMembership).where(
+                    TeamMembership.team_id == team.id,
+                    TeamMembership.left_at.is_(None),
+                )
+            )
+            memberships = mem_r.scalars().all()
+
+            for membership in memberships:
+                user_id = membership.user_id
+
+                # Look up finalized weekly report
+                report_r = await db.execute(
+                    select(WeeklyReport).where(
+                        WeeklyReport.user_id == user_id,
+                        WeeklyReport.week_start == week_start,
+                    )
+                )
+                report = report_r.scalar_one_or_none()
+                if report is None:
+                    logger.debug(
+                        "publish_teams_weekly_reports: no report for user %s week %s; skipping",
+                        user_id,
+                        week_start,
+                    )
+                    continue
+
+                # Idempotency / cooldown check
+                idem_key = _teams_idempotency_key(user_id, week_start)
+                tpr_r = await db.execute(
+                    select(TeamsPostRecord).where(
+                        TeamsPostRecord.idempotency_key == idem_key
+                    )
+                )
+                tpr = tpr_r.scalar_one_or_none()
+
+                if tpr and tpr.posted_at:
+                    posted_at = (
+                        tpr.posted_at
+                        if tpr.posted_at.tzinfo
+                        else tpr.posted_at.replace(tzinfo=UTC)
+                    )
+                    if datetime.now(UTC) - posted_at < timedelta(
+                        minutes=_TEAMS_COOLDOWN_MINUTES
+                    ):
+                        logger.debug(
+                            "publish_teams_weekly_reports: user %s within cooldown; skipping",
+                            user_id,
+                        )
+                        continue
+
+                # Fetch user for token and display name
+                user_r = await db.execute(select(User).where(User.id == user_id))
+                user = user_r.scalar_one_or_none()
+                if user is None or not user.ms_graph_refresh_token:
+                    logger.warning(
+                        "publish_teams_weekly_reports: user %s has no ms_graph_refresh_token; skipping",
+                        user_id,
+                    )
+                    continue
+
+                # Upsert TeamsPostRecord
+                if tpr is None:
+                    tpr = TeamsPostRecord(
+                        user_id=user_id,
+                        week_start=week_start,
+                        idempotency_key=idem_key,
+                        status=TeamsPostStatus.pending,
+                    )
+                    db.add(tpr)
+                    await db.flush()
+
+                # Build message from public data only (category_breakdown has no private fields)
+                effort_summary: dict[str, int] = (report.data or {}).get(
+                    "category_breakdown", {}
+                )
+                week_end = week_start + timedelta(days=6)
+                report_url = f"{settings.FRONTEND_URL}/weekly-reports/{report.id}"
+                html_body = graph_teams.build_teams_message(
+                    member_name=user.display_name,
+                    week_start=str(week_start),
+                    week_end=str(week_end),
+                    effort_summary=effort_summary,
+                    report_url=report_url,
+                )
+
+                tpr.posted_at = datetime.now(UTC)
+                try:
+                    access_token, new_refresh = await graph_teams.refresh_graph_token(
+                        user.ms_graph_refresh_token
+                    )
+                    user.ms_graph_refresh_token = new_refresh
+                    db.add(user)
+
+                    await graph_teams.post_channel_message(
+                        access_token=access_token,
+                        teams_team_id=cfg.teams_team_id,
+                        teams_channel_id=cfg.teams_channel_id,
+                        html_body=html_body,
+                    )
+                    tpr.status = TeamsPostStatus.posted
+                    tpr.error_message = None
+                except Exception as exc:
+                    tpr.status = TeamsPostStatus.failed
+                    tpr.error_message = str(exc)[:500]
+                    logger.warning(
+                        "publish_teams_weekly_reports: Teams post failed for user %s: %s",
+                        user_id,
+                        exc,
+                    )
+
+                    notif_svc = NotificationService(db)
+                    await notif_svc.send(
+                        user_id=user_id,
+                        trigger_type="weekly_report_ready",
+                        title="Teams投稿に失敗しました",
+                        body=f"Week of {week_start}: {tpr.error_message}",
+                        data={
+                            "week_start": str(week_start),
+                            "error": tpr.error_message,
+                        },
+                    )
+
+                await db.commit()
+
+
 def start_scheduler() -> None:
     scheduler.add_job(
         check_missing_days,
@@ -157,6 +329,15 @@ def start_scheduler() -> None:
         hour=17,
         minute=0,
         id="check_edit_window_closing",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        publish_teams_weekly_reports,
+        trigger="cron",
+        day_of_week="sat",
+        hour=0,
+        minute=0,
+        id="publish_teams_weekly_reports",
         replace_existing=True,
     )
     scheduler.start()
