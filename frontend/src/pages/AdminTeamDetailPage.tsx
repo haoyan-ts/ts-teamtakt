@@ -9,6 +9,7 @@ import {
 import type { TeamMember } from '../api/teams';
 import { listUsers, updateUserRoles } from '../api/users';
 import type { User } from '../api/users';
+import { getTeamsConfig, upsertTeamsConfig } from '../api/adminSettings';
 
 // ---------------------------------------------------------------------------
 // Confirmation dialog
@@ -188,6 +189,144 @@ function MembersSection({ teamId }: { teamId: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Teams channel config section
+// ---------------------------------------------------------------------------
+
+function parseTeamsChannelUrl(raw: string): { teamsTeamId: string; teamsChannelId: string } | null {
+  // Expected format:
+  // https://teams.microsoft.com/l/channel/{channelId}/{channelName}?groupId={groupId}&tenantId=...
+  try {
+    const url = new URL(raw.trim());
+    if (!url.hostname.endsWith('teams.microsoft.com')) return null;
+    const parts = url.pathname.split('/');
+    // pathname: /l/channel/{channelId}/{channelName}
+    const channelIndex = parts.indexOf('channel');
+    if (channelIndex === -1 || channelIndex + 1 >= parts.length) return null;
+    const rawChannelId = parts[channelIndex + 1];
+    if (!rawChannelId) return null;
+    const teamsChannelId = decodeURIComponent(rawChannelId);
+    const teamsTeamId = url.searchParams.get('groupId') ?? '';
+    if (!teamsTeamId) return null;
+    return { teamsTeamId, teamsChannelId };
+  } catch {
+    return null;
+  }
+}
+
+function TeamsChannelSection({ teamId }: { teamId: string }) {
+  const [teamsTeamId, setTeamsTeamId] = useState('');
+  const [teamsChannelId, setTeamsChannelId] = useState('');
+  const [urlInput, setUrlInput] = useState('');
+  const [parseError, setParseError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    getTeamsConfig(teamId)
+      .then((cfg) => {
+        if (cfg) {
+          setTeamsTeamId(cfg.teams_team_id ?? '');
+          setTeamsChannelId(cfg.teams_channel_id ?? '');
+        }
+      })
+      .catch(() => setError('Failed to load Teams config.'))
+      .finally(() => setLoading(false));
+  }, [teamId]);
+
+  const handleUrlParse = () => {
+    setParseError('');
+    const parsed = parseTeamsChannelUrl(urlInput);
+    if (!parsed) {
+      setParseError('Could not parse URL. Make sure it is a Teams channel link (teams.microsoft.com/l/channel/…?groupId=…).');
+      return;
+    }
+    setTeamsTeamId(parsed.teamsTeamId);
+    setTeamsChannelId(parsed.teamsChannelId);
+    setUrlInput('');
+    setSaved(false);
+    setError('');
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setError('');
+    setSaved(false);
+    try {
+      const updated = await upsertTeamsConfig(teamId, {
+        teams_team_id: teamsTeamId.trim() || undefined,
+        teams_channel_id: teamsChannelId.trim() || undefined,
+      });
+      setTeamsTeamId(updated.teams_team_id ?? '');
+      setTeamsChannelId(updated.teams_channel_id ?? '');
+      setSaved(true);
+    } catch {
+      setError('Failed to save Teams config. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <section style={sectionStyle}><p>Loading Teams config…</p></section>;
+
+  return (
+    <section style={sectionStyle}>
+      <h3 style={sectionTitle}>MS Teams Channel</h3>
+      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+        Paste a Teams channel link to fill the IDs automatically, or enter them manually below.
+        <br />
+        Example: <code style={{ wordBreak: 'break-all' }}>https://teams.microsoft.com/l/channel/xxxxxx/ChannelName?groupId=xxxx&amp;tenantId=xxxx</code>
+      </p>
+
+      {/* URL parser */}
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+        <input
+          style={{ ...inputStyle, flex: 1 }}
+          placeholder="Paste Teams channel URL here…"
+          value={urlInput}
+          onChange={(e) => { setUrlInput(e.target.value); setParseError(''); }}
+          onKeyDown={(e) => e.key === 'Enter' && handleUrlParse()}
+        />
+        <button style={primaryBtn} onClick={handleUrlParse} disabled={!urlInput.trim()}>
+          Fill from URL
+        </button>
+      </div>
+      {parseError && <p style={{ color: 'var(--error)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>{parseError}</p>}
+
+      {/* Manual fields */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+          Group ID (<code>groupId</code>)
+          <input
+            style={{ ...inputStyle, display: 'block', width: '100%', marginTop: '0.25rem', boxSizing: 'border-box' }}
+            placeholder="e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            value={teamsTeamId}
+            onChange={(e) => { setTeamsTeamId(e.target.value); setSaved(false); setError(''); }}
+          />
+        </label>
+        <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+          Channel ID (path after <code>/l/channel/</code>)
+          <input
+            style={{ ...inputStyle, display: 'block', width: '100%', marginTop: '0.25rem', boxSizing: 'border-box' }}
+            placeholder="e.g. 19:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx@thread.tacv2"
+            value={teamsChannelId}
+            onChange={(e) => { setTeamsChannelId(e.target.value); setSaved(false); setError(''); }}
+          />
+        </label>
+      </div>
+      <div style={{ marginTop: '0.75rem' }}>
+        <button style={primaryBtn} onClick={save} disabled={saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+      {error && <p style={{ color: 'var(--error)', fontSize: '0.8rem', marginTop: '0.4rem' }}>{error}</p>}
+      {saved && <p style={{ color: 'var(--success)', fontSize: '0.8rem', marginTop: '0.4rem' }}>Saved.</p>}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Assign user section
 // ---------------------------------------------------------------------------
 
@@ -317,6 +456,7 @@ export const AdminTeamDetailPage = () => {
       />
       <MembersSection key={membersKey} teamId={teamId} />
       <AssignUserSection teamId={teamId} onAssigned={() => setMembersKey((k) => k + 1)} />
+      <TeamsChannelSection teamId={teamId} />
     </div>
   );
 };

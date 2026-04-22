@@ -887,7 +887,23 @@ async def send_teams_message(
             detail="MS365 account not connected.",
         )
 
-    settings = await db.scalar(select(AdminSettings))
+    membership = await db.scalar(
+        select(TeamMembership).where(
+            TeamMembership.user_id == current_user.id,
+            TeamMembership.left_at.is_(None),
+        )
+    )
+    if membership is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not a member of any team.",
+        )
+    settings = await db.scalar(
+        select(AdminSettings).where(
+            AdminSettings.key == "ms_teams_config",
+            AdminSettings.team_id == membership.team_id,
+        )
+    )
     if settings is None or not settings.teams_team_id or not settings.teams_channel_id:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

@@ -417,9 +417,9 @@ async def test_work_log_valid_energy_type_accepted_schema(client, db_session):
             },
             headers=auth(tok),
         )
-        assert resp.status_code != 422, (
-            f"energy_type={energy!r} should pass schema validation"
-        )
+        assert (
+            resp.status_code != 422
+        ), f"energy_type={energy!r} should pass schema validation"
 
 
 # ---------------------------------------------------------------------------
@@ -1165,6 +1165,101 @@ async def test_send_teams_no_ms365_account(client, db_session):
         headers=auth(tok),
     )
     assert resp.status_code == 422
+
+
+async def test_send_teams_channel_not_configured(client, db_session):
+    """POST teams-message when AdminSettings has no channel config → 503."""
+    import uuid as _uuid
+
+    from sqlalchemy import select as sa_select
+
+    from app.db.models.user import User as U
+
+    user, tok, record_id = await _create_record_today(client, db_session, "tsend04")
+    uid = _uuid.UUID(str(user.id))
+    u = await db_session.scalar(sa_select(U).where(U.id == uid))
+    assert u is not None
+    u.ms_graph_refresh_token = "fake-token"
+    await db_session.commit()
+
+    r = await client.post(
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert r.status_code == 200
+
+    # No AdminSettings row → 503
+    resp = await client.post(
+        f"/api/v1/daily-records/{record_id}/teams-message",
+        json={"subject": "Status", "body": "Done for today"},
+        headers=auth(tok),
+    )
+    assert resp.status_code == 503
+
+
+async def test_send_teams_happy_path(client, db_session):
+    """POST teams-message with valid config → 200, teams_message_sent_at set."""
+    import uuid as _uuid
+    from unittest.mock import AsyncMock, patch
+
+    from sqlalchemy import select as sa_select
+
+    from app.db.models.admin_settings import AdminSettings
+    from app.db.models.team import TeamMembership as TM
+    from app.db.models.user import User as U
+
+    user, tok, record_id = await _create_record_today(client, db_session, "tsend05")
+    uid = _uuid.UUID(str(user.id))
+    u = await db_session.scalar(sa_select(U).where(U.id == uid))
+    assert u is not None
+    u.ms_graph_refresh_token = "fake-token"
+    await db_session.commit()
+
+    membership = await db_session.scalar(
+        sa_select(TM).where(TM.user_id == uid, TM.left_at.is_(None))
+    )
+    assert membership is not None
+    cfg = AdminSettings(
+        key="ms_teams_config",
+        value={},
+        team_id=membership.team_id,
+        teams_team_id="team-abc",
+        teams_channel_id="channel-xyz",
+    )
+    db_session.add(cfg)
+    await db_session.commit()
+
+    r = await client.post(
+        f"/api/v1/daily-records/{record_id}/check",
+        json={"form_opened_at": datetime.now(UTC).isoformat()},
+        headers=auth(tok),
+    )
+    assert r.status_code == 200
+
+    with (
+        patch(
+            "app.services.graph_teams.refresh_graph_token",
+            new=AsyncMock(return_value=("access-tok", "new-refresh")),
+        ),
+        patch(
+            "app.services.graph_teams.post_channel_message",
+            new=AsyncMock(),
+        ) as mock_post,
+    ):
+        resp = await client.post(
+            f"/api/v1/daily-records/{record_id}/teams-message",
+            json={"subject": "Daily status", "body": "All done"},
+            headers=auth(tok),
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["sent_at"] is not None
+    mock_post.assert_awaited_once()
+    kw = mock_post.call_args.kwargs
+    assert kw["teams_team_id"] == "team-abc"
+    assert kw["teams_channel_id"] == "channel-xyz"
 
 
 # ---------------------------------------------------------------------------
