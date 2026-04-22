@@ -30,9 +30,10 @@ class TaskStatus(enum.StrEnum):
 
 
 class TaskPriority(enum.StrEnum):
-    low = "low"
-    medium = "medium"
-    high = "high"
+    p0_critical = "p0_critical"
+    p1_high = "p1_high"
+    p2_medium = "p2_medium"
+    p3_low = "p3_low"
 
 
 class EnergyType(enum.StrEnum):

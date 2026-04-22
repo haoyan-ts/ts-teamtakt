@@ -504,7 +504,7 @@ async def test_task_create_with_priority(client, db_session):
     await make_team_with_member(db_session, user.id)
     cat = await make_category(db_session, "pri01_cat")
 
-    for priority in ("low", "medium", "high"):
+    for priority in ("p0_critical", "p1_high", "p2_medium", "p3_low"):
         resp = await client.post(
             "/api/v1/tasks",
             json={
