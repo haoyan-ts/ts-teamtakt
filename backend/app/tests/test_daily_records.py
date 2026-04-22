@@ -100,17 +100,14 @@ async def test_duplicate_daily_record_rejected(client, db_session):
     team = await make_team(db_session, "dr02_team")
     await make_membership(db_session, user.id, team.id)
 
-    for _ in range(2):
-        resp = await client.post(
-            "/api/v1/daily-records",
-            json={
-                "record_date": str(date.today()),
-                "day_load": 50,
-                "form_opened_at": datetime.now(UTC).isoformat(),
-                "daily_work_logs": [],
-            },
-            headers=auth(tok),
-        )
+    payload = {
+        "record_date": str(date.today()),
+        "day_load": 50,
+        "form_opened_at": datetime.now(UTC).isoformat(),
+        "daily_work_logs": [],
+    }
+    await client.post("/api/v1/daily-records", json=payload, headers=auth(tok))
+    resp = await client.post("/api/v1/daily-records", json=payload, headers=auth(tok))
 
     assert resp.status_code == 409
 
@@ -420,9 +417,9 @@ async def test_work_log_valid_energy_type_accepted_schema(client, db_session):
             },
             headers=auth(tok),
         )
-        assert resp.status_code != 422, (
-            f"energy_type={energy!r} should pass schema validation"
-        )
+        assert (
+            resp.status_code != 422
+        ), f"energy_type={energy!r} should pass schema validation"
 
 
 # ---------------------------------------------------------------------------
