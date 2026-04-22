@@ -186,7 +186,7 @@ async def verify_id_token(id_token: str) -> dict[str, Any]:
         f"https://login.microsoftonline.com/{settings.AZURE_TENANT_ID}/v2.0"
     )
     try:
-        public_key = jwk.construct(key_data)
+        public_key = jwk.construct(key_data, algorithm="RS256")
         claims: dict[str, Any] = jose_jwt.decode(
             id_token,
             public_key,
