@@ -5,6 +5,9 @@ os.environ.setdefault("SECRET_KEY", "test-secret")
 os.environ.setdefault("AZURE_TENANT_ID", "test-tenant")
 os.environ.setdefault("AZURE_CLIENT_ID", "test-client")
 os.environ.setdefault("AZURE_CLIENT_SECRET", "test-secret")
+os.environ.setdefault("GITHUB_CLIENT_ID", "test-github-client")
+os.environ.setdefault("GITHUB_CLIENT_SECRET", "test-github-secret")
+os.environ.setdefault("GITHUB_TOKEN_ENCRYPTION_KEY", "a" * 64)
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient

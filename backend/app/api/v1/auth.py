@@ -16,6 +16,7 @@ from app.core import oauth_state
 from app.core.deps import get_current_user
 from app.core.limiter import limiter
 from app.core.security import create_access_token, verify_password
+from app.core.token_encryption import decrypt_token, encrypt_token
 from app.db.engine import get_db
 from app.db.models.team import Team, TeamMembership
 from app.db.models.user import User
@@ -191,6 +192,8 @@ async def me(
         "avatar_url": user.avatar_url,
         "team": team_data,
         "lobby": team_data is None and not user.is_admin,
+        "github_linked": user.github_access_token_enc is not None,
+        "github_login": user.github_login,
     }
 
 
@@ -286,3 +289,171 @@ async def ms365_disconnect(
     current_user.ms_graph_refresh_token = None
     await db.commit()
     return {"ms365_connected": False}
+
+
+# ---------------------------------------------------------------------------
+# GitHub OAuth account linking
+# ---------------------------------------------------------------------------
+
+_GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
+_GITHUB_TOKEN_URL = "https://github.com/login/oauth/token"
+_GITHUB_API_USER_URL = "https://api.github.com/user"
+_GITHUB_API_REVOKE_URL = "https://api.github.com/applications/{client_id}/token"
+
+
+@router.get("/github/authorize")
+async def github_authorize(
+    current_user: User = Depends(get_current_user),
+):
+    """Redirect the authenticated user to GitHub's OAuth authorization page."""
+    if not settings.GITHUB_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="GitHub OAuth is not configured")
+
+    code_verifier = secrets.token_urlsafe(64)
+    code_challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode()).digest())
+        .rstrip(b"=")
+        .decode()
+    )
+    state = secrets.token_urlsafe(32)
+    oauth_state.store_github_state(state, code_verifier, user_id=str(current_user.id))
+
+    params = {
+        "client_id": settings.GITHUB_CLIENT_ID,
+        "redirect_uri": settings.GITHUB_REDIRECT_URI,
+        "scope": "repo read:user",
+        "state": state,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
+    }
+    return RedirectResponse(
+        url=f"{_GITHUB_AUTHORIZE_URL}?{urlencode(params)}", status_code=307
+    )
+
+
+@router.get("/github/callback")
+async def github_callback(
+    code: str = Query(...),
+    state: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Exchange the GitHub OAuth code for an access token and store it encrypted."""
+    if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_CLIENT_SECRET:
+        raise HTTPException(status_code=503, detail="GitHub OAuth is not configured")
+
+    entry = oauth_state.consume_github_state(state)
+    if entry is None:
+        raise HTTPException(
+            status_code=400, detail="Invalid or expired state parameter"
+        )
+
+    # Exchange code for access token (PKCE included)
+    # GitHub API base URL is hardcoded — never derived from user input (OWASP A10)
+    async with httpx.AsyncClient() as http_client:
+        token_resp = await http_client.post(
+            _GITHUB_TOKEN_URL,
+            headers={"Accept": "application/json"},
+            data={
+                "client_id": settings.GITHUB_CLIENT_ID,
+                "client_secret": settings.GITHUB_CLIENT_SECRET,
+                "code": code,
+                "redirect_uri": settings.GITHUB_REDIRECT_URI,
+                "code_verifier": entry["code_verifier"],
+            },
+        )
+
+    if token_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to exchange code for token")
+
+    token_data = token_resp.json()
+    if "error" in token_data:
+        raise HTTPException(
+            status_code=400,
+            detail=f"GitHub OAuth error: {token_data.get('error_description', token_data['error'])}",
+        )
+
+    access_token = token_data.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=400, detail="No access_token in GitHub response")
+
+    # Fetch the GitHub username
+    async with httpx.AsyncClient() as http_client:
+        user_resp = await http_client.get(
+            _GITHUB_API_USER_URL,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Accept": "application/vnd.github.v3+json",
+            },
+        )
+
+    if user_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to fetch GitHub user info")
+
+    github_login = user_resp.json().get("login")
+
+    # Encrypt the token at rest (OWASP A02)
+    enc_key = settings.GITHUB_TOKEN_ENCRYPTION_KEY
+    if enc_key:
+        token_enc, token_iv = encrypt_token(access_token, enc_key)
+    else:
+        # Dev/local fallback — store plain when key is not configured
+        token_enc, token_iv = access_token, ""
+
+    user_uuid = uuid.UUID(entry["user_id"])
+    result = await db.execute(select(User).where(User.id == user_uuid))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.github_access_token_enc = token_enc
+    user.github_token_iv = token_iv
+    user.github_login = github_login
+    await db.commit()
+
+    return RedirectResponse(
+        url=f"{settings.FRONTEND_URL}/settings/profile?github=connected",
+        status_code=307,
+    )
+
+
+@router.delete("/github/unlink")
+async def github_unlink(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Revoke the stored GitHub OAuth token and unlink the account."""
+    if not current_user.github_access_token_enc:
+        raise HTTPException(status_code=400, detail="GitHub account is not linked")
+
+    # Attempt server-side token revocation at GitHub
+    if settings.GITHUB_CLIENT_ID and settings.GITHUB_CLIENT_SECRET:
+        enc_key = settings.GITHUB_TOKEN_ENCRYPTION_KEY
+        try:
+            if enc_key and current_user.github_token_iv:
+                raw_token = decrypt_token(
+                    current_user.github_access_token_enc,
+                    current_user.github_token_iv,
+                    enc_key,
+                )
+            else:
+                raw_token = current_user.github_access_token_enc
+
+            revoke_url = _GITHUB_API_REVOKE_URL.format(
+                client_id=settings.GITHUB_CLIENT_ID
+            )
+            async with httpx.AsyncClient() as http_client:
+                await http_client.delete(
+                    revoke_url,
+                    auth=(settings.GITHUB_CLIENT_ID, settings.GITHUB_CLIENT_SECRET),
+                    json={"access_token": raw_token},
+                    headers={"Accept": "application/vnd.github.v3+json"},
+                )
+        except Exception:
+            # Revocation failure is non-fatal — still clear locally
+            pass
+
+    current_user.github_access_token_enc = None
+    current_user.github_token_iv = None
+    current_user.github_login = None
+    await db.commit()
+    return {"github_linked": False}

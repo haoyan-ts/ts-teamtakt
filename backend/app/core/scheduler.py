@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, date, datetime, timedelta
 
+import httpx
 import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
@@ -313,6 +314,78 @@ async def publish_teams_weekly_reports() -> None:
                 await db.commit()
 
 
+async def validate_github_tokens() -> None:
+    """Daily 03:00 JST: validate all stored GitHub tokens; clear and notify on 401."""
+    from app.core.token_encryption import decrypt_token
+
+    enc_key = settings.GITHUB_TOKEN_ENCRYPTION_KEY
+    _GITHUB_USER_URL = "https://api.github.com/user"
+
+    async with async_session_factory() as db:
+        result = await db.execute(
+            select(User).where(User.github_access_token_enc.is_not(None))
+        )
+        users = result.scalars().all()
+
+        svc = NotificationService(db)
+        for user in users:
+            assert user.github_access_token_enc is not None
+            try:
+                if enc_key and user.github_token_iv:
+                    raw_token = decrypt_token(
+                        user.github_access_token_enc, user.github_token_iv, enc_key
+                    )
+                else:
+                    raw_token = user.github_access_token_enc
+            except Exception:
+                logger.warning(
+                    "validate_github_tokens: failed to decrypt token for user %s; clearing",
+                    user.id,
+                )
+                user.github_access_token_enc = None
+                user.github_token_iv = None
+                user.github_login = None
+                await db.commit()
+                continue
+
+            try:
+                async with httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.get(
+                        _GITHUB_USER_URL,
+                        headers={
+                            "Authorization": f"Bearer {raw_token}",
+                            "Accept": "application/vnd.github.v3+json",
+                        },
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "validate_github_tokens: network error for user %s: %s",
+                    user.id,
+                    exc,
+                )
+                continue
+
+            if resp.status_code == 401:
+                logger.info(
+                    "validate_github_tokens: revoked token for user %s; clearing",
+                    user.id,
+                )
+                user.github_access_token_enc = None
+                user.github_token_iv = None
+                user.github_login = None
+                await svc.send(
+                    user_id=user.id,
+                    trigger_type="github_token_revoked",
+                    title="GitHub account disconnected",
+                    body=(
+                        "Your GitHub token was revoked. "
+                        "Please re-link your GitHub account in Profile Settings."
+                    ),
+                    data={"action": "relink_github"},
+                )
+                await db.commit()
+
+
 def start_scheduler() -> None:
     scheduler.add_job(
         check_missing_days,
@@ -338,6 +411,14 @@ def start_scheduler() -> None:
         hour=0,
         minute=0,
         id="publish_teams_weekly_reports",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        validate_github_tokens,
+        trigger="cron",
+        hour=3,
+        minute=0,
+        id="validate_github_tokens",
         replace_existing=True,
     )
     scheduler.start()

@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = None
     OPENAI_API_BASE: str | None = None
     GITHUB_TOKEN: str | None = None
+    # GitHub OAuth account linking
+    GITHUB_CLIENT_ID: str | None = None
+    GITHUB_CLIENT_SECRET: str | None = None
+    GITHUB_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/github/callback"
+    # 32-byte hex key (64 hex chars) for AES-256-GCM token encryption at rest
+    GITHUB_TOKEN_ENCRYPTION_KEY: str | None = None
 
 
 settings = Settings()  # type: ignore[call-arg]  # env vars injected by pydantic-settings

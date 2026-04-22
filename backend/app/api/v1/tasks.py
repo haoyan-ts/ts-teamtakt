@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.core.deps import get_current_user, require_active_user
 from app.db.engine import get_db
 from app.db.models.task import Task, TaskStatus
@@ -18,7 +17,11 @@ from app.db.schemas.task import (
     TaskResponse,
     TaskUpdate,
 )
-from app.services.github_autofill import fetch_github_issue, map_to_task_fields
+from app.services.github_autofill import (
+    GitHubTokenRevokedError,
+    fetch_github_issue,
+    map_to_task_fields,
+)
 
 router = APIRouter(tags=["tasks"])
 
@@ -141,7 +144,11 @@ async def task_autofill(
 ):
     """Fetch a GitHub issue and return prefill data for task creation."""
     try:
-        issue = await fetch_github_issue(url, github_token=settings.GITHUB_TOKEN)
+        issue = await fetch_github_issue(url, user=current_user, db=db)
+    except GitHubTokenRevokedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
