@@ -81,3 +81,6 @@ Desktop.ini
 *.tmp
 *.orig
 *.rej
+
+# GitHub local skills
+.github/skills/
