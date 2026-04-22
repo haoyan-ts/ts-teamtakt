@@ -9,7 +9,6 @@ Channels:
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,8 +18,6 @@ from app.db.models.notification_preference import (
     TRIGGER_DEFAULTS,
     NotificationPreference,
 )
-
-_SOCIAL_BATCH_WINDOW_MINUTES = 15
 
 
 class NotificationService:
@@ -61,53 +58,6 @@ class NotificationService:
             pass
 
         return notif
-
-    async def send_batched(
-        self,
-        *,
-        user_id: uuid.UUID,
-        trigger_type: str,
-        title_template: str,
-        body_template: str | None = None,
-        data: dict | None = None,
-    ) -> Notification:
-        """
-        Batch logic for social_reaction trigger.
-        If a notification already exists for this user/trigger within the batch
-        window, increment batch_count. Otherwise create a new one.
-        """
-        window_start = datetime.now(UTC) - timedelta(
-            minutes=_SOCIAL_BATCH_WINDOW_MINUTES
-        )
-        r = await self._db.execute(
-            select(Notification)
-            .where(
-                Notification.user_id == user_id,
-                Notification.trigger_type == trigger_type,
-                Notification.is_read.is_(False),
-                Notification.created_at >= window_start,
-            )
-            .order_by(Notification.created_at.desc())
-            .limit(1)
-        )
-        existing = r.scalar_one_or_none()
-
-        if existing:
-            existing.batch_count += 1
-            count = existing.batch_count
-            existing.title = title_template.format(count=count)
-            if body_template:
-                existing.body = body_template.format(count=count)
-            await self._db.flush()
-            return existing
-
-        return await self.send(
-            user_id=user_id,
-            trigger_type=trigger_type,
-            title=title_template.format(count=1),
-            body=body_template.format(count=1) if body_template else None,
-            data=data,
-        )
 
     async def _get_or_default(
         self, user_id: uuid.UUID, trigger_type: str

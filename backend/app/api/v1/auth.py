@@ -11,9 +11,9 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.social import limiter
 from app.config import settings
 from app.core.deps import get_current_user
+from app.core.limiter import limiter
 from app.core.security import create_access_token, verify_password
 from app.db.engine import get_db
 from app.db.models.team import Team, TeamMembership
