@@ -39,7 +39,6 @@ Closes #
 - [ ] WebSocket visibility uses the same filter as REST
 - [ ] `carried_from_id` is immutable after creation (not set or mutated here)
 - [ ] Exactly one `is_primary=true` tag per TaskEntry enforced (if task entry code touched)
-- [ ] DailyRecord ↔ Absence mutual exclusion checked (if record creation/update touched)
 - [ ] Soft-delete pattern used (no hard-delete on controlled lists)
 - [ ] LLM user content injected in `<user_data>` delimiters (if LLM code touched)
 - [ ] N/A — none of the above apply to this change

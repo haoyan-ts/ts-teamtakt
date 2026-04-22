@@ -3,8 +3,8 @@ APScheduler jobs for time-based notification triggers.
 
 Jobs:
   - check_missing_days: daily at 10:00 JST
-      For each active user, if the previous working day has no DailyRecord
-      and no Absence, send a missing_day notification.
+      For each active user, if the previous working day has no DailyRecord,
+      send a missing_day notification.
   - check_edit_window_closing: Friday at 17:00 JST
       For each user whose current-week records are incomplete and whose
       edit window is still open, send an edit_window_closing notification.
@@ -20,7 +20,6 @@ from sqlalchemy import select
 
 from app.core.working_days import is_working_day_db
 from app.db.engine import async_session_factory
-from app.db.models.absence import Absence
 from app.db.models.daily_record import DailyRecord
 from app.db.models.team import TeamMembership
 from app.db.models.user import User
@@ -72,13 +71,7 @@ async def check_missing_days() -> None:
                     DailyRecord.record_date == prev,
                 )
             )
-            has_absence = await db.scalar(
-                select(Absence).where(
-                    Absence.user_id == user.id,
-                    Absence.record_date == prev,
-                )
-            )
-            if has_record is None and has_absence is None:
+            if has_record is None:
                 await svc.send(
                     user_id=user.id,
                     trigger_type="missing_day",
@@ -109,7 +102,7 @@ async def check_edit_window_closing() -> None:
 
         svc = NotificationService(db)
         for user in users:
-            # Count working days in current week that have a record OR absence
+            # Count working days in current week that have a record
             submitted = 0
             missing_dates: list[date] = []
             for offset in range(5):  # Mon–Fri
@@ -124,13 +117,7 @@ async def check_edit_window_closing() -> None:
                         DailyRecord.record_date == day,
                     )
                 )
-                has_absence = await db.scalar(
-                    select(Absence).where(
-                        Absence.user_id == user.id,
-                        Absence.record_date == day,
-                    )
-                )
-                if has_record is not None or has_absence is not None:
+                if has_record is not None:
                     submitted += 1
                 else:
                     missing_dates.append(day)

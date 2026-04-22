@@ -4,19 +4,14 @@ import {
   createDailyRecord,
   updateDailyRecord,
   getDailyRecords,
-  createAbsence,
-  deleteAbsence,
-  getAbsences,
   getUnlockGrants,
 } from '../api/dailyRecords';
 import { getActiveTasks, getTask } from '../api/tasks';
 import { getCategories, getSelfAssessmentTags, getBlockerTypes } from '../api/categories';
-import { getAbsenceTypes } from '../api/absenceTypes';
 import { getProjects } from '../api/projects';
 import { WorkLogRow } from '../components/tasks/WorkLogRow';
 import { TaskCreateModal } from '../components/tasks/TaskCreateModal';
 import type {
-  AbsenceType,
   Category,
   SelfAssessmentTag,
   BlockerType,
@@ -24,7 +19,6 @@ import type {
   Task,
   DailyRecord,
   DailyWorkLogFormEntry,
-  Absence,
   UnlockGrant,
 } from '../types/dailyRecord';
 
@@ -147,16 +141,12 @@ export const DailyFormPage = () => {
   const [tags, setTags] = useState<SelfAssessmentTag[]>([]);
   const [blockerTypes, setBlockerTypes] = useState<BlockerType[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [absenceTypes, setAbsenceTypes] = useState<AbsenceType[]>([]);
 
   // Record state
   const [existingRecord, setExistingRecord] = useState<DailyRecord | null>(null);
-  const [existingAbsence, setExistingAbsence] = useState<Absence | null>(null);
   const [unlockGrant, setUnlockGrant] = useState<UnlockGrant | null>(null);
 
   // Form fields
-  const [isAbsenceMode, setIsAbsenceMode] = useState(false);
-  const [absenceType, setAbsenceType] = useState<string>('holiday');
   const [workLogs, setWorkLogs] = useState<DailyWorkLogFormEntry[]>([]);
   const [dayLoad, setDayLoad] = useState(50);
   const [dayInsight, setDayInsight] = useState('');
@@ -190,11 +180,7 @@ export const DailyFormPage = () => {
     setError(null);
     // Reset all date-specific state so stale data from a previous date never lingers.
     setExistingRecord(null);
-    setExistingAbsence(null);
     setUnlockGrant(null);
-    setIsAbsenceMode(false);
-    setAbsenceTypes([]);
-    setAbsenceType('');
     setWorkLogs([]);
     setDayLoad(50);
     setDayInsight('');
@@ -204,15 +190,13 @@ export const DailyFormPage = () => {
     isDirty.current = false;
     (async () => {
       try {
-        const [cats, tagList, btList, projs, absenceTypeList, records, absences, grants, activeTasks] =
+        const [cats, tagList, btList, projs, records, grants, activeTasks] =
           await Promise.all([
             getCategories(),
             getSelfAssessmentTags(),
             getBlockerTypes(),
             getProjects(),
-            getAbsenceTypes(),
             getDailyRecords({ date: recordDate }),
-            getAbsences({ start_date: recordDate, end_date: recordDate }),
             getUnlockGrants({ record_date: recordDate }),
             getActiveTasks(),
           ]);
@@ -220,8 +204,6 @@ export const DailyFormPage = () => {
         setTags(tagList);
         setBlockerTypes(btList);
         setProjects(projs);
-        setAbsenceTypes(absenceTypeList);
-        setAbsenceType(absenceTypeList[0]?.id ?? '');
 
         if (records.length > 0) {
           const rec = records[0];
@@ -276,12 +258,6 @@ export const DailyFormPage = () => {
           setWorkLogs([...savedLogRows, ...newBlankRows]);
         } else {
           setWorkLogs(activeTasks.map(taskToBlankLog));
-        }
-
-        if (absences.length > 0) {
-          setExistingAbsence(absences[0]);
-          setIsAbsenceMode(true);
-          setAbsenceType(absences[0].absence_type.id);
         }
 
         const activeGrant = grants.find((g) => g.revoked_at === null);
@@ -373,52 +349,6 @@ export const DailyFormPage = () => {
     },
     [workLogs, autoSaveRecord]
   );
-
-  // Toggle absence mode
-  const toggleAbsence = async () => {
-    if (isAbsenceMode) {
-      // Remove absence
-      if (existingAbsence) {
-        try {
-          await deleteAbsence(
-            existingAbsence.id,
-            formOpenedAt.current.toISOString()
-          );
-          setExistingAbsence(null);
-        } catch {
-          setError('Failed to remove absence.');
-          return;
-        }
-      }
-      setIsAbsenceMode(false);
-    } else {
-      // Switch to absence mode — show controls
-      setIsAbsenceMode(true);
-    }
-  };
-
-  // Save absence directly
-  const saveAbsence = async () => {
-    if (existingAbsence) return; // already saved
-    setSaving(true);
-    setError(null);
-    try {
-      const abs = await createAbsence({
-        record_date: recordDate,
-        absence_type_id: absenceType,
-        form_opened_at: formOpenedAt.current.toISOString(),
-      });
-      setExistingAbsence(abs);
-      setSuccessMsg('Absence recorded.');
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-        'Failed to record absence.';
-      setError(msg);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // Save daily record
   const handleSubmit = async (e: React.FormEvent) => {
@@ -556,51 +486,8 @@ export const DailyFormPage = () => {
         </div>
       )}
 
-      {/* Absence toggle */}
-      <div style={s.absenceRow}>
-        <button
-          type="button"
-          onClick={toggleAbsence}
-          disabled={!!existingRecord}
-          style={{
-            ...s.absenceToggle,
-            background: isAbsenceMode ? 'var(--primary)' : 'var(--border)',
-            color: isAbsenceMode ? '#fff' : 'var(--text-h)',
-          }}
-        >
-          {isAbsenceMode ? '✓ Marked as Absence' : 'Mark as Absence'}
-        </button>
-        {isAbsenceMode && !existingAbsence && (
-          <>
-            <select
-              value={absenceType}
-              onChange={(e) => setAbsenceType(e.target.value)}
-              style={{ ...s.select, marginLeft: '0.75rem', width: 'auto' }}
-            >
-              {absenceTypes.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={saveAbsence}
-              disabled={saving || !isEditable}
-              style={{ ...s.saveBtn, marginLeft: '0.75rem' }}
-            >
-              {saving ? 'Saving…' : 'Save Absence'}
-            </button>
-          </>
-        )}
-        {existingAbsence && (
-          <span style={{ marginLeft: '0.75rem', color: 'var(--text-secondary)' }}>
-            Type: {existingAbsence.absence_type.name}
-          </span>
-        )}
-      </div>
-
-      {/* Daily record form (hidden when absence mode is active & confirmed) */}
-      {!existingAbsence && !isAbsenceMode && (
-        <form onSubmit={handleSubmit}>
+      {/* Daily record form */}
+      <form onSubmit={handleSubmit}>
           {/* Work Logs (one per active task) */}
           <div style={s.sectionHeader}>
             <h3 style={s.sectionTitle}>Today's Tasks</h3>
@@ -760,7 +647,6 @@ export const DailyFormPage = () => {
             )}
           </div>
         </form>
-      )}
 
       {/* Task create modal — rendered outside <form> to avoid nested form HTML */}
       <TaskCreateModal
@@ -801,24 +687,6 @@ export const DailyFormPage = () => {
         </div>
       )}
 
-      {/* Absence confirmed — show summary */}
-      {existingAbsence && (
-        <div style={s.absenceSummary}>
-          <p>
-            This day is recorded as an absence (
-            <strong>{existingAbsence.absence_type.name}</strong>).
-          </p>
-          {isEditable && (
-            <button
-              type="button"
-              onClick={toggleAbsence}
-              style={{ ...s.navBtn, marginTop: '0.5rem', color: 'var(--error)' }}
-            >
-              Remove absence
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 };
@@ -857,26 +725,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '6px',
     marginBottom: '1rem',
     fontWeight: 500,
-  },
-  absenceRow: {
-    display: 'flex',
-    alignItems: 'center',
-    marginBottom: '1.25rem',
-    flexWrap: 'wrap',
-    gap: '0.5rem',
-  },
-  absenceToggle: {
-    padding: '0.4rem 0.8rem',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 500,
-  },
-  absenceSummary: {
-    background: 'var(--bg-info)',
-    border: '1px solid var(--border)',
-    borderRadius: '6px',
-    padding: '1rem',
   },
   sectionHeader: {
     display: 'flex',

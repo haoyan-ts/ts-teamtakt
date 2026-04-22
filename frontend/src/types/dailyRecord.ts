@@ -26,12 +26,6 @@ export interface BlockerType {
   is_active: boolean;
 }
 
-export interface AbsenceType {
-  id: string;
-  name: string;
-  is_active: boolean;
-}
-
 export interface Project {
   id: string;
   name: string;
@@ -108,15 +102,6 @@ export interface DailyRecord {
   created_at: string;
   updated_at: string;
   daily_work_logs: DailyWorkLog[];
-}
-
-export interface Absence {
-  id: string;
-  user_id: string;
-  record_date: string;
-  absence_type: AbsenceType;
-  note: string | null;
-  created_at: string;
 }
 
 export interface UnlockGrant {

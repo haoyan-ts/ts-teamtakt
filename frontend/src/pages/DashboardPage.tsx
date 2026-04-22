@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { getDailyRecords, getAbsences, getEffortBreakdown } from '../api/dailyRecords';
+import { getDailyRecords, getEffortBreakdown } from '../api/dailyRecords';
 import { getActiveTasks } from '../api/tasks';
 import { getCategories } from '../api/categories';
 import { getTeamMembers } from '../api/teams';
@@ -52,11 +52,10 @@ const PIE_COLORS = ['#3182ce', '#48bb78', '#ed8936', '#9f7aea', '#e53e3e', '#38b
 
 interface TodayStatusCardProps {
   records: DailyRecord[];
-  isAbsent: boolean;
   today: string;
 }
 
-const TodayStatusCard = ({ records, isAbsent, today }: TodayStatusCardProps) => {
+const TodayStatusCard = ({ records, today }: TodayStatusCardProps) => {
   const navigate = useNavigate();
   const todayRecord = records.find((r) => r.record_date === today);
 
@@ -64,11 +63,7 @@ const TodayStatusCard = ({ records, isAbsent, today }: TodayStatusCardProps) => 
   let bgColor = 'var(--bg-tertiary)';
   let borderColor = 'var(--border)';
 
-  if (isAbsent) {
-    label = 'Absent today';
-    bgColor = 'var(--bg-info)';
-    borderColor = 'var(--border)';
-  } else if (todayRecord) {
+  if (todayRecord) {
     label = `${todayRecord.daily_work_logs.length} tasks — battery ${todayRecord.day_load !== null ? todayRecord.day_load + '%' : '—'}`;
     bgColor = 'var(--success-bg)';
     borderColor = 'var(--border)';
@@ -401,7 +396,6 @@ export const DashboardPage = () => {
   const [records, setRecords] = useState<DailyRecord[]>([]);
   const [activeTasks, setActiveTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [isAbsent, setIsAbsent] = useState(false);
   const [breakdown, setBreakdown] = useState<DailyEffortBreakdown | null>(null);
   const [breakdownLoading, setBreakdownLoading] = useState(true);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -413,13 +407,11 @@ export const DashboardPage = () => {
       getDailyRecords({ start_date: fourWeeksAgo, end_date: today }),
       getActiveTasks(),
       getCategories(),
-      getAbsences({ start_date: today, end_date: today }),
     ])
-      .then(([recs, active, cats, abs]) => {
+      .then(([recs, active, cats]) => {
         setRecords(recs);
         setActiveTasks(active);
         setCategories(cats);
-        setIsAbsent(abs.length > 0);
       })
       .catch(() => setError('Failed to load dashboard data.'))
       .finally(() => setLoading(false));
@@ -448,7 +440,7 @@ export const DashboardPage = () => {
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto' }}>
       <h2 style={{ marginBottom: '1rem' }}>My Dashboard</h2>
-      <TodayStatusCard records={records} isAbsent={isAbsent} today={today} />
+      <TodayStatusCard records={records} today={today} />
       <div style={grid}>
         <RunningBlockedCard tasks={activeTasks} categories={categories} />
         <WeeklySummaryCard records={records} categories={categories} weekStart={weekStart} />

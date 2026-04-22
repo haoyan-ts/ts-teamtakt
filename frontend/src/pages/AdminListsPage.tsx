@@ -17,12 +17,6 @@ import {
 import { getAdminSettings, updateAdminSettings } from '../api/adminSettings';
 import type { AdminSettingsData } from '../api/adminSettings';
 import type { Category, BlockerType, SelfAssessmentTag } from '../types/dailyRecord';
-import {
-  getAbsenceTypes,
-  createAbsenceType,
-  updateAbsenceType,
-} from '../api/absenceTypes';
-import type { AbsenceType } from '../types/dailyRecord';
 
 // ---------------------------------------------------------------------------
 // Confirmation dialog helper (inline, no library)
@@ -333,73 +327,6 @@ function TagsSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => voi
 }
 
 // ---------------------------------------------------------------------------
-// Absence types section
-// ---------------------------------------------------------------------------
-
-function AbsenceTypesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => void }) {
-  const { t } = useTranslation();
-  const [types, setTypes] = useState<AbsenceType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [newName, setNewName] = useState('');
-
-  const reload = () =>
-    getAbsenceTypes(true).then(setTypes).finally(() => setLoading(false));
-
-  useEffect(() => { reload(); }, []);
-
-  const add = async () => {
-    const name = newName.trim();
-    if (!name) return;
-    await createAbsenceType({ name });
-    setNewName('');
-    reload();
-  };
-
-  const toggle = async (at: AbsenceType) => {
-    await updateAbsenceType(at.id, { is_active: !at.is_active });
-    reload();
-  };
-
-  if (loading) return <p>{t('adminLists.loading')}</p>;
-
-  return (
-    <section style={sectionStyle}>
-      <h3 style={sectionTitle}>{t('adminLists.absenceTypes.title')}</h3>
-      <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-        {types.map((at) => (
-          <li
-            key={at.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.35rem 0',
-              borderBottom: '1px solid var(--border-subtle)',
-              opacity: at.is_active ? 1 : 0.5,
-            }}
-          >
-            <span style={{ flex: 1 }}>{at.name}</span>
-            <button style={tinyBtn} onClick={() => toggle(at)}>
-              {at.is_active ? t('adminLists.absenceTypes.deactivate') : t('adminLists.absenceTypes.activate')}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-        <input
-          style={inputStyle}
-          placeholder={t('adminLists.absenceTypes.newPlaceholder')}
-          value={newName}
-          onChange={(e) => { setNewName(e.target.value); onDirtyChange(!!e.target.value.trim()); }}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-        />
-        <button style={primaryBtn} onClick={add}>{t('adminLists.absenceTypes.add')}</button>
-      </div>
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Output language section
 // ---------------------------------------------------------------------------
 
@@ -476,8 +403,7 @@ export const AdminListsPage = () => {
   const [catDirty, setCatDirty] = useState(false);
   const [blockerDirty, setBlockerDirty] = useState(false);
   const [tagDirty, setTagDirty] = useState(false);
-  const [absenceDirty, setAbsenceDirty] = useState(false);
-  const isDirty = catDirty || blockerDirty || tagDirty || absenceDirty;
+  const isDirty = catDirty || blockerDirty || tagDirty;
 
   const handleBack = () => {
     if (isDirty && !window.confirm(t('adminLists.unsavedWarning'))) return;
@@ -496,7 +422,6 @@ export const AdminListsPage = () => {
       <AdminSettingsSection />
       <CategoriesSection onDirtyChange={setCatDirty} />
       <BlockerTypesSection onDirtyChange={setBlockerDirty} />
-      <AbsenceTypesSection onDirtyChange={setAbsenceDirty} />
       <TagsSection onDirtyChange={setTagDirty} />
     </div>
   );

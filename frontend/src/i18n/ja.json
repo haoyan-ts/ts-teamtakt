@@ -79,13 +79,6 @@
       "outputLanguageLabel": "出力言語",
       "saving": "保存中…",
       "description": "週次メールおよび四半期レポートに適用されます。UI言語はユーザーごとに設定されます。"
-    },
-    "absenceTypes": {
-      "title": "欠勤タイプ",
-      "deactivate": "無効化",
-      "activate": "有効化",
-      "newPlaceholder": "新しい欠勤タイプ",
-      "add": "追加"
     }
   }
 }

@@ -14,8 +14,8 @@ from app.core.validators import validate_self_assessment_tags
 from app.core.visibility import apply_visibility_filter, is_record_fully_visible
 from app.core.working_days import count_working_days
 from app.db.engine import get_db
-from app.db.models.absence import Absence, UnlockGrant
 from app.db.models.daily_record import DailyRecord
+from app.db.models.grants import UnlockGrant
 from app.db.models.task import DailyWorkLog, DailyWorkLogSelfAssessmentTag, Task
 from app.db.models.team import TeamMembership, TeamSettings
 from app.db.models.user import User
@@ -267,19 +267,6 @@ async def create_daily_record(
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Check mutual exclusion with Absence
-    absence_check = await db.scalar(
-        select(Absence).where(
-            Absence.user_id == current_user.id,
-            Absence.record_date == body.record_date,
-        )
-    )
-    if absence_check is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An absence is already recorded for this date. Remove it first.",
-        )
-
     # Check for duplicate daily record
     dup_check = await db.scalar(
         select(DailyRecord).where(
