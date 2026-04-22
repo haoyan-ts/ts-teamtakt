@@ -28,11 +28,11 @@ export async function getUnreadCount(): Promise<number> {
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  await client.post(`/notifications/${id}/read`);
+  await client.patch(`/notifications/${id}/read`);
 }
 
 export async function markAllRead(): Promise<void> {
-  await client.post('/notifications/mark-all-read');
+  await client.post('/notifications/read-all');
 }
 
 export async function getNotificationPreferences(): Promise<NotificationPreference[]> {
