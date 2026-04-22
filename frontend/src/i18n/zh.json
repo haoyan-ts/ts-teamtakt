@@ -34,6 +34,9 @@
     "saving": "保存中…",
     "saved": "已保存 ✓",
     "saveError": "保存失败，请重试。",
+    "avatarSync": "从MS365同步头像",
+    "avatarSyncing": "同步中…",
+    "avatarSyncError": "无法同步头像，请重试。",
     "permissions": {
       "title": "已连接的权限",
       "connected": "已连接",

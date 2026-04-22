@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getCurrentUser, disconnectMs365, updateUserProfile } from '../api/users';
+import { getCurrentUser, disconnectMs365, updateUserProfile, syncAvatarFromMs365 } from '../api/users';
 import { useAuthStore } from '../stores/authStore';
 
 const LOCALES = ['en', 'ja', 'zh', 'ko'] as const;
@@ -16,6 +16,8 @@ export const ProfileSettingsPage = () => {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [ms365Disconnecting, setMs365Disconnecting] = useState(false);
+  const [avatarSyncing, setAvatarSyncing] = useState(false);
+  const [avatarSyncError, setAvatarSyncError] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -67,6 +69,19 @@ export const ProfileSettingsPage = () => {
     }
   };
 
+  const handleSyncAvatar = async () => {
+    setAvatarSyncing(true);
+    setAvatarSyncError('');
+    try {
+      const { avatar_url } = await syncAvatarFromMs365();
+      if (user) setUser({ ...user, avatar_url });
+    } catch {
+      setAvatarSyncError(t('profile.avatarSyncError'));
+    } finally {
+      setAvatarSyncing(false);
+    }
+  };
+
   const labelStyle: React.CSSProperties = {
     display: 'block',
     marginBottom: '0.35rem',
@@ -91,6 +106,51 @@ export const ProfileSettingsPage = () => {
       <h1 style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.25rem' }}>
         {t('profile.title')}
       </h1>
+
+      {/* Avatar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+        {user?.avatar_url ? (
+          <img
+            src={user.avatar_url}
+            alt={user.display_name}
+            style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }}
+          />
+        ) : (
+          <div style={{
+            width: 64, height: 64, borderRadius: '50%',
+            background: 'var(--bg-secondary)', border: '2px solid var(--border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '1.75rem', color: 'var(--text-muted)',
+          }}>
+            {user?.display_name?.[0]?.toUpperCase() ?? '?'}
+          </div>
+        )}
+        <div>
+          {user?.ms365_connected && (
+            <button
+              onClick={handleSyncAvatar}
+              disabled={avatarSyncing}
+              style={{
+                padding: '0.35rem 0.9rem',
+                fontSize: '0.82rem',
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                cursor: avatarSyncing ? 'not-allowed' : 'pointer',
+                opacity: avatarSyncing ? 0.6 : 1,
+                color: 'var(--text-body)',
+              }}
+            >
+              {avatarSyncing ? t('profile.avatarSyncing') : t('profile.avatarSync')}
+            </button>
+          )}
+          {avatarSyncError && (
+            <div style={{ marginTop: '0.35rem', fontSize: '0.8rem', color: 'var(--error)' }}>
+              {avatarSyncError}
+            </div>
+          )}
+        </div>
+      </div>
 
       <div style={{ marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
         {t('profile.email')}: {user?.email ?? '—'}

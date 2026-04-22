@@ -21,6 +21,8 @@ class User(Base):
     )
     # MS Graph API delegated token for Mail.Send (stored as opaque encrypted string in prod)
     ms_graph_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Profile picture stored as a base64 data URL (synced from MS365)
+    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Local (non-SSO) login support — only the seeded admin account uses these
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     allow_local_login: Mapped[bool] = mapped_column(

@@ -34,6 +34,9 @@
     "saving": "保存中…",
     "saved": "保存しました ✓",
     "saveError": "保存に失敗しました。もう一度お試しください。",
+    "avatarSync": "MS365から写真を同期",
+    "avatarSyncing": "同期中…",
+    "avatarSyncError": "写真の同期に失敗しました。もう一度お試しください。",
     "permissions": {
       "title": "連携済みの権限",
       "connected": "連携済み",

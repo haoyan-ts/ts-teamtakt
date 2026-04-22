@@ -19,6 +19,7 @@ from app.core.security import create_access_token, verify_password, verify_token
 from app.db.engine import get_db
 from app.db.models.team import Team, TeamMembership
 from app.db.models.user import User
+from app.services.graph_auth import MS365_GRAPH_SCOPE
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -61,11 +62,7 @@ def _verify_ms365_state(state: str) -> str | None:
         return None
 
 
-_MS365_GRAPH_SCOPE = (
-    "https://graph.microsoft.com/Mail.Send "
-    "https://graph.microsoft.com/ChannelMessage.Send "
-    "offline_access"
-)
+_MS365_GRAPH_SCOPE = MS365_GRAPH_SCOPE
 
 
 def _verify_state(state: str) -> bool:
@@ -227,6 +224,7 @@ async def me(
 # ---------------------------------------------------------------------------
 # MS365 delegated-permission connect / disconnect
 # ---------------------------------------------------------------------------
+
 
 @router.get("/ms365/connect")
 async def ms365_connect(

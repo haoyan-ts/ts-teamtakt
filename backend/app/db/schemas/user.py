@@ -14,6 +14,7 @@ class UserResponse(BaseModel):
     is_leader: bool
     is_admin: bool
     preferred_locale: str
+    avatar_url: str | None = None
     created_at: datetime | None = None
     team: dict | None = None
 

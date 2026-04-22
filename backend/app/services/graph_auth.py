@@ -6,11 +6,24 @@ Provides token refresh used by both graph_mail and graph_teams.
 
 from __future__ import annotations
 
+import base64
+
 import httpx
 
 from app.config import settings
 
 _GRAPH_TOKEN_URL = "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+_GRAPH_PHOTO_URL = "https://graph.microsoft.com/v1.0/me/photo/$value"
+
+# Single consent scope used for all delegated Graph operations.
+# User.Read is required for /me/photo; Mail.Send and ChannelMessage.Send for
+# outbound notifications.
+MS365_GRAPH_SCOPE = (
+    "https://graph.microsoft.com/Mail.Send "
+    "https://graph.microsoft.com/ChannelMessage.Send "
+    "https://graph.microsoft.com/User.Read "
+    "offline_access"
+)
 
 
 async def refresh_graph_token(refresh_token: str, scope: str) -> tuple[str, str]:
@@ -34,4 +47,31 @@ async def refresh_graph_token(refresh_token: str, scope: str) -> tuple[str, str]
     if resp.status_code != 200:
         raise RuntimeError(f"Token refresh failed: {resp.text}")
     data = resp.json()
-    return data["access_token"], data["refresh_token"]
+    new_refresh = data.get("refresh_token") or refresh_token
+    return data["access_token"], new_refresh
+
+
+async def fetch_ms365_avatar(refresh_token: str) -> tuple[str, str]:
+    """
+    Fetch the MS365 profile photo for the authenticated user.
+    Returns (data_url, new_refresh_token).
+    The data_url is a base64-encoded data URI (e.g. 'data:image/jpeg;base64,...').
+    Raises RuntimeError if no photo is available or fetch fails.
+    """
+    access_token, new_refresh_token = await refresh_graph_token(
+        refresh_token, MS365_GRAPH_SCOPE
+    )
+    async with httpx.AsyncClient(timeout=30) as http:
+        resp = await http.get(
+            _GRAPH_PHOTO_URL,
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+    if resp.status_code == 404:
+        raise RuntimeError("No profile photo set in MS365")
+    if resp.status_code != 200:
+        raise RuntimeError(f"Failed to fetch profile photo: {resp.status_code}")
+
+    content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+    encoded = base64.b64encode(resp.content).decode("ascii")
+    data_url = f"data:{content_type};base64,{encoded}"
+    return data_url, new_refresh_token

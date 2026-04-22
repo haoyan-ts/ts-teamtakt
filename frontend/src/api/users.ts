@@ -12,6 +12,7 @@ export interface User {
   is_leader: boolean;
   is_admin: boolean;
   preferred_locale: string;
+  avatar_url: string | null;
   created_at: string | null;
   team: UserTeam | null;
 }
@@ -56,4 +57,9 @@ export async function updateUserProfile(payload: UserProfileUpdate): Promise<Cur
 
 export async function disconnectMs365(): Promise<void> {
   await client.delete('/auth/ms365/disconnect');
+}
+
+export async function syncAvatarFromMs365(): Promise<{ avatar_url: string }> {
+  const res = await client.post<{ avatar_url: string }>('/users/me/sync-avatar');
+  return res.data;
 }

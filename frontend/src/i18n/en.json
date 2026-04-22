@@ -34,6 +34,9 @@
     "saving": "Saving…",
     "saved": "Saved ✓",
     "saveError": "Save failed. Please try again.",
+    "avatarSync": "Sync photo from MS365",
+    "avatarSyncing": "Syncing…",
+    "avatarSyncError": "Could not sync photo. Please try again.",
     "permissions": {
       "title": "Connected Permissions",
       "connected": "Connected",
