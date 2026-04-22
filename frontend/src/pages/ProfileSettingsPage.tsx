@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { updateUserProfile } from '../api/users';
+import { getCurrentUser, disconnectMs365, updateUserProfile } from '../api/users';
 import { useAuthStore } from '../stores/authStore';
 
 const LOCALES = ['en', 'ja', 'zh', 'ko'] as const;
@@ -8,13 +8,14 @@ const LOCALE_LABELS: Record<string, string> = { en: 'English', ja: '日本語', 
 
 export const ProfileSettingsPage = () => {
   const { t } = useTranslation();
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, token } = useAuthStore();
 
   const [displayName, setDisplayName] = useState('');
   const [locale, setLocale] = useState('en');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [ms365Disconnecting, setMs365Disconnecting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -22,6 +23,15 @@ export const ProfileSettingsPage = () => {
       setLocale(user.preferred_locale);
     }
   }, [user]);
+
+  // Refresh user data when returning from MS365 OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('ms365') === 'connected') {
+      getCurrentUser().then(setUser).catch(() => undefined);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [setUser]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -39,6 +49,21 @@ export const ProfileSettingsPage = () => {
       setError(t('profile.saveError'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleMs365Connect = () => {
+    if (!token) return;
+    window.location.href = `/api/v1/auth/ms365/connect?token=${encodeURIComponent(token)}`;
+  };
+
+  const handleMs365Disconnect = async () => {
+    setMs365Disconnecting(true);
+    try {
+      await disconnectMs365();
+      if (user) setUser({ ...user, ms365_connected: false });
+    } finally {
+      setMs365Disconnecting(false);
     }
   };
 
@@ -125,6 +150,104 @@ export const ProfileSettingsPage = () => {
           {t('profile.saved')}
         </span>
       )}
+
+      {/* ── Permissions ─────────────────────────────────────────────────── */}
+      <hr style={{ margin: '2rem 0', border: 'none', borderTop: '1px solid var(--border)' }} />
+      <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1rem' }}>
+        {t('profile.permissions.title')}
+      </h2>
+
+      {/* MS365 */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
+          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+            {t('profile.permissions.ms365.label')}
+          </span>
+          {user?.ms365_connected ? (
+            <span style={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              padding: '0.15rem 0.55rem',
+              borderRadius: '99px',
+              background: 'var(--success-bg, #d1fae5)',
+              color: 'var(--success, #065f46)',
+            }}>
+              {t('profile.permissions.connected')}
+            </span>
+          ) : (
+            <span style={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              padding: '0.15rem 0.55rem',
+              borderRadius: '99px',
+              background: 'var(--warning-bg, #fef3c7)',
+              color: 'var(--warning, #92400e)',
+            }}>
+              {t('profile.permissions.notConnected')}
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+          {t('profile.permissions.ms365.description')}
+        </div>
+        {user?.ms365_connected ? (
+          <button
+            onClick={handleMs365Disconnect}
+            disabled={ms365Disconnecting}
+            style={{
+              padding: '0.4rem 1rem',
+              fontSize: '0.85rem',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              cursor: ms365Disconnecting ? 'not-allowed' : 'pointer',
+              opacity: ms365Disconnecting ? 0.6 : 1,
+              color: 'var(--text-body)',
+            }}
+          >
+            {ms365Disconnecting ? t('profile.permissions.disconnecting') : t('profile.permissions.disconnect')}
+          </button>
+        ) : (
+          <button
+            onClick={handleMs365Connect}
+            style={{
+              padding: '0.4rem 1rem',
+              fontSize: '0.85rem',
+              background: 'var(--primary)',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              color: '#fff',
+              fontWeight: 600,
+            }}
+          >
+            {t('profile.permissions.connect')}
+          </button>
+        )}
+      </div>
+
+      {/* GitHub (future) */}
+      <div style={{ marginBottom: '1rem', opacity: 0.55 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
+          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+            {t('profile.permissions.github.label')}
+          </span>
+          <span style={{
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            padding: '0.15rem 0.55rem',
+            borderRadius: '99px',
+            background: 'var(--bg-secondary)',
+            color: 'var(--text-muted)',
+            border: '1px solid var(--border)',
+          }}>
+            {t('profile.permissions.comingSoon')}
+          </span>
+        </div>
+        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+          {t('profile.permissions.github.description')}
+        </div>
+      </div>
     </div>
   );
 };

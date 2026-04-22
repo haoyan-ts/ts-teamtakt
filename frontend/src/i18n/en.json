@@ -33,7 +33,24 @@
     "save": "Save",
     "saving": "Saving…",
     "saved": "Saved ✓",
-    "saveError": "Save failed. Please try again."
+    "saveError": "Save failed. Please try again.",
+    "permissions": {
+      "title": "Connected Permissions",
+      "connected": "Connected",
+      "notConnected": "Not connected",
+      "comingSoon": "Coming soon",
+      "connect": "Connect",
+      "disconnect": "Disconnect",
+      "disconnecting": "Disconnecting…",
+      "ms365": {
+        "label": "Microsoft 365",
+        "description": "Required to send weekly email reports and post to MS Teams channels on your behalf."
+      },
+      "github": {
+        "label": "GitHub",
+        "description": "Will enable auto-filling tasks from GitHub issues and pull requests."
+      }
+    }
   },
   "adminLists": {
     "pageTitle": "Controlled Lists (Admin)",

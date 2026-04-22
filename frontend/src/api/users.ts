@@ -18,6 +18,7 @@ export interface User {
 
 export interface CurrentUser extends User {
   lobby: boolean;
+  ms365_connected: boolean;
 }
 
 interface UserRoleUpdate {
@@ -51,4 +52,8 @@ export interface UserProfileUpdate {
 export async function updateUserProfile(payload: UserProfileUpdate): Promise<CurrentUser> {
   const res = await client.patch<CurrentUser>('/users/me', payload);
   return res.data;
+}
+
+export async function disconnectMs365(): Promise<void> {
+  await client.delete('/auth/ms365/disconnect');
 }

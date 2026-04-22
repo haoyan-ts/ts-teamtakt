@@ -39,6 +39,7 @@ async def get_me(
         "is_leader": current_user.is_leader,
         "is_admin": current_user.is_admin,
         "preferred_locale": current_user.preferred_locale,
+        "ms365_connected": current_user.ms_graph_refresh_token is not None,
         "team": team_data,
         "lobby": team_data is None,
     }

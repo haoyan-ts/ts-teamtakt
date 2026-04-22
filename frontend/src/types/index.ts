@@ -7,4 +7,5 @@ export interface User {
   preferred_locale: string;
   team: { id: string; name: string } | null;
   lobby: boolean;
+  ms365_connected: boolean;
 }

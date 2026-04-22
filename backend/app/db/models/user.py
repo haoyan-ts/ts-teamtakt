@@ -20,7 +20,7 @@ class User(Base):
         String(10), default="en", nullable=False
     )
     # MS Graph API delegated token for Mail.Send (stored as opaque encrypted string in prod)
-    ms_graph_refresh_token: Mapped[str] = mapped_column(Text, nullable=True)
+    ms_graph_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Local (non-SSO) login support — only the seeded admin account uses these
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     allow_local_login: Mapped[bool] = mapped_column(

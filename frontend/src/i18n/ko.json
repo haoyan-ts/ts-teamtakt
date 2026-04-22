@@ -33,6 +33,23 @@
     "save": "저장",
     "saving": "저장 중…",
     "saved": "저장됨 ✓",
-    "saveError": "저장에 실패했습니다. 다시 시도해 주세요."
+    "saveError": "저장에 실패했습니다. 다시 시도해 주세요.",
+    "permissions": {
+      "title": "연결된 권한",
+      "connected": "연결됨",
+      "notConnected": "미연결",
+      "comingSoon": "출시 예정",
+      "connect": "연결",
+      "disconnect": "연결 해제",
+      "disconnecting": "해제 중…",
+      "ms365": {
+        "label": "Microsoft 365",
+        "description": "주간 이메일 보고서 전송 및 MS Teams 채널 게시에 필요합니다."
+      },
+      "github": {
+        "label": "GitHub",
+        "description": "GitHub Issues 및 Pull Request에서 작업을 자동으로 채울 수 있습니다."
+      }
+    }
   }
 }

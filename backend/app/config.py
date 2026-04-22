@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     AZURE_CLIENT_ID: str
     AZURE_CLIENT_SECRET: str
     AZURE_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/callback"
+    AZURE_MS365_CONNECT_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/ms365/callback"
     FRONTEND_URL: str = "http://localhost:5173"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
     ADMIN_EMAIL: str | None = None
