@@ -106,9 +106,27 @@ export interface DailyRecord {
   day_load: number | null; // battery %, 0–100; null when visibility-stripped
   day_insight: string | null;
   form_opened_at: string;
+  is_checked: boolean;
+  teams_message_sent_at: string | null; // ISO datetime
+  email_sent_at: string | null;         // ISO datetime
+  is_locked: boolean;                   // computed by server
   created_at: string;
   updated_at: string;
   daily_work_logs: DailyWorkLog[];
+}
+
+export interface DailyStatusDraft {
+  subject: string;
+  body: string;
+}
+
+export interface TeamsSentResponse {
+  sent_at: string;
+  message_id: string | null;
+}
+
+export interface EmailSentResponse {
+  sent_at: string;
 }
 
 export interface UnlockGrant {
