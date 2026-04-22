@@ -53,7 +53,9 @@
       },
       "github": {
         "label": "GitHub",
-        "description": "Will enable auto-filling tasks from GitHub issues and pull requests."
+        "description": "Will enable auto-filling tasks from GitHub issues and pull requests.",
+        "connect": "Connect GitHub",
+        "connectedAs": "Connected as @{{login}}"
       }
     }
   },

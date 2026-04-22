@@ -53,7 +53,9 @@
       },
       "github": {
         "label": "GitHub",
-        "description": "GitHub Issues 및 Pull Request에서 작업을 자동으로 채울 수 있습니다."
+        "description": "GitHub Issues 및 Pull Request에서 작업을 자동으로 채울 수 있습니다.",
+        "connect": "GitHub 연결",
+        "connectedAs": "@{{login}}으로 연결됨"
       }
     }
   }

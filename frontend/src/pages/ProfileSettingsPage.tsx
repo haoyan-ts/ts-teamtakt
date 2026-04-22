@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getCurrentUser, disconnectMs365, ms365Reconnect, updateUserProfile, syncAvatarFromMs365 } from '../api/users';
+import { getCurrentUser, disconnectMs365, ms365Reconnect, updateUserProfile, syncAvatarFromMs365, connectGithub, unlinkGithub } from '../api/users';
 import { useAuthStore } from '../stores/authStore';
 
 const LOCALES = ['en', 'ja', 'zh', 'ko'] as const;
@@ -18,6 +18,7 @@ export const ProfileSettingsPage = () => {
   const [ms365Disconnecting, setMs365Disconnecting] = useState(false);
   const [avatarSyncing, setAvatarSyncing] = useState(false);
   const [avatarSyncError, setAvatarSyncError] = useState('');
+  const [githubUnlinking, setGithubUnlinking] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -30,6 +31,10 @@ export const ProfileSettingsPage = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('ms365') === 'connected') {
+      getCurrentUser().then(setUser).catch(() => undefined);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    if (params.get('github') === 'connected') {
       getCurrentUser().then(setUser).catch(() => undefined);
       window.history.replaceState({}, '', window.location.pathname);
     }
@@ -87,6 +92,21 @@ export const ProfileSettingsPage = () => {
       );
     } finally {
       setAvatarSyncing(false);
+    }
+  };
+
+  const handleGithubConnect = async () => {
+    const redirectUrl = await connectGithub();
+    window.location.href = redirectUrl;
+  };
+
+  const handleGithubUnlink = async () => {
+    setGithubUnlinking(true);
+    try {
+      await unlinkGithub();
+      if (user) setUser({ ...user, github_linked: false, github_login: null });
+    } finally {
+      setGithubUnlinking(false);
     }
   };
 
@@ -294,27 +314,78 @@ export const ProfileSettingsPage = () => {
         )}
       </div>
 
-      {/* GitHub (future) */}
-      <div style={{ marginBottom: '1rem', opacity: 0.55 }}>
+      {/* GitHub */}
+      <div style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
           <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
             {t('profile.permissions.github.label')}
           </span>
-          <span style={{
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            padding: '0.15rem 0.55rem',
-            borderRadius: '99px',
-            background: 'var(--bg-secondary)',
-            color: 'var(--text-muted)',
-            border: '1px solid var(--border)',
-          }}>
-            {t('profile.permissions.comingSoon')}
-          </span>
+          {user?.github_linked ? (
+            <span style={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              padding: '0.15rem 0.55rem',
+              borderRadius: '99px',
+              background: 'var(--success-bg, #d1fae5)',
+              color: 'var(--success, #065f46)',
+            }}>
+              {t('profile.permissions.connected')}
+            </span>
+          ) : (
+            <span style={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              padding: '0.15rem 0.55rem',
+              borderRadius: '99px',
+              background: 'var(--warning-bg, #fef3c7)',
+              color: 'var(--warning, #92400e)',
+            }}>
+              {t('profile.permissions.notConnected')}
+            </span>
+          )}
         </div>
-        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+        {user?.github_linked && user?.github_login && (
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+            {t('profile.permissions.github.connectedAs', { login: user.github_login })}
+          </div>
+        )}
+        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
           {t('profile.permissions.github.description')}
         </div>
+        {user?.github_linked ? (
+          <button
+            onClick={handleGithubUnlink}
+            disabled={githubUnlinking}
+            style={{
+              padding: '0.4rem 1rem',
+              fontSize: '0.85rem',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              cursor: githubUnlinking ? 'not-allowed' : 'pointer',
+              opacity: githubUnlinking ? 0.6 : 1,
+              color: 'var(--text-body)',
+            }}
+          >
+            {githubUnlinking ? t('profile.permissions.disconnecting') : t('profile.permissions.disconnect')}
+          </button>
+        ) : (
+          <button
+            onClick={handleGithubConnect}
+            style={{
+              padding: '0.4rem 1rem',
+              fontSize: '0.85rem',
+              background: 'var(--primary)',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              color: '#fff',
+              fontWeight: 600,
+            }}
+          >
+            {t('profile.permissions.github.connect')}
+          </button>
+        )}
       </div>
     </div>
   );

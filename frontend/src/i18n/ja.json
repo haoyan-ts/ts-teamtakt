@@ -53,7 +53,9 @@
       },
       "github": {
         "label": "GitHub",
-        "description": "GitHubのIssueやPull Requestからタスクを自動入力できるようになります。"
+        "description": "GitHubのIssueやPull Requestからタスクを自動入力できるようになります。",
+        "connect": "GitHubと連携",
+        "connectedAs": "@{{login}} として連携中"
       }
     }
   },

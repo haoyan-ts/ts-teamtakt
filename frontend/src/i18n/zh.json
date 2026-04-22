@@ -53,7 +53,9 @@
       },
       "github": {
         "label": "GitHub",
-        "description": "将支持从GitHub Issues和Pull Requests自动填充任务。"
+        "description": "将支持从GitHub Issues和Pull Requests自动填充任务。",
+        "connect": "连接 GitHub",
+        "connectedAs": "已连接为 @{{login}}"
       }
     }
   }
