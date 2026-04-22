@@ -37,7 +37,7 @@ export async function getTeamsConfig(teamId: string): Promise<TeamsConfigData | 
 
 export async function upsertTeamsConfig(
   teamId: string,
-  payload: { teams_team_id?: string; teams_channel_id?: string },
+  payload: { teams_team_id: string | null; teams_channel_id: string | null },
 ): Promise<TeamsConfigData> {
   const res = await client.put<TeamsConfigData>(`/admin/teams-config/${teamId}`, payload);
   return res.data;

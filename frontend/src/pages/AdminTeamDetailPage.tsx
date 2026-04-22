@@ -255,8 +255,8 @@ function TeamsChannelSection({ teamId }: { teamId: string }) {
     setSaved(false);
     try {
       const updated = await upsertTeamsConfig(teamId, {
-        teams_team_id: teamsTeamId.trim() || undefined,
-        teams_channel_id: teamsChannelId.trim() || undefined,
+        teams_team_id: teamsTeamId.trim() || null,
+        teams_channel_id: teamsChannelId.trim() || null,
       });
       setTeamsTeamId(updated.teams_team_id ?? '');
       setTeamsChannelId(updated.teams_channel_id ?? '');
