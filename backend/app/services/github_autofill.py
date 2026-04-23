@@ -16,6 +16,26 @@ _GITHUB_ISSUE_RE = re.compile(r"^https://github\.com/([^/]+)/([^/]+)/issues/(\d+
 # GitHub API base URL is hardcoded — never derived from user input (OWASP A10)
 _GITHUB_API_BASE = "https://api.github.com"
 
+# ---------------------------------------------------------------------------
+# GitHub Project board status → teamtakt internal status
+# Mapping is case-insensitive; unknown values fall back to "todo".
+# ---------------------------------------------------------------------------
+_GITHUB_STATUS_TO_TASK_STATUS: dict[str, str] = {
+    "backlog": "todo",
+    "sprint backlog": "todo",
+    "in progress": "running",
+    "in review": "running",
+    "done": "done",
+}
+
+
+def map_github_status_to_task_status(github_status: str) -> str:
+    """Map a GitHub Project board column name to a teamtakt TaskStatus value.
+
+    Unknown/unrecognised column names default to ``"todo"``.
+    """
+    return _GITHUB_STATUS_TO_TASK_STATUS.get(github_status.strip().lower(), "todo")
+
 
 class GitHubTokenRevokedError(Exception):
     """Raised when the stored GitHub token is invalid or revoked (HTTP 401)."""
@@ -127,9 +147,22 @@ async def map_to_task_fields(
         if isinstance(raw, str) and raw:
             insight = raw[:500]
 
+    # Resolve github_status and derive teamtakt status
+    github_status: str | None = None
+    if github_field_map and "Status" in github_field_map:
+        field_key = github_field_map["Status"]
+        raw = issue.get(field_key)
+        if isinstance(raw, str) and raw:
+            github_status = raw
+    derived_status = (
+        map_github_status_to_task_status(github_status) if github_status else "todo"
+    )
+
     return TaskAutoFillResponse(
         title=title,
         description=description,
         category_id=category_id,
         insight=insight,
+        github_status=github_status,
+        status=derived_status,
     )

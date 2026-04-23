@@ -92,6 +92,7 @@ async def create_task(
         due_date=body.due_date,
         blocker_type_id=body.blocker_type_id,
         github_issue_url=body.github_issue_url,
+        github_status=body.github_status,
         insight=body.insight,
         closed_at=closed_at,
     )
@@ -207,6 +208,8 @@ async def update_task(
         task.is_active = body.is_active
     if body.insight is not None:
         task.insight = body.insight
+    if body.github_status is not None:
+        task.github_status = body.github_status
 
     if body.status is not None:
         new_status = TaskStatus(body.status)

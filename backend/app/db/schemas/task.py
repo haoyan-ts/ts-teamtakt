@@ -92,6 +92,7 @@ class TaskCreate(BaseModel):
     due_date: date | None = None
     blocker_type_id: uuid.UUID | None = None
     github_issue_url: str | None = None
+    github_status: str | None = None
     insight: str | None = None
 
     @field_validator("estimated_effort")
@@ -121,6 +122,7 @@ class TaskUpdate(BaseModel):
     due_date: date | None = None
     blocker_type_id: uuid.UUID | None = None
     github_issue_url: str | None = None
+    github_status: str | None = None
     is_active: bool | None = None
     insight: str | None = None
 
@@ -153,6 +155,7 @@ class TaskResponse(BaseModel):
     due_date: date | None
     blocker_type_id: uuid.UUID | None
     github_issue_url: str | None
+    github_status: str | None
     insight: str | None
     created_by: uuid.UUID
     created_at: datetime
@@ -175,3 +178,7 @@ class TaskAutoFillResponse(BaseModel):
     work_type_id: uuid.UUID | None = None
     estimated_effort: int | None = None
     insight: str | None = None
+    # github_status is the raw GitHub Project board column (e.g. "In Progress").
+    # status is the derived teamtakt internal value mapped from github_status.
+    github_status: str | None = None
+    status: Literal["todo", "running", "done", "blocked"] = "todo"

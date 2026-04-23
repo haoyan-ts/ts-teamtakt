@@ -118,7 +118,7 @@ export const ProjectDetailPage = () => {
         <ul style={listStyle}>
           {filteredTasks.map((task) => (
             <li key={task.id} style={taskRowStyle}>
-              {/* Status badge */}
+              {/* Internal status badge */}
               <span
                 style={{
                   ...statusBadgeStyle,
@@ -127,6 +127,13 @@ export const ProjectDetailPage = () => {
               >
                 {task.status}
               </span>
+
+              {/* GitHub board column badge (when present) */}
+              {task.github_status && (
+                <span style={githubStatusBadgeStyle} title="GitHub Project board column">
+                  {task.github_status}
+                </span>
+              )}
 
               {/* Title + optional GitHub link */}
               <span style={{ flex: 1 }}>
@@ -259,6 +266,17 @@ const statusBadgeStyle: React.CSSProperties = {
   fontWeight: 700,
   color: '#fff',
   textTransform: 'capitalize',
+  whiteSpace: 'nowrap',
+};
+
+const githubStatusBadgeStyle: React.CSSProperties = {
+  padding: '0.15rem 0.5rem',
+  borderRadius: '4px',
+  fontSize: '0.7rem',
+  fontWeight: 500,
+  color: 'var(--text-secondary)',
+  background: 'var(--bg-tertiary)',
+  border: '1px solid var(--border)',
   whiteSpace: 'nowrap',
 };
 

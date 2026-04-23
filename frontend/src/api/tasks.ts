@@ -10,6 +10,7 @@ export interface CreateTaskPayload {
   category_id: string;
   work_type_id: string;
   status: 'todo' | 'running' | 'done' | 'blocked';
+  github_status?: string | null;
   priority?: 'p0_critical' | 'p1_high' | 'p2_medium' | 'p3_low' | null;
   estimated_effort?: number | null;
   due_date?: string | null;
@@ -26,6 +27,7 @@ export interface UpdateTaskPayload {
   category_id?: string;
   work_type_id?: string | null;
   status?: 'todo' | 'running' | 'done' | 'blocked';
+  github_status?: string | null;
   priority?: 'p0_critical' | 'p1_high' | 'p2_medium' | 'p3_low' | null;
   estimated_effort?: number | null;
   due_date?: string | null;
@@ -77,6 +79,7 @@ export interface GithubAutofillResult {
   work_type_id: string | null;
   estimated_effort: number | null;
   status: 'todo' | 'done' | null;
+  github_status: string | null;
   insight: string | null;
 }
 
