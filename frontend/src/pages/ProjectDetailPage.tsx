@@ -27,7 +27,7 @@ export const ProjectDetailPage = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
-  const [filter, setFilter] = useState<StatusFilter>('todo');
+  const [filter, setFilter] = useState<StatusFilter>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
