@@ -59,6 +59,30 @@
       }
     }
   },
+  "adminTeams": {
+    "pageTitle": "Teams (Admin)",
+    "createBtn": "Create Team",
+    "empty": "No teams yet. Create one to get started.",
+    "dissolveConfirm": "Dissolve team \"{{name}}\"? This cannot be undone.",
+    "dissolveConflict": "Cannot dissolve this team — remove or reassign all members first.",
+    "dissolveError": "Failed to dissolve team. Please try again.",
+    "createModal": {
+      "title": "Create Team",
+      "namePlaceholder": "Team name",
+      "emptyError": "Team name cannot be empty.",
+      "createError": "Failed to create team. Please try again.",
+      "creating": "Creating…",
+      "create": "Create"
+    },
+    "col": {
+      "name": "Name",
+      "members": "Members",
+      "leaders": "Leaders",
+      "actions": "Actions",
+      "edit": "Edit",
+      "dissolve": "Dissolve"
+    }
+  },
   "adminLists": {
     "pageTitle": "Controlled Lists (Admin)",
     "col": {

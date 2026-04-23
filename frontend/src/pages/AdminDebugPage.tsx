@@ -4,19 +4,15 @@ import {
   debugSendEmail,
   debugSendTeamsMessage,
 } from '../api/adminSettings';
+import {
+  sectionStyle,
+  sectionTitle,
+  primaryBtn as sharedPrimaryBtn,
+} from '../components/admin/adminStyles';
 
 // ---------------------------------------------------------------------------
-// Styles (inline, consistent with existing admin pages)
+// Styles
 // ---------------------------------------------------------------------------
-
-const card: React.CSSProperties = {
-  background: 'var(--bg)',
-  border: '1px solid var(--border-subtle)',
-  borderRadius: '8px',
-  padding: '1.5rem',
-  marginBottom: '1.5rem',
-  maxWidth: '560px',
-};
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -28,23 +24,15 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '0.5rem 0.75rem',
-  border: '1px solid var(--border-subtle)',
+  border: '1px solid var(--border)',
   borderRadius: '4px',
-  background: 'var(--bg-secondary)',
+  background: 'var(--bg)',
   color: 'var(--text-h)',
   fontSize: '0.875rem',
   boxSizing: 'border-box',
 };
 
-const primaryBtn: React.CSSProperties = {
-  padding: '0.5rem 1.25rem',
-  background: 'var(--primary)',
-  color: '#fff',
-  border: 'none',
-  borderRadius: '4px',
-  cursor: 'pointer',
-  fontWeight: 500,
-};
+const primaryBtn: React.CSSProperties = sharedPrimaryBtn;
 
 const disabledBtn: React.CSSProperties = {
   ...primaryBtn,
@@ -109,8 +97,8 @@ function EmailForm({ adminEmail }: { adminEmail: string }) {
   };
 
   return (
-    <div style={card}>
-      <h3 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>Send Test Email</h3>
+    <section style={{ ...sectionStyle, maxWidth: '560px' }}>
+      <h3 style={sectionTitle}>Send Test Email</h3>
       <form onSubmit={handleSubmit}>
         <div style={fieldGroup}>
           <label style={labelStyle} htmlFor="debug-from">
@@ -169,7 +157,7 @@ function EmailForm({ adminEmail }: { adminEmail: string }) {
         </button>
       </form>
       {result && <StatusBanner ok={result.ok} message={result.message} />}
-    </div>
+    </section>
   );
 }
 
@@ -208,8 +196,8 @@ function TeamsForm() {
   };
 
   return (
-    <div style={card}>
-      <h3 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>Send Test Teams Message</h3>
+    <section style={{ ...sectionStyle, maxWidth: '560px' }}>
+      <h3 style={sectionTitle}>Send Test Teams Message</h3>
       <form onSubmit={handleSubmit}>
         <div style={fieldGroup}>
           <label style={labelStyle} htmlFor="debug-channel-link">
@@ -243,7 +231,7 @@ function TeamsForm() {
         </button>
       </form>
       {result && <StatusBanner ok={result.ok} message={result.message} />}
-    </div>
+    </section>
   );
 }
 

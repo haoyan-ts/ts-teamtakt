@@ -59,6 +59,30 @@
       }
     }
   },
+  "adminTeams": {
+    "pageTitle": "チーム（管理者）",
+    "createBtn": "チームを作成",
+    "empty": "チームはまだありません。作成してください。",
+    "dissolveConfirm": "チーム「{{name}}」を解散しますか？この操作は取り消せません。",
+    "dissolveConflict": "このチームは解散できません — 先に全メンバーを削除または再割り当てしてください。",
+    "dissolveError": "チームの解散に失敗しました。再度お試しください。",
+    "createModal": {
+      "title": "チームを作成",
+      "namePlaceholder": "チーム名",
+      "emptyError": "チーム名を入力してください。",
+      "createError": "チームの作成に失敗しました。再度お試しください。",
+      "creating": "作成中…",
+      "create": "作成"
+    },
+    "col": {
+      "name": "名前",
+      "members": "メンバー数",
+      "leaders": "リーダー",
+      "actions": "操作",
+      "edit": "編集",
+      "dissolve": "解散"
+    }
+  },
   "adminLists": {
     "pageTitle": "管理リスト（管理者）",
     "col": {

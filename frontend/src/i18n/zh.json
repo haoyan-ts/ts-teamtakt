@@ -59,6 +59,30 @@
       }
     }
   },
+  "adminTeams": {
+    "pageTitle": "团队（管理员）",
+    "createBtn": "创建团队",
+    "empty": "还没有团队，请创建一个。",
+    "dissolveConfirm": "解散团队\"{{name}}\"？此操作无法撤销。",
+    "dissolveConflict": "无法解散该团队——请先移除或重新分配所有成员。",
+    "dissolveError": "解散团队失败，请重试。",
+    "createModal": {
+      "title": "创建团队",
+      "namePlaceholder": "团队名称",
+      "emptyError": "团队名称不能为空。",
+      "createError": "创建团队失败，请重试。",
+      "creating": "创建中…",
+      "create": "创建"
+    },
+    "col": {
+      "name": "名称",
+      "members": "成员数",
+      "leaders": "负责人",
+      "actions": "操作",
+      "edit": "编辑",
+      "dissolve": "解散"
+    }
+  },
   "adminLists": {
     "col": {
       "name": "名称",

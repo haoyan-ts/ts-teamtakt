@@ -10,32 +10,20 @@ import type { TeamMember } from '../api/teams';
 import { listUsers, updateUserRoles } from '../api/users';
 import type { User } from '../api/users';
 import { getTeamsConfig, upsertTeamsConfig } from '../api/adminSettings';
+import { ConfirmDialog } from '../components/admin/ConfirmDialog';
+import {
+  sectionStyle,
+  sectionTitle,
+  tableStyle,
+  th,
+  tdMiddle,
+  inputStyle,
+  primaryBtn,
+  tinyBtn,
+  dangerTinyBtn,
+} from '../components/admin/adminStyles';
 
-// ---------------------------------------------------------------------------
-// Confirmation dialog
-// ---------------------------------------------------------------------------
-
-function ConfirmDialog({
-  message,
-  onConfirm,
-  onCancel,
-}: {
-  message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'var(--bg)', borderRadius: '8px', padding: '1.5rem', maxWidth: '400px' }}>
-        <p style={{ margin: '0 0 1rem' }}>{message}</p>
-        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-          <button onClick={onCancel} style={cancelBtn}>Cancel</button>
-          <button onClick={onConfirm} style={dangerBtn}>Confirm</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// (ConfirmDialog is now imported from shared components)
 
 // ---------------------------------------------------------------------------
 // Rename section
@@ -162,9 +150,9 @@ function MembersSection({ teamId }: { teamId: string }) {
           <tbody>
             {members.map((m) => (
               <tr key={m.user_id}>
-                <td style={td}>{m.display_name}</td>
-                <td title={m.email} style={{ ...td, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.email}</td>
-                <td style={td}>
+                <td style={tdMiddle}>{m.display_name}</td>
+                <td title={m.email} style={{ ...tdMiddle, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.email}</td>
+                <td style={tdMiddle}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
@@ -174,7 +162,7 @@ function MembersSection({ teamId }: { teamId: string }) {
                     {m.is_leader ? 'Yes' : 'No'}
                   </label>
                 </td>
-                <td style={td}>
+                <td style={tdMiddle}>
                   <button style={dangerTinyBtn} onClick={() => setRemoveTarget(m)}>
                     Remove
                   </button>
@@ -461,35 +449,5 @@ export const AdminTeamDetailPage = () => {
   );
 };
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-const sectionStyle: React.CSSProperties = {
-  border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem',
-  marginBottom: '1rem', background: 'var(--bg)',
-};
-const sectionTitle: React.CSSProperties = { margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 600 };
-const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' };
-const th: React.CSSProperties = {
-  textAlign: 'left', padding: '0.3rem 0.5rem', fontWeight: 600, borderBottom: '2px solid var(--border)',
-};
-const td: React.CSSProperties = { padding: '0.4rem 0.5rem', verticalAlign: 'middle' };
-const inputStyle: React.CSSProperties = {
-  border: '1px solid var(--border)', borderRadius: '4px', padding: '0.3rem 0.5rem',
-  background: 'var(--bg)', color: 'var(--text-h)',
-};
-const primaryBtn: React.CSSProperties = {
-  padding: '0.35rem 0.75rem', background: 'var(--primary)', color: '#fff', border: 'none',
-  borderRadius: '4px', cursor: 'pointer', fontWeight: 500,
-};
-const tinyBtn: React.CSSProperties = {
-  padding: '0.2rem 0.5rem', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-  borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem',
-};
-const dangerTinyBtn: React.CSSProperties = {
-  ...tinyBtn, background: 'var(--error-bg)', border: '1px solid var(--error-bg)', color: 'var(--error)',
-};
-const cancelBtn: React.CSSProperties = { ...tinyBtn, padding: '0.4rem 1rem' };
-const dangerBtn: React.CSSProperties = {
-  ...primaryBtn, background: 'var(--error)', padding: '0.4rem 1rem',
-};
+// Styles are imported from ../components/admin/adminStyles
+

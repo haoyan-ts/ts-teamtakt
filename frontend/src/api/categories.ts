@@ -61,8 +61,10 @@ export async function updateSelfAssessmentTag(
   return res.data;
 }
 
-export async function getBlockerTypes(): Promise<BlockerType[]> {
-  const res = await client.get<BlockerType[]>('/blocker-types');
+export async function getBlockerTypes(includeInactive = false): Promise<BlockerType[]> {
+  const res = await client.get<BlockerType[]>('/blocker-types', {
+    params: includeInactive ? { include_inactive: true } : {},
+  });
   return res.data;
 }
 
