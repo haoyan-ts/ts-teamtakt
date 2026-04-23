@@ -37,6 +37,7 @@ export interface UpdateTaskPayload {
 export async function getTasks(params?: {
   status?: string;
   assignee_id?: string;
+  project_id?: string;
 }): Promise<Task[]> {
   const res = await client.get<Task[]>('/tasks', { params });
   return res.data;

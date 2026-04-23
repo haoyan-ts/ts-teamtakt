@@ -26,6 +26,7 @@ import { TeamQuarterlyReportPage } from './pages/TeamQuarterlyReportPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { CrossTeamSharingPage } from './pages/CrossTeamSharingPage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage';
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
           <Route path="team/unlock" element={<ProtectedRoute requireLeader><UnlockPage /></ProtectedRoute>} />
           <Route path="team/sharing" element={<ProtectedRoute requireLeader><CrossTeamSharingPage /></ProtectedRoute>} />
           <Route path="projects" element={<ProjectsPage />} />
+          <Route path="projects/:id" element={<ProjectDetailPage />} />
           <Route path="reports/weekly/:week_start?" element={<WeeklyReportPage />} />
           <Route path="reports/monthly/:ym?" element={<MonthlyReportPage />} />
           <Route path="reports/quarterly/:quarter?" element={<QuarterlyReportPage />} />

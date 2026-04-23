@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AxiosError } from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { getProjects, updateProject, getAvailableGitHubProjects, createProject } from '../api/projects';
 import type { GitHubAvailableProject } from '../api/projects';
 import type { Project } from '../types/dailyRecord';
@@ -159,6 +159,7 @@ export const ProjectsPage = () => {
                 }
                 onKeyDown={(e) => e.key === 'Enter' && rename(p)}
               />
+              <Link to={`/projects/${p.id}`} style={tinyBtn as React.CSSProperties}>View</Link>
               <button style={tinyBtn} onClick={() => rename(p)}>Rename</button>
               <button style={dangerBtn} onClick={() => toggleActive(p)}>Deactivate</button>
             </li>
@@ -176,6 +177,7 @@ export const ProjectsPage = () => {
                   <span style={ownerBadge}>@{p.github_project_owner}</span>
                 )}
                 <span style={{ flex: 1 }}>{p.name}</span>
+                <Link to={`/projects/${p.id}`} style={tinyBtn as React.CSSProperties}>View</Link>
                 <button style={tinyBtn} onClick={() => toggleActive(p)}>Reactivate</button>
               </li>
             ))}
