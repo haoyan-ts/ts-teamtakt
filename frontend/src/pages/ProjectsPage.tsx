@@ -1,20 +1,38 @@
-import { useEffect, useState } from 'react';
-import { getProjects, updateProject } from '../api/projects';
+import { useCallback, useEffect, useState } from 'react';
+import { AxiosError } from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { getProjects, updateProject, getAvailableGitHubProjects, createProject } from '../api/projects';
+import type { GitHubAvailableProject } from '../api/projects';
 import type { Project } from '../types/dailyRecord';
+import { useAuthStore } from '../stores/authStore';
 
 export const ProjectsPage = () => {
+  const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [editNames, setEditNames] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const reload = () =>
+  // Link Project flow
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [available, setAvailable] = useState<GitHubAvailableProject[]>([]);
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  const reload = useCallback(() => {
     getProjects()
       .then(setProjects)
       .catch(() => setError('Failed to load projects'))
       .finally(() => setLoading(false));
+  }, []);
 
-  useEffect(() => { reload(); }, []);
+  useEffect(() => {
+    if (user?.github_linked) {
+      reload();
+    }
+  }, [user?.github_linked, reload]);
 
   const rename = async (project: Project) => {
     const name = editNames[project.id]?.trim();
@@ -29,6 +47,65 @@ export const ProjectsPage = () => {
     reload();
   };
 
+  const openLinkPanel = async () => {
+    setLinkOpen(true);
+    setLinkError(null);
+    setLinkLoading(true);
+    try {
+      const results = await getAvailableGitHubProjects();
+      setAvailable(results);
+    } catch (err) {
+      const detail =
+        err instanceof AxiosError
+          ? (err.response?.data as { detail?: string } | undefined)?.detail
+          : undefined;
+      setLinkError(detail ?? 'Failed to load GitHub Projects.');
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  const closeLinkPanel = () => {
+    setLinkOpen(false);
+    setAvailable([]);
+    setLinkError(null);
+  };
+
+  const selectProject = async (proj: GitHubAvailableProject) => {
+    setLinkError(null);
+    try {
+      await createProject({
+        name: proj.title,
+        github_project_node_id: proj.node_id,
+        github_project_number: proj.number,
+        github_project_owner: proj.owner_login,
+      });
+      closeLinkPanel();
+      reload();
+    } catch (err) {
+      const detail =
+        err instanceof AxiosError
+          ? (err.response?.data as { detail?: string } | undefined)?.detail
+          : undefined;
+      setLinkError(detail ?? 'Failed to link project. Please try again.');
+    }
+  };
+
+  // GitHub connection gate — skip all fetches when not linked
+  if (!user?.github_linked) {
+    return (
+      <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center', paddingTop: '4rem' }}>
+        <h2 style={{ marginBottom: '1rem' }}>Projects</h2>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+          Connect your GitHub account to link and manage GitHub Projects.
+        </p>
+        <button style={primaryBtn} onClick={() => navigate('/settings/profile')}>
+          Connect GitHub
+        </button>
+      </div>
+    );
+  }
+
   if (loading) return <p>Loading projects…</p>;
   if (error) return <p style={{ color: 'var(--error)' }}>{error}</p>;
 
@@ -37,7 +114,33 @@ export const ProjectsPage = () => {
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <h2 style={{ marginBottom: '1rem' }}>Projects</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+        <h2 style={{ margin: 0 }}>Projects</h2>
+        <button style={primaryBtn} onClick={openLinkPanel}>Link Project</button>
+      </div>
+
+      {linkOpen && (
+        <section style={{ ...sectionStyle, marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <h3 style={{ ...sectionTitle, margin: 0 }}>Select a GitHub Project</h3>
+            <button style={tinyBtn} onClick={closeLinkPanel}>Cancel</button>
+          </div>
+          {linkLoading && <p style={{ margin: 0 }}>Loading GitHub Projects…</p>}
+          {linkError && <p style={{ color: 'var(--error)', margin: '0 0 0.5rem' }}>{linkError}</p>}
+          {!linkLoading && available.length === 0 && !linkError && (
+            <p style={emptyMsg}>No GitHub Projects found.</p>
+          )}
+          <ul style={listStyle}>
+            {available.map((proj) => (
+              <li key={proj.node_id} style={itemStyle}>
+                <span style={ownerBadge}>@{proj.owner_login}</span>
+                <span style={{ flex: 1 }}>{proj.title}</span>
+                <button style={tinyBtn} onClick={() => selectProject(proj)}>Select</button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section style={sectionStyle}>
         <h3 style={sectionTitle}>Active ({active.length})</h3>
@@ -132,4 +235,13 @@ const dangerBtn: React.CSSProperties = {
   ...tinyBtn,
   color: 'var(--error)',
   borderColor: 'var(--error)',
+};
+const primaryBtn: React.CSSProperties = {
+  padding: '0.4rem 1rem',
+  background: 'var(--accent)',
+  color: '#fff',
+  border: 'none',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  fontWeight: 600,
 };
