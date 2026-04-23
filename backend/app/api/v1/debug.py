@@ -39,6 +39,7 @@ class SendEmailRequest(BaseModel):
     from_address: str
     to_address: str
     subject: str = f"{_DEBUG_PREFIX} Test Email"
+    body: str | None = None
 
 
 class SendTeamsMessageRequest(BaseModel):
@@ -137,11 +138,12 @@ async def debug_send_email(
         ) from exc
 
     subject = _ensure_debug_prefix(body.subject)
-    html_body = (
+    default_body = (
         f"<p><strong>{_DEBUG_PREFIX} This is a test email from TeamTakt admin debug tools.</strong></p>"
         f"<p>Sent from: {body.from_address}</p>"
         f"<p>Sent to: {body.to_address}</p>"
     )
+    html_body = body.body if body.body else default_body
 
     try:
         await send_mail(

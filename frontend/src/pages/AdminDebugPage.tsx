@@ -83,6 +83,7 @@ function EmailForm({ adminEmail }: { adminEmail: string }) {
   const [fromAddress, setFromAddress] = useState(adminEmail);
   const [toAddress, setToAddress] = useState('');
   const [subject, setSubject] = useState('[DEBUG] Test Email');
+  const [body, setBody] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
@@ -91,7 +92,7 @@ function EmailForm({ adminEmail }: { adminEmail: string }) {
     setLoading(true);
     setResult(null);
     try {
-      await debugSendEmail({ from_address: fromAddress, to_address: toAddress, subject });
+      await debugSendEmail({ from_address: fromAddress, to_address: toAddress, subject, body: body || undefined });
       setResult({ ok: true, message: 'Email sent successfully.' });
     } catch (err: unknown) {
       const raw =
@@ -148,6 +149,19 @@ function EmailForm({ adminEmail }: { adminEmail: string }) {
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             style={inputStyle}
+          />
+        </div>
+        <div style={fieldGroup}>
+          <label style={labelStyle} htmlFor="debug-email-body">
+            Body (HTML, optional)
+          </label>
+          <textarea
+            id="debug-email-body"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="<p>This is a <strong>test</strong> email.</p>"
+            rows={6}
+            style={{ ...inputStyle, resize: 'vertical', fontFamily: 'monospace' }}
           />
         </div>
         <button type="submit" style={loading ? disabledBtn : primaryBtn} disabled={loading}>

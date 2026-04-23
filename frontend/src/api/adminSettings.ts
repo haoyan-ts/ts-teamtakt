@@ -51,6 +51,7 @@ export interface DebugSendEmailPayload {
   from_address: string;
   to_address: string;
   subject?: string;
+  body?: string;
 }
 
 export interface DebugSendTeamsPayload {
