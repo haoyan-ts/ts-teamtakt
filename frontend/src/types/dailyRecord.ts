@@ -29,9 +29,12 @@ export interface BlockerType {
 export interface Project {
   id: string;
   name: string;
-  scope: 'personal' | 'team' | 'cross_team';
-  github_repo: string | null;
+  github_project_node_id: string;
+  github_project_number: number | null;
+  github_project_owner: string | null;
+  created_by: string;
   is_active: boolean;
+  created_at: string;
 }
 
 export interface SelfAssessmentTagRef {
@@ -57,6 +60,7 @@ export interface Task {
   category_id: string;
   work_type_id: string | null;
   status: 'todo' | 'running' | 'done' | 'blocked';
+  github_status: string | null; // raw GitHub Project board column, e.g. "In Progress"
   priority: 'p0_critical' | 'p1_high' | 'p2_medium' | 'p3_low' | null;
   estimated_effort: number | null;
   due_date: string | null;

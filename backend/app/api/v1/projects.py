@@ -6,24 +6,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_active_user
 from app.db.engine import get_db
-from app.db.models.notification import Notification
-from app.db.models.project import Project, ProjectScope
-from app.db.models.team import TeamMembership
+from app.db.models.project import Project
 from app.db.models.user import User
-from app.db.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
+from app.db.schemas.project import (
+    GitHubAvailableProjectItem,
+    ProjectCreate,
+    ProjectResponse,
+    ProjectUpdate,
+)
+from app.services.github_autofill import resolve_github_token
+from app.services.github_projects import fetch_available_github_projects
 
 router = APIRouter()
-
-
-async def _get_user_team(user: User, db: AsyncSession) -> uuid.UUID | None:
-    result = await db.execute(
-        select(TeamMembership).where(
-            TeamMembership.user_id == user.id,
-            TeamMembership.left_at.is_(None),
-        )
-    )
-    m = result.scalar_one_or_none()
-    return m.team_id if m else None
 
 
 @router.post(
@@ -34,21 +28,23 @@ async def create_project(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
 ):
-    if body.scope == "cross_team":
-        if not (current_user.is_leader or current_user.is_admin):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Leader or admin required for cross-team projects",
-            )
-        team_id = None
-    else:
-        team_id = await _get_user_team(current_user, db)
+    existing = await db.execute(
+        select(Project).where(
+            Project.github_project_node_id == body.github_project_node_id
+        )
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A project with this GitHub Project node ID already exists",
+        )
 
     project = Project(
         id=uuid.uuid4(),
         name=body.name,
-        scope=ProjectScope(body.scope),
-        team_id=team_id,
+        github_project_node_id=body.github_project_node_id,
+        github_project_number=body.github_project_number,
+        github_project_owner=body.github_project_owner,
         created_by=current_user.id,
         is_active=True,
     )
@@ -69,21 +65,9 @@ async def list_projects(
             status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
         )
 
-    user_team_id = await _get_user_team(current_user, db)
-
-    from sqlalchemy import or_
-
-    conditions = or_(
-        # Own personal projects
-        (Project.scope == ProjectScope.personal)
-        & (Project.created_by == current_user.id),
-        # Own team projects
-        (Project.scope == ProjectScope.team) & (Project.team_id == user_team_id),
-        # All cross-team projects
-        Project.scope == ProjectScope.cross_team,
-    )
-
-    q = select(Project).where(conditions)
+    q = select(Project)
+    if not current_user.is_admin:
+        q = q.where(Project.created_by == current_user.id)
     if not include_inactive:
         q = q.where(Project.is_active.is_(True))
 
@@ -104,19 +88,10 @@ async def get_project(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
 
-    user_team_id = await _get_user_team(current_user, db)
-
-    if project.scope == ProjectScope.personal:
-        if project.created_by != current_user.id and not current_user.is_admin:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
-            )
-    elif project.scope == ProjectScope.team:
-        if not current_user.is_admin and project.team_id != user_team_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
-            )
-    # cross_team: any authenticated user may read
+    if project.created_by != current_user.id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
 
     return ProjectResponse.model_validate(project)
 
@@ -145,62 +120,33 @@ async def update_project(
         project.name = body.name
     if body.is_active is not None:
         project.is_active = body.is_active
+    if body.github_project_number is not None:
+        project.github_project_number = body.github_project_number
+    if body.github_project_owner is not None:
+        project.github_project_owner = body.github_project_owner
 
     await db.commit()
     await db.refresh(project)
     return ProjectResponse.model_validate(project)
 
 
-@router.post("/projects/{project_id}/promote", response_model=ProjectResponse)
-async def promote_project(
-    project_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+@router.get(
+    "/projects/github/available", response_model=list[GitHubAvailableProjectItem]
+)
+async def list_available_github_projects(
     current_user: User = Depends(require_active_user),
-):
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if project is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-        )
+) -> list[GitHubAvailableProjectItem]:
+    """Return all GitHub Projects V2 accessible to the authenticated user.
 
-    if project.scope != ProjectScope.team:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only team-scoped projects can be promoted",
-        )
-
-    # Must be admin OR (leader AND member of the project's team)
-    is_authorized = current_user.is_admin
-    if not is_authorized and current_user.is_leader:
-        membership_result = await db.execute(
-            select(TeamMembership).where(
-                TeamMembership.user_id == current_user.id,
-                TeamMembership.team_id == project.team_id,
-                TeamMembership.left_at.is_(None),
-            )
-        )
-        if membership_result.scalar_one_or_none() is not None:
-            is_authorized = True
-
-    if not is_authorized:
+    Requires the user to have a linked GitHub OAuth token.
+    """
+    if not current_user.github_access_token_enc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the project's team leader or admin can promote",
+            detail="No GitHub account linked. Please connect your GitHub account first.",
         )
 
-    project.scope = ProjectScope.cross_team
-    project.team_id = None
+    github_token = await resolve_github_token(current_user)
+    assert github_token is not None
 
-    notification = Notification(
-        id=uuid.uuid4(),
-        user_id=project.created_by,
-        trigger_type="project_promoted",
-        title="Your project was promoted to cross-team",
-        data={"project_id": str(project_id)},
-    )
-    db.add(notification)
-
-    await db.commit()
-    await db.refresh(project)
-    return ProjectResponse.model_validate(project)
+    return await fetch_available_github_projects(github_token)

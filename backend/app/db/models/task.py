@@ -89,6 +89,7 @@ class Task(Base):
         Uuid(as_uuid=True), ForeignKey("blocker_types.id"), nullable=True
     )
     github_issue_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    github_status: Mapped[str | None] = mapped_column(String(100), nullable=True)
     insight: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

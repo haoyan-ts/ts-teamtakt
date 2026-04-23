@@ -1,43 +1,36 @@
-name: Chore
-description: Maintenance work — tech debt, docs update, dependency upgrade, test coverage, CI/CD, or other non-feature non-refactor tasks
-labels: ["chore"]
+name: Refactor
+description: Code restructuring that improves design, readability, or performance without changing external behavior
+labels: ["refactor"]
 body:
   - type: markdown
     attributes:
       value: |
-        Use this template for maintenance tasks that don't add user-visible features and don't restructure existing code. For code restructuring, use the **Refactor** template instead.
-
-  - type: dropdown
-    id: task-type
-    attributes:
-      label: Task Type
-      options:
-        - tech-debt
-        - docs
-        - dependency-upgrade
-        - test
-        - ci-cd
-        - infra
-        - other
-    validations:
-      required: true
+        Use this template for internal code changes that do not alter observable behavior — renaming, extracting modules, simplifying logic, improving type safety, etc.
 
   - type: textarea
     id: description
     attributes:
       label: Description
-      description: What needs to be done and why.
+      description: What is being refactored and why. Include the current pain point.
     validations:
       required: true
+
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed Approach
+      description: How will you restructure it? Mention any patterns, abstractions, or conventions you plan to follow.
+    validations:
+      required: false
 
   - type: textarea
     id: definition-of-done
     attributes:
       label: Definition of Done
       placeholder: |
-        - [ ] ...
-        - [ ] Tests pass
+        - [ ] No behavior change (existing tests still pass)
         - [ ] No ruff / mypy / tsc errors
+        - [ ] Code reviewed
     validations:
       required: true
 
@@ -71,3 +64,4 @@ body:
     id: context
     attributes:
       label: Additional Context
+      description: Related issues, prior art, or references.

@@ -315,7 +315,7 @@ async def github_authorize(
     params = {
         "client_id": settings.GITHUB_CLIENT_ID,
         "redirect_uri": settings.GITHUB_REDIRECT_URI,
-        "scope": "repo read:user",
+        "scope": "repo read:user read:project",
         "state": state,
     }
     return {"url": f"{_GITHUB_AUTHORIZE_URL}?{urlencode(params)}"}
