@@ -491,13 +491,13 @@ async def export_bulk(
     )
     _sheet(
         "Projects",
-        ["id", "name", "scope", "team_id", "is_active", "created_at"],
+        ["id", "name", "github_project_node_id", "github_project_owner", "is_active", "created_at"],
         [
             [
                 str(p.id),
                 p.name,
-                p.scope,
-                str(p.team_id) if p.team_id else "",
+                p.github_project_node_id,
+                p.github_project_owner or "",
                 p.is_active,
                 str(p.created_at),
             ]

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 from app.core.security import create_access_token
 from app.db.models.category import Category
-from app.db.models.project import Project, ProjectScope
+from app.db.models.project import Project
 from app.db.models.team import Team, TeamMembership, TeamSettings
 from app.db.models.user import User
 
@@ -48,7 +48,9 @@ async def make_category(db, name="Cat"):
 
 
 async def make_project(db, created_by):
-    p = Project(name="Proj", scope=ProjectScope.personal, created_by=created_by)
+    p = Project(
+        name="Proj", github_project_node_id=f"PVT_{created_by}", created_by=created_by
+    )
     db.add(p)
     await db.commit()
     await db.refresh(p)

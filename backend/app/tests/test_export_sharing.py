@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from app.core.security import create_access_token
 from app.db.models.category import Category
 from app.db.models.daily_record import DailyRecord
-from app.db.models.project import Project, ProjectScope
+from app.db.models.project import Project
 from app.db.models.task import DailyWorkLog, Task, TaskStatus
 from app.db.models.team import Team, TeamMembership, TeamSettings
 from app.db.models.user import User
@@ -61,9 +61,13 @@ async def make_category(db, name="TestCat"):
 
 
 async def make_project(
-    db, name, created_by, *, scope=ProjectScope.personal, team_id=None
+    db, name, created_by
 ):
-    p = Project(name=name, scope=scope, created_by=created_by, team_id=team_id)
+    p = Project(
+        name=name,
+        github_project_node_id=f"PVT_{name}",
+        created_by=created_by,
+    )
     db.add(p)
     await db.commit()
     await db.refresh(p)
@@ -166,9 +170,7 @@ async def test_leader_export_team_csv(client, db_session):
     await make_membership(db_session, leader.id, team.id)
     await make_membership(db_session, member.id, team.id)
     cat = await make_category(db_session, "exp03_Cat")
-    proj = await make_project(
-        db_session, "exp03_Proj", member.id, scope=ProjectScope.team, team_id=team.id
-    )
+    proj = await make_project(db_session, "exp03_Proj", member.id)
     dr = await make_daily_record(db_session, member.id, "2025-01-08")
     await make_work_log(db_session, dr.id, cat.id, proj.id, member.id)
 
