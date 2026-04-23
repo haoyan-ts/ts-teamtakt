@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
 
 from app.core.security import create_access_token
 from app.db.models.team import Team, TeamMembership, TeamSettings
@@ -281,3 +282,88 @@ async def test_non_owner_cannot_update_project(client, db_session):
         headers=auth(other_tok),
     )
     assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# 11. GET /projects/github/available — success (mocked GitHub GraphQL)
+# ---------------------------------------------------------------------------
+
+
+async def test_list_available_github_projects_success(client, db_session):
+    user, tok = await make_active_user(db_session, "p11_user@t.com")
+
+    # Store a plaintext token (no github_token_iv) to use the dev/local fallback path
+    user.github_access_token_enc = "fake_github_token"
+    await db_session.commit()
+
+    mock_items = [
+        {
+            "node_id": "PVT_mock1",
+            "number": 10,
+            "title": "Mock Project",
+            "owner_login": "mock-org",
+            "url": "https://github.com/orgs/mock-org/projects/10",
+        }
+    ]
+
+    with patch(
+        "app.api.v1.projects.fetch_available_github_projects",
+        new=AsyncMock(return_value=mock_items),
+    ):
+        resp = await client.get("/api/v1/projects/github/available", headers=auth(tok))
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["node_id"] == "PVT_mock1"
+    assert data[0]["title"] == "Mock Project"
+
+
+# ---------------------------------------------------------------------------
+# 12. GET /projects/github/available — 403 when no GitHub token linked
+# ---------------------------------------------------------------------------
+
+
+async def test_list_available_github_projects_no_token(client, db_session):
+    user, tok = await make_active_user(db_session, "p12_user@t.com")
+    # user.github_access_token_enc is None by default
+
+    resp = await client.get("/api/v1/projects/github/available", headers=auth(tok))
+    assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# 13. POST /projects — old `scope` field silently ignored → 201, scope absent
+# ---------------------------------------------------------------------------
+
+
+async def test_create_project_scope_field_ignored(client, db_session):
+    user, tok = await make_active_user(db_session, "p13_user@t.com")
+
+    resp = await client.post(
+        "/api/v1/projects",
+        json={
+            "name": "p13_Project",
+            "github_project_node_id": "p13_NODE",
+            "scope": "team",  # legacy field — no longer in schema
+        },
+        headers=auth(tok),
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert "scope" not in data
+
+
+# ---------------------------------------------------------------------------
+# 14. POST /projects/{id}/promote — endpoint removed → 404
+# ---------------------------------------------------------------------------
+
+
+async def test_promote_endpoint_removed(client, db_session):
+    user, tok = await make_active_user(db_session, "p14_user@t.com")
+
+    resp = await client.post(
+        f"/api/v1/projects/{uuid.uuid4()}/promote",
+        headers=auth(tok),
+    )
+    assert resp.status_code == 404
