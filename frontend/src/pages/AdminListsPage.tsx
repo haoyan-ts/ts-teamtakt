@@ -5,8 +5,6 @@ import {
   getCategories,
   createCategory,
   updateCategory,
-  createSubType,
-  updateSubType,
   getBlockerTypes,
   createBlockerType,
   updateBlockerType,
@@ -24,7 +22,6 @@ import { ControlledListSection } from '../components/admin/ControlledListSection
 import {
   sectionStyle,
   sectionTitle,
-  smallInput,
   tinyBtn,
   inputStyle,
   primaryBtn,
@@ -38,7 +35,6 @@ function CategoriesSection() {
   const { t } = useTranslation();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newSubNames, setNewSubNames] = useState<Record<string, string>>({});
 
   const reload = () =>
     getCategories(true)
@@ -46,25 +42,6 @@ function CategoriesSection() {
       .finally(() => setLoading(false));
 
   useEffect(() => { reload(); }, []);
-
-  const toggleSubActive = async (subId: string, isActive: boolean) => {
-    await updateSubType(subId, { is_active: !isActive });
-    reload();
-  };
-
-  const addSubType = async (catId: string) => {
-    const name = (newSubNames[catId] ?? '').trim();
-    if (!name) return;
-    await createSubType(catId, { name });
-    setNewSubNames((prev) => ({ ...prev, [catId]: '' }));
-    reload();
-  };
-
-  const renameSubType = async (subId: string, name: string) => {
-    if (!name.trim()) return;
-    await updateSubType(subId, { name: name.trim() });
-    reload();
-  };
 
   return (
     <ControlledListSection
@@ -86,60 +63,6 @@ function CategoriesSection() {
       }}
       confirmDeactivate
       confirmMessage={t('adminLists.confirm.message')}
-      extraColumns={[
-        {
-          header: t('adminLists.categories.colSubTypes'),
-          render: (cat) => (
-            <>
-              <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: '0.8rem' }}>
-                {cat.sub_types.map((st) => {
-                  const stEditKey = `st-${st.id}`;
-                  return (
-                    <li key={st.id} style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginBottom: '0.2rem' }}>
-                      <input
-                        style={smallInput}
-                        value={newSubNames[stEditKey] ?? st.name}
-                        onChange={(e) =>
-                          setNewSubNames((prev) => ({ ...prev, [stEditKey]: e.target.value }))
-                        }
-                        onKeyDown={(e) => e.key === 'Enter' && renameSubType(st.id, newSubNames[stEditKey] ?? st.name)}
-                      />
-                      <button
-                        style={tinyBtn}
-                        onClick={() => renameSubType(st.id, newSubNames[stEditKey] ?? st.name)}
-                      >
-                        {t('adminLists.col.save')}
-                      </button>
-                      <button
-                        style={tinyBtn}
-                        onClick={() => toggleSubActive(st.id, st.is_active)}
-                      >
-                        {st.is_active
-                          ? t('adminLists.categories.deactivate')
-                          : t('adminLists.categories.activate')}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.3rem' }}>
-                <input
-                  style={smallInput}
-                  placeholder={t('adminLists.categories.newSubTypePlaceholder')}
-                  value={newSubNames[cat.id] ?? ''}
-                  onChange={(e) =>
-                    setNewSubNames((prev) => ({ ...prev, [cat.id]: e.target.value }))
-                  }
-                  onKeyDown={(e) => e.key === 'Enter' && addSubType(cat.id)}
-                />
-                <button style={tinyBtn} onClick={() => addSubType(cat.id)}>
-                  {t('adminLists.categories.addSubType')}
-                </button>
-              </div>
-            </>
-          ),
-        },
-      ]}
     />
   );
 }
