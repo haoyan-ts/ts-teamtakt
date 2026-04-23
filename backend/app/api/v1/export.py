@@ -491,7 +491,14 @@ async def export_bulk(
     )
     _sheet(
         "Projects",
-        ["id", "name", "github_project_node_id", "github_project_owner", "is_active", "created_at"],
+        [
+            "id",
+            "name",
+            "github_project_node_id",
+            "github_project_owner",
+            "is_active",
+            "created_at",
+        ],
         [
             [
                 str(p.id),

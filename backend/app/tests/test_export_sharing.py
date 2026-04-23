@@ -60,9 +60,7 @@ async def make_category(db, name="TestCat"):
     return cat
 
 
-async def make_project(
-    db, name, created_by
-):
+async def make_project(db, name, created_by):
     p = Project(
         name=name,
         github_project_node_id=f"PVT_{name}",
