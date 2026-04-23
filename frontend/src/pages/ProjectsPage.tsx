@@ -45,7 +45,9 @@ export const ProjectsPage = () => {
         <ul style={listStyle}>
           {active.map((p) => (
             <li key={p.id} style={itemStyle}>
-              <span style={scopeBadge(p.scope)}>{p.scope}</span>
+              {p.github_project_owner && (
+                <span style={ownerBadge}>@{p.github_project_owner}</span>
+              )}
               <input
                 style={inputStyle}
                 value={editNames[p.id] ?? p.name}
@@ -67,7 +69,9 @@ export const ProjectsPage = () => {
           <ul style={listStyle}>
             {inactive.map((p) => (
               <li key={p.id} style={{ ...itemStyle, opacity: 0.5 }}>
-                <span style={scopeBadge(p.scope)}>{p.scope}</span>
+                {p.github_project_owner && (
+                  <span style={ownerBadge}>@{p.github_project_owner}</span>
+                )}
                 <span style={{ flex: 1 }}>{p.name}</span>
                 <button style={tinyBtn} onClick={() => toggleActive(p)}>Reactivate</button>
               </li>
@@ -99,6 +103,15 @@ const itemStyle: React.CSSProperties = {
   borderBottom: '1px solid var(--border-subtle)',
 };
 const emptyMsg: React.CSSProperties = { margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' };
+const ownerBadge: React.CSSProperties = {
+  padding: '0.1rem 0.4rem',
+  borderRadius: '4px',
+  fontSize: '0.7rem',
+  fontWeight: 600,
+  background: '#e9ecef',
+  color: '#495057',
+  whiteSpace: 'nowrap',
+};
 const inputStyle: React.CSSProperties = {
   flex: 1,
   border: '1px solid var(--border)',
@@ -120,20 +133,3 @@ const dangerBtn: React.CSSProperties = {
   color: 'var(--error)',
   borderColor: 'var(--error)',
 };
-
-function scopeBadge(scope: Project['scope']): React.CSSProperties {
-  const colors: Record<Project['scope'], string> = {
-    personal: '#6c757d',
-    team: '#0d6efd',
-    cross_team: '#198754',
-  };
-  return {
-    fontSize: '0.65rem',
-    padding: '0.1rem 0.35rem',
-    borderRadius: '3px',
-    background: colors[scope],
-    color: '#fff',
-    whiteSpace: 'nowrap',
-    fontWeight: 600,
-  };
-}

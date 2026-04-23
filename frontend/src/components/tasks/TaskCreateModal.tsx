@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { createProject } from '../../api/projects';
+import { createProject, getAvailableGitHubProjects } from '../../api/projects';
+import type { GitHubAvailableProject } from '../../api/projects';
 import { createTask, getWorkTypes, prefillFromGithubIssue } from '../../api/tasks';
 import type {
   Category,
@@ -51,8 +52,10 @@ export const TaskCreateModal = ({
   const [autofillError, setAutofillError] = useState<string | null>(null);
 
   const [showNewProject, setShowNewProject] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectScope, setNewProjectScope] = useState<Project['scope']>('personal');
+  const [availableGHProjects, setAvailableGHProjects] = useState<GitHubAvailableProject[]>([]);
+  const [ghProjectsLoading, setGhProjectsLoading] = useState(false);
+  const [ghProjectsError, setGhProjectsError] = useState<string | null>(null);
+  const [selectedGHNodeId, setSelectedGHNodeId] = useState('');
   const [projectSaving, setProjectSaving] = useState(false);
   const [projectError, setProjectError] = useState('');
 
@@ -80,6 +83,9 @@ export const TaskCreateModal = ({
       setAutofillMsg(null);
       setAutofillError(null);
       setShowNewProject(false);
+      setAvailableGHProjects([]);
+      setGhProjectsError(null);
+      setSelectedGHNodeId('');
       setFormError(null);
     }
   }, [open]);
@@ -116,20 +122,38 @@ export const TaskCreateModal = ({
     }
   };
 
+  const openNewProjectPanel = () => {
+    setShowNewProject((v) => !v);
+    setProjectError('');
+    if (!showNewProject && availableGHProjects.length === 0) {
+      setGhProjectsLoading(true);
+      setGhProjectsError(null);
+      getAvailableGitHubProjects()
+        .then(setAvailableGHProjects)
+        .catch(() => setGhProjectsError('Could not load GitHub Projects. Make sure your GitHub account is linked.'))
+        .finally(() => setGhProjectsLoading(false));
+    }
+  };
+
   const submitNewProject = async () => {
-    const name = newProjectName.trim();
-    if (!name) { setProjectError('Name is required.'); return; }
+    if (!selectedGHNodeId) { setProjectError('Select a GitHub Project.'); return; }
+    const selected = availableGHProjects.find((p) => p.node_id === selectedGHNodeId);
     setProjectSaving(true);
     setProjectError('');
     try {
-      const created = await createProject({ name, scope: newProjectScope });
+      const created = await createProject({
+        name: selected?.title ?? selectedGHNodeId,
+        github_project_node_id: selectedGHNodeId,
+        github_project_number: selected?.number,
+        github_project_owner: selected?.owner_login,
+      });
       onProjectCreated(created);
       setProjectId(created.id);
       setShowNewProject(false);
-      setNewProjectName('');
-      setNewProjectScope('personal');
-    } catch {
-      setProjectError('Failed to create project. Please try again.');
+      setSelectedGHNodeId('');
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setProjectError(detail ?? 'Failed to create project. Please try again.');
     } finally {
       setProjectSaving(false);
     }
@@ -288,12 +312,14 @@ export const TaskCreateModal = ({
             >
               <option value="">— select —</option>
               {projects.filter((p) => p.is_active).map((p) => (
-                <option key={p.id} value={p.id}>{p.name} ({p.scope})</option>
+                <option key={p.id} value={p.id}>
+                  {p.github_project_owner ? `${p.name} (${p.github_project_owner})` : p.name}
+                </option>
               ))}
             </select>
             <button
               type="button"
-              onClick={() => { setShowNewProject((v) => !v); setProjectError(''); }}
+              onClick={openNewProjectPanel}
               style={s.inlineBtn}
               title="Create a new project"
             >
@@ -302,40 +328,40 @@ export const TaskCreateModal = ({
           </div>
           {showNewProject && (
             <div style={s.inlineForm}>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <input
-                  style={{ ...s.input, flex: 1, minWidth: '140px' }}
-                  placeholder="Project name"
-                  value={newProjectName}
-                  onChange={(e) => { setNewProjectName(e.target.value); setProjectError(''); }}
-                  onKeyDown={(e) => e.key === 'Enter' && submitNewProject()}
-                  autoFocus
-                />
-                <select
-                  style={s.select}
-                  value={newProjectScope}
-                  onChange={(e) => setNewProjectScope(e.target.value as Project['scope'])}
-                >
-                  <option value="personal">Personal</option>
-                  <option value="team">Team</option>
-                  <option value="cross_team">Cross-team</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={submitNewProject}
-                  disabled={projectSaving}
-                  style={s.createBtn}
-                >
-                  {projectSaving ? 'Creating…' : 'Create'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowNewProject(false); setProjectError(''); }}
-                  style={s.cancelBtn}
-                >
-                  Cancel
-                </button>
-              </div>
+              {ghProjectsLoading && <p style={{ margin: 0, fontSize: '0.8rem' }}>Loading GitHub Projects…</p>}
+              {ghProjectsError && <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--error)' }}>{ghProjectsError}</p>}
+              {!ghProjectsLoading && !ghProjectsError && (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <select
+                    style={{ ...s.select, flex: 1 }}
+                    value={selectedGHNodeId}
+                    onChange={(e) => { setSelectedGHNodeId(e.target.value); setProjectError(''); }}
+                    autoFocus
+                  >
+                    <option value="">— select a GitHub Project —</option>
+                    {availableGHProjects.map((p) => (
+                      <option key={p.node_id} value={p.node_id}>
+                        {p.title} ({p.owner_login})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={submitNewProject}
+                    disabled={projectSaving || !selectedGHNodeId}
+                    style={s.createBtn}
+                  >
+                    {projectSaving ? 'Adding…' : 'Add'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowNewProject(false); setProjectError(''); }}
+                    style={s.cancelBtn}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
               {projectError && <p style={{ color: 'var(--error)', fontSize: '0.75rem', margin: '0.3rem 0 0' }}>{projectError}</p>}
             </div>
           )}

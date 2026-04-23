@@ -29,9 +29,12 @@ export interface BlockerType {
 export interface Project {
   id: string;
   name: string;
-  scope: 'personal' | 'team' | 'cross_team';
-  github_repo: string | null;
+  github_project_node_id: string;
+  github_project_number: number | null;
+  github_project_owner: string | null;
+  created_by: string;
   is_active: boolean;
+  created_at: string;
 }
 
 export interface SelfAssessmentTagRef {
