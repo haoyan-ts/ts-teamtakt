@@ -31,3 +31,11 @@ class ProjectResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class GitHubAvailableProjectItem(BaseModel):
+    node_id: str
+    number: int
+    title: str
+    owner_login: str
+    url: str

@@ -8,7 +8,14 @@ from app.core.deps import require_active_user
 from app.db.engine import get_db
 from app.db.models.project import Project
 from app.db.models.user import User
-from app.db.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
+from app.db.schemas.project import (
+    GitHubAvailableProjectItem,
+    ProjectCreate,
+    ProjectResponse,
+    ProjectUpdate,
+)
+from app.services.github_autofill import resolve_github_token
+from app.services.github_projects import fetch_available_github_projects
 
 router = APIRouter()
 
@@ -121,3 +128,25 @@ async def update_project(
     await db.commit()
     await db.refresh(project)
     return ProjectResponse.model_validate(project)
+
+
+@router.get(
+    "/projects/github/available", response_model=list[GitHubAvailableProjectItem]
+)
+async def list_available_github_projects(
+    current_user: User = Depends(require_active_user),
+) -> list[GitHubAvailableProjectItem]:
+    """Return all GitHub Projects V2 accessible to the authenticated user.
+
+    Requires the user to have a linked GitHub OAuth token.
+    """
+    if not current_user.github_access_token_enc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No GitHub account linked. Please connect your GitHub account first.",
+        )
+
+    github_token = await resolve_github_token(current_user)
+    assert github_token is not None
+
+    return await fetch_available_github_projects(github_token)
