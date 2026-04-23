@@ -32,9 +32,29 @@ def _check_admin_password_strength() -> None:
         )
 
 
+def _check_github_encryption_key() -> None:
+    """Refuse to start in non-local environments if GITHUB_TOKEN_ENCRYPTION_KEY is unset or malformed."""
+    is_local = (
+        "localhost" in settings.DATABASE_URL or "127.0.0.1" in settings.DATABASE_URL
+    )
+    if is_local:
+        return
+    key = settings.GITHUB_TOKEN_ENCRYPTION_KEY
+    if not key or len(key) != 64:
+        raise RuntimeError(
+            "GITHUB_TOKEN_ENCRYPTION_KEY must be a 64-character hex string (32 bytes). "
+            'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
+        )
+    try:
+        bytes.fromhex(key)
+    except ValueError as exc:
+        raise RuntimeError("GITHUB_TOKEN_ENCRYPTION_KEY is not valid hex.") from exc
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _check_admin_password_strength()
+    _check_github_encryption_key()
     async with async_session_factory() as db:
         await seed_initial_data(db)
     start_scheduler()

@@ -50,6 +50,9 @@ export const Sidebar = ({ isOpen }: { isOpen: boolean }) => {
       {user?.is_admin && (
         <NavLink to="/admin/teams" style={navLinkStyle}>{t('nav.adminTeams', 'Teams')}</NavLink>
       )}
+      {user?.is_admin && (
+        <NavLink to="/admin/debug" style={navLinkStyle}>{t('nav.adminDebug', 'Debug')}</NavLink>
+      )}
       <NavLink to="/settings" style={navLinkStyle}>{t('nav.settings')}</NavLink>
       <NavLink to="/settings/profile" style={navLinkStyle}>{t('nav.profile')}</NavLink>
     </nav>

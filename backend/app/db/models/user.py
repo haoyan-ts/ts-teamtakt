@@ -31,3 +31,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    # GitHub OAuth account linking — token stored AES-256-GCM encrypted at rest
+    github_access_token_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    github_token_iv: Mapped[str | None] = mapped_column(Text, nullable=True)
+    github_login: Mapped[str | None] = mapped_column(String(255), nullable=True)

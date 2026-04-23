@@ -9,4 +9,6 @@ export interface User {
   team: { id: string; name: string } | null;
   lobby: boolean;
   ms365_connected: boolean;
+  github_linked: boolean;
+  github_login: string | null;
 }

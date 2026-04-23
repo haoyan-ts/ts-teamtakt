@@ -1,37 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   listTeams,
   createTeam,
   deleteTeam,
 } from '../api/teams';
 import type { TeamSummary } from '../api/teams';
-
-// ---------------------------------------------------------------------------
-// Confirmation dialog (same pattern as AdminListsPage)
-// ---------------------------------------------------------------------------
-
-function ConfirmDialog({
-  message,
-  onConfirm,
-  onCancel,
-}: {
-  message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'var(--bg)', borderRadius: '8px', padding: '1.5rem', maxWidth: '400px' }}>
-        <p style={{ margin: '0 0 1rem' }}>{message}</p>
-        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-          <button onClick={onCancel} style={cancelBtn}>Cancel</button>
-          <button onClick={onConfirm} style={dangerBtn}>Confirm</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { ConfirmDialog } from '../components/admin/ConfirmDialog';
+import {
+  sectionStyle,
+  tableStyle,
+  th,
+  tdMiddle,
+  inputStyle,
+  primaryBtn,
+  tinyBtn,
+  dangerTinyBtn,
+  cancelBtn,
+} from '../components/admin/adminStyles';
 
 // ---------------------------------------------------------------------------
 // Create-team modal
@@ -44,20 +31,21 @@ function CreateTeamModal({
   onCreated: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
     const trimmed = name.trim();
-    if (!trimmed) { setError('Team name cannot be empty.'); return; }
+    if (!trimmed) { setError(t('adminTeams.createModal.emptyError')); return; }
     setSaving(true);
     try {
       await createTeam(trimmed);
       onCreated();
       onClose();
     } catch {
-      setError('Failed to create team. Please try again.');
+      setError(t('adminTeams.createModal.createError'));
     } finally {
       setSaving(false);
     }
@@ -66,10 +54,10 @@ function CreateTeamModal({
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
       <div style={{ background: 'var(--bg)', borderRadius: '8px', padding: '1.5rem', width: '360px' }}>
-        <h3 style={{ margin: '0 0 1rem' }}>Create Team</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('adminTeams.createModal.title')}</h3>
         <input
           style={{ ...inputStyle, display: 'block', width: '100%', boxSizing: 'border-box', marginBottom: '0.5rem' }}
-          placeholder="Team name"
+          placeholder={t('adminTeams.createModal.namePlaceholder')}
           value={name}
           onChange={(e) => { setName(e.target.value); setError(''); }}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
@@ -77,9 +65,9 @@ function CreateTeamModal({
         />
         {error && <p style={{ color: 'var(--error)', fontSize: '0.8rem', margin: '0 0 0.5rem' }}>{error}</p>}
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-          <button onClick={onClose} style={cancelBtn}>Cancel</button>
+          <button onClick={onClose} style={cancelBtn}>{t('adminLists.confirm.cancel')}</button>
           <button onClick={submit} disabled={saving} style={primaryBtn}>
-            {saving ? 'Creating…' : 'Create'}
+            {saving ? t('adminTeams.createModal.creating') : t('adminTeams.createModal.create')}
           </button>
         </div>
       </div>
@@ -92,6 +80,7 @@ function CreateTeamModal({
 // ---------------------------------------------------------------------------
 
 export const AdminTeamsPage = () => {
+  const { t } = useTranslation();
   const [teams, setTeams] = useState<TeamSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -123,9 +112,9 @@ export const AdminTeamsPage = () => {
       setDissolveTarget(null);
       const status = (err as { response?: { status?: number } })?.response?.status;
       if (status === 409) {
-        setError('Cannot dissolve this team — remove or reassign all members first.');
+        setError(t('adminTeams.dissolveConflict'));
       } else {
-        setError('Failed to dissolve team. Please try again.');
+        setError(t('adminTeams.dissolveError'));
       }
     }
   };
@@ -137,47 +126,47 @@ export const AdminTeamsPage = () => {
       )}
       {dissolveTarget && (
         <ConfirmDialog
-          message={`Dissolve team "${dissolveTarget.name}"? This cannot be undone.`}
+          message={t('adminTeams.dissolveConfirm', { name: dissolveTarget.name })}
           onConfirm={dissolve}
           onCancel={() => setDissolveTarget(null)}
         />
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0 }}>Teams (Admin)</h2>
-        <button style={primaryBtn} onClick={() => setShowCreate(true)}>Create Team</button>
+        <h2 style={{ margin: 0 }}>{t('adminTeams.pageTitle')}</h2>
+        <button style={primaryBtn} onClick={() => setShowCreate(true)}>{t('adminTeams.createBtn')}</button>
       </div>
 
       {error && <p style={{ color: 'var(--error)', marginBottom: '1rem' }}>{error}</p>}
 
       {loading ? (
-        <p>Loading…</p>
+        <p>{t('adminLists.loading')}</p>
       ) : teams.length === 0 ? (
-        <p style={{ color: 'var(--text-secondary)' }}>No teams yet. Create one to get started.</p>
+        <p style={{ color: 'var(--text-secondary)' }}>{t('adminTeams.empty')}</p>
       ) : (
         <div style={sectionStyle}>
           <table style={tableStyle}>
             <thead>
               <tr>
-                <th style={th}>Name</th>
-                <th style={th}>Members</th>
-                <th style={th}>Leaders</th>
-                <th style={th}>Actions</th>
+                <th style={th}>{t('adminTeams.col.name')}</th>
+                <th style={th}>{t('adminTeams.col.members')}</th>
+                <th style={th}>{t('adminTeams.col.leaders')}</th>
+                <th style={th}>{t('adminTeams.col.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {teams.map((team) => (
                 <tr key={team.id}>
-                  <td style={td}><strong>{team.name}</strong></td>
-                  <td style={td}>{team.member_count}</td>
-                  <td style={td}>{team.leaders.join(', ') || '—'}</td>
-                  <td style={td}>
+                  <td style={tdMiddle}><strong>{team.name}</strong></td>
+                  <td style={tdMiddle}>{team.member_count}</td>
+                  <td style={tdMiddle}>{team.leaders.join(', ') || '—'}</td>
+                  <td style={tdMiddle}>
                     <div style={{ display: 'flex', gap: '0.4rem' }}>
                       <button style={tinyBtn} onClick={() => navigate(`/admin/teams/${team.id}`)}>
-                        Edit
+                        {t('adminTeams.col.edit')}
                       </button>
                       <button style={dangerTinyBtn} onClick={() => setDissolveTarget(team)}>
-                        Dissolve
+                        {t('adminTeams.col.dissolve')}
                       </button>
                     </div>
                   </td>
@@ -189,37 +178,4 @@ export const AdminTeamsPage = () => {
       )}
     </div>
   );
-};
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-const sectionStyle: React.CSSProperties = {
-  border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem', background: 'var(--bg)',
-};
-const tableStyle: React.CSSProperties = {
-  width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem',
-};
-const th: React.CSSProperties = {
-  textAlign: 'left', padding: '0.3rem 0.5rem', fontWeight: 600, borderBottom: '2px solid var(--border)',
-};
-const td: React.CSSProperties = { padding: '0.4rem 0.5rem', verticalAlign: 'middle' };
-const inputStyle: React.CSSProperties = {
-  border: '1px solid var(--border)', borderRadius: '4px', padding: '0.3rem 0.5rem',
-  background: 'var(--bg)', color: 'var(--text-h)',
-};
-const primaryBtn: React.CSSProperties = {
-  padding: '0.35rem 0.75rem', background: 'var(--primary)', color: '#fff', border: 'none',
-  borderRadius: '4px', cursor: 'pointer', fontWeight: 500,
-};
-const tinyBtn: React.CSSProperties = {
-  padding: '0.2rem 0.5rem', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-  borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem',
-};
-const dangerTinyBtn: React.CSSProperties = {
-  ...tinyBtn, background: 'var(--error-bg)', border: '1px solid var(--error-bg)', color: 'var(--error)',
-};
-const cancelBtn: React.CSSProperties = { ...tinyBtn, padding: '0.4rem 1rem' };
-const dangerBtn: React.CSSProperties = {
-  ...primaryBtn, background: 'var(--error)', padding: '0.4rem 1rem',
 };

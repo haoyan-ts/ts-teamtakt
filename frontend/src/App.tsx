@@ -14,6 +14,7 @@ import { TeamThresholdSettingsPage } from './pages/TeamThresholdSettingsPage';
 import { AdminListsPage } from './pages/AdminListsPage';
 import { AdminTeamsPage } from './pages/AdminTeamsPage';
 import { AdminTeamDetailPage } from './pages/AdminTeamDetailPage';
+import { AdminDebugPage } from './pages/AdminDebugPage';
 import { TeamMembersPage } from './pages/TeamMembersPage';
 import { WeeklyReportPage } from './pages/WeeklyReportPage';
 import { MonthlyReportPage } from './pages/MonthlyReportPage';
@@ -56,6 +57,7 @@ function App() {
           <Route path="admin/lists" element={<ProtectedRoute requireAdmin><AdminListsPage /></ProtectedRoute>} />
           <Route path="admin/teams" element={<ProtectedRoute requireAdmin><AdminTeamsPage /></ProtectedRoute>} />
           <Route path="admin/teams/:teamId" element={<ProtectedRoute requireAdmin><AdminTeamDetailPage /></ProtectedRoute>} />
+          <Route path="admin/debug" element={<ProtectedRoute requireAdmin><AdminDebugPage /></ProtectedRoute>} />
           <Route path="settings" element={<NotificationPreferencesPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />

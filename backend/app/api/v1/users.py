@@ -44,6 +44,8 @@ async def get_me(
         "avatar_url": current_user.avatar_url,
         "team": team_data,
         "lobby": team_data is None,
+        "github_linked": current_user.github_access_token_enc is not None,
+        "github_login": current_user.github_login,
     }
 
 

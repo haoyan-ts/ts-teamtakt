@@ -15,7 +15,8 @@ import {
 import { getActiveTasks, getTask } from '../api/tasks';
 import { getCategories, getSelfAssessmentTags, getBlockerTypes } from '../api/categories';
 import { getProjects } from '../api/projects';
-import { WorkLogRow } from '../components/tasks/WorkLogRow';
+import { WorkLogCard } from '../components/tasks/WorkLogCard';
+import { WorkLogEditModal } from '../components/tasks/WorkLogEditModal';
 import { TaskCreateModal } from '../components/tasks/TaskCreateModal';
 import type {
   Category,
@@ -175,6 +176,9 @@ export const DailyFormPage = () => {
 
   // Task create modal
   const [showTaskModal, setShowTaskModal] = useState(false);
+
+  // Work log edit modal
+  const [editingKey, setEditingKey] = useState<string | null>(null);
 
   // Dirty tracking — set on first user interaction, reset after successful save
   const isDirty = useRef(false);
@@ -344,17 +348,6 @@ export const DailyFormPage = () => {
     }
   }, [isEditable, saving, dayLoad, dayInsight, existingRecord, recordDate]);
 
-  // Work log manipulation
-  const updateLog = useCallback(
-    (index: number, updated: Partial<DailyWorkLogFormEntry>) => {
-      isDirty.current = true;
-      const next = workLogs.map((l, i) => (i === index ? { ...l, ...updated } : l));
-      setWorkLogs(next);
-      void autoSaveRecord(next);
-    },
-    [workLogs, autoSaveRecord]
-  );
-
   const handleTaskCreated = useCallback((task: Task) => {
     const next = [...workLogs, taskToBlankLog(task)];
     setWorkLogs(next);
@@ -369,6 +362,16 @@ export const DailyFormPage = () => {
       );
       setWorkLogs(next);
       void autoSaveRecord(next);
+    },
+    [workLogs, autoSaveRecord]
+  );
+
+  const handleModalSave = useCallback(
+    async (updated: DailyWorkLogFormEntry) => {
+      const next = workLogs.map((l) => (l._key === updated._key ? updated : l));
+      setWorkLogs(next);
+      await autoSaveRecord(next);
+      setEditingKey(null);
     },
     [workLogs, autoSaveRecord]
   );
@@ -628,17 +631,9 @@ export const DailyFormPage = () => {
           {/* Work Logs (one per active task) */}
           <div style={s.sectionHeader}>
             <h3 style={s.sectionTitle}>Today's Tasks</h3>
-            <button
-              type="button"
-              onClick={() => setShowTaskModal(true)}
-              disabled={!isEditable}
-              style={s.addTaskBtn}
-            >
-              + New Task
-            </button>
           </div>
           <p style={s.sectionHint}>
-            Log effort for each active task. Mark done when finished.
+            Log effort for each active task. Click Edit to fill in details.
           </p>
 
           {workLogs.length === 0 && (
@@ -689,20 +684,19 @@ export const DailyFormPage = () => {
                   {group.map((log) => {
                     const index = workLogs.indexOf(log);
                     return (
-                      <WorkLogRow
+                      <WorkLogCard
                         key={log._key}
                         log={log}
                         index={index}
                         totalLogs={workLogs.length}
                         tags={tags}
-                        blockerTypes={blockerTypes}
                         isEditable={isEditable && log.task.is_active}
-                        onChange={updateLog}
+                        accentColor={color}
+                        onEdit={() => setEditingKey(log._key)}
                         onRemove={removeLog}
                         onMoveUp={(i) => moveLog(i, 'up')}
                         onMoveDown={(i) => moveLog(i, 'down')}
                         onTaskUpdated={handleTaskUpdated}
-                        accentColor={color}
                       />
                     );
                   })}
@@ -710,6 +704,17 @@ export const DailyFormPage = () => {
               );
             });
           })()}
+
+          {/* Ghost card — add a new task */}
+          {isEditable && (
+            <button
+              type="button"
+              onClick={() => setShowTaskModal(true)}
+              style={s.ghostCard}
+            >
+              + New Task
+            </button>
+          )}
 
           {/* Battery % (private) */}
           <div style={s.metaSection}>
@@ -814,6 +819,21 @@ export const DailyFormPage = () => {
             </div>
           )}
         </form>
+
+      {/* Work log edit modal */}
+      {editingKey !== null && (() => {
+        const editingLog = workLogs.find((l) => l._key === editingKey);
+        if (!editingLog) return null;
+        return (
+          <WorkLogEditModal
+            log={editingLog}
+            tags={tags}
+            blockerTypes={blockerTypes}
+            onSave={handleModalSave}
+            onClose={() => setEditingKey(null)}
+          />
+        );
+      })()}
 
       {/* Task create modal — rendered outside <form> to avoid nested form HTML */}
       <TaskCreateModal
@@ -981,6 +1001,20 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '6px',
     cursor: 'pointer',
     fontWeight: 500,
+  },
+  ghostCard: {
+    display: 'block',
+    width: '100%',
+    padding: '0.6rem 1rem',
+    marginBottom: '0.5rem',
+    background: 'transparent',
+    border: '2px dashed var(--border-strong)',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    color: 'var(--text-secondary)',
+    fontSize: '0.875rem',
+    fontWeight: 500,
+    textAlign: 'left' as const,
   },
   iconBtn: {
     background: 'none',

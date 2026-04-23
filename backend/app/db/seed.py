@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.security import hash_password
 from app.db.models.admin_settings import AdminSettings
-from app.db.models.category import Category, SelfAssessmentTag, WorkType
+from app.db.models.category import BlockerType, Category, SelfAssessmentTag, WorkType
 from app.db.models.user import User
 
 _ADMIN_PASSWORD_DEV_DEFAULT = "ChangeMe_DevOnly!"  # never use in production
@@ -43,11 +43,38 @@ async def seed_initial_data(db: AsyncSession):
         if not existing.scalar_one_or_none():
             db.add(Category(id=uuid4(), name=name, is_active=True, sort_order=i))
 
-    work_type_seeds = ["Software", "Hardware", "Documents", "Slide", "Other"]
+    work_type_seeds = [
+        "Software",  # code, apps, scripts
+        "Hardware",  # physical devices, firmware
+        "Document",  # specs, runbooks, knowledge base articles
+        "Slide",  # presentations, decks
+        "Test",  # test plans, test cases, QA artifacts
+        "Infrastructure",  # deployment configs, CI/CD, cloud setup
+        "Data",  # data models, pipelines, reports, analytics
+        "Design",  # mockups, wireframes, UX flows
+        "Process",  # SOPs, checklists, workflow definitions
+        "Other",  # catch-all
+    ]
     for i, name in enumerate(work_type_seeds):
         existing = await db.execute(select(WorkType).where(WorkType.name == name))
         if not existing.scalar_one_or_none():
             db.add(WorkType(id=uuid4(), name=name, is_active=True, sort_order=i))
+
+    blocker_type_seeds = [
+        "Hardware Unavailable",
+        "Hardware Failure",
+        "External Vendor / Supplier Delay",
+        "Firmware / Driver Issue",
+        "Simulation Environment Issue",
+        "Safety / Compliance Review",
+        "Unclear Specification",
+        "Cross-team Dependency",
+        "Other",
+    ]
+    for name in blocker_type_seeds:
+        existing = await db.execute(select(BlockerType).where(BlockerType.name == name))
+        if not existing.scalar_one_or_none():
+            db.add(BlockerType(id=uuid4(), name=name, is_active=True))
 
     existing = await db.execute(
         select(AdminSettings).where(AdminSettings.key == "output_language")

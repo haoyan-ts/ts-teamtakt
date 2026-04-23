@@ -1,5 +1,5 @@
 import client from './client';
-import type { Category, SelfAssessmentTag, BlockerType } from '../types/dailyRecord';
+import type { Category, SelfAssessmentTag, BlockerType, WorkType } from '../types/dailyRecord';
 
 export async function getCategories(includeInactive = false): Promise<Category[]> {
   const res = await client.get<Category[]>('/categories', {
@@ -61,8 +61,10 @@ export async function updateSelfAssessmentTag(
   return res.data;
 }
 
-export async function getBlockerTypes(): Promise<BlockerType[]> {
-  const res = await client.get<BlockerType[]>('/blocker-types');
+export async function getBlockerTypes(includeInactive = false): Promise<BlockerType[]> {
+  const res = await client.get<BlockerType[]>('/blocker-types', {
+    params: includeInactive ? { include_inactive: true } : {},
+  });
   return res.data;
 }
 
@@ -76,5 +78,25 @@ export async function updateBlockerType(
   payload: { name?: string; is_active?: boolean }
 ): Promise<BlockerType> {
   const res = await client.patch<BlockerType>(`/blocker-types/${id}`, payload);
+  return res.data;
+}
+
+export async function getWorkTypes(includeInactive = false): Promise<WorkType[]> {
+  const res = await client.get<WorkType[]>('/work-types', {
+    params: includeInactive ? { include_inactive: true } : {},
+  });
+  return res.data;
+}
+
+export async function createWorkType(payload: { name: string; sort_order?: number }): Promise<WorkType> {
+  const res = await client.post<WorkType>('/work-types', payload);
+  return res.data;
+}
+
+export async function updateWorkType(
+  id: string,
+  payload: { name?: string; is_active?: boolean; sort_order?: number }
+): Promise<WorkType> {
+  const res = await client.patch<WorkType>(`/work-types/${id}`, payload);
   return res.data;
 }
