@@ -61,6 +61,14 @@
   },
   "adminLists": {
     "pageTitle": "Controlled Lists (Admin)",
+    "col": {
+      "name": "Name",
+      "actions": "Actions",
+      "save": "Save",
+      "add": "Add",
+      "activate": "Activate",
+      "deactivate": "Deactivate"
+    },
     "back": "← Back",
     "unsavedWarning": "You have unsaved changes. Leave anyway?",
     "loading": "Loading…",

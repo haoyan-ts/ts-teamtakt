@@ -61,6 +61,14 @@
   },
   "adminLists": {
     "pageTitle": "管理リスト（管理者）",
+    "col": {
+      "name": "名前",
+      "actions": "操作",
+      "save": "保存",
+      "add": "追加",
+      "activate": "有効化",
+      "deactivate": "無効化"
+    },
     "back": "← 戻る",
     "unsavedWarning": "未保存の変更があります。このまま離れますか？",
     "loading": "読み込み中…",

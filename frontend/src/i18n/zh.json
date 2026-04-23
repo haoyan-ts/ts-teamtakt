@@ -58,5 +58,21 @@
         "connectedAs": "已连接为 @{{login}}"
       }
     }
+  },
+  "adminLists": {
+    "col": {
+      "name": "名称",
+      "actions": "操作",
+      "save": "保存",
+      "add": "添加",
+      "activate": "启用",
+      "deactivate": "禁用"
+    },
+    "loading": "加载中…",
+    "confirm": {
+      "message": "禁用后将在新表单中隐藏。历史记录不受影响。",
+      "cancel": "取消",
+      "confirm": "确认"
+    }
   }
 }

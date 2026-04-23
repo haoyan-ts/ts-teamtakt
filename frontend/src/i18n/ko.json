@@ -58,5 +58,21 @@
         "connectedAs": "@{{login}}으로 연결됨"
       }
     }
+  },
+  "adminLists": {
+    "col": {
+      "name": "이름",
+      "actions": "작업",
+      "save": "저장",
+      "add": "추가",
+      "activate": "활성화",
+      "deactivate": "비활성화"
+    },
+    "loading": "로딩 중…",
+    "confirm": {
+      "message": "비활성화하면 새 양식에서 숨겹니다. 과거 기록은 영향을 받지 않습니다.",
+      "cancel": "취소",
+      "confirm": "확인"
+    }
   }
 }
