@@ -2,32 +2,32 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel
 
 
 class ProjectCreate(BaseModel):
     name: str
-    scope: Literal["personal", "team", "cross_team"]
-    team_id: uuid.UUID | None = None
-    github_repo: str | None = None
+    github_project_node_id: str
+    github_project_number: int | None = None
+    github_project_owner: str | None = None
 
 
 class ProjectUpdate(BaseModel):
     name: str | None = None
     is_active: bool | None = None
-    github_repo: str | None = None
+    github_project_number: int | None = None
+    github_project_owner: str | None = None
 
 
 class ProjectResponse(BaseModel):
     id: uuid.UUID
     name: str
-    scope: str
-    team_id: uuid.UUID | None
+    github_project_node_id: str
+    github_project_number: int | None
+    github_project_owner: str | None
     created_by: uuid.UUID
     is_active: bool
     created_at: datetime
-    github_repo: str | None
 
     model_config = {"from_attributes": True}

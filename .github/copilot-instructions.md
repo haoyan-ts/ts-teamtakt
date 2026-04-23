@@ -10,7 +10,7 @@ Rules that MUST be followed in every coding task. Violating any of these is a bu
 - Self-assessment tags are many-to-many via `DailyWorkLogSelfAssessmentTag` junction table with `is_primary` boolean. Exactly one tag per `DailyWorkLog` must have `is_primary=true`. Enforced at DB level via a partial unique index on `(daily_work_log_id) WHERE is_primary = TRUE`; also validate at app level.
 - Controlled lists (categories, blocker types, work types) use soft-delete (`is_active` flag, default `true`). Never hard-delete. Historical records keep FK references; deactivated items hidden from new-entry forms only.
 - `Task.work_type_id` is a nullable FK into the `work_types` controlled-list table (not an enum).
-- Project table: single table with `scope ENUM(personal, team, cross_team)`. `team_id` is NULL for cross_team projects.
+- Project table: single table linked to a GitHub Project. Columns: `github_project_node_id` (String, unique, not null), `github_project_number` (Integer, nullable), `github_project_owner` (String, nullable). No `scope`, `team_id`, or `github_repo` columns. Visibility is creator-only (`created_by` FK to `users`); admins see all.
 - All dates stored as `DATE` (not TIMESTAMP). Single system timezone: **JST (Asia/Tokyo)**. No per-user timezone offset.
 - No `locked` boolean column on DailyRecord. Lock status is always computed from dates (see Edit Window).
 
@@ -44,7 +44,6 @@ Rules that MUST be followed in every coding task. Violating any of these is a bu
 - Quarterly report drafts are private to the member. Leader sees only finalized reports.
 - Missing day reminder fires only on working days (exclude weekends + holidays from the holiday calendar).
 - Team membership tracks `(user_id, team_id, joined_at, left_at)`. Old leader sees records up to `left_at`; new leader from `joined_at` onward.
-- When leader promotes team → cross-team project, original creator gets an in-app notification. No veto.
 
 ## Output Language
 
