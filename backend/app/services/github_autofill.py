@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.token_encryption import decrypt_token
 from app.db.models.category import Category
+from app.db.models.task import TaskStatus
 from app.db.models.user import User
 from app.db.schemas.task import TaskAutoFillResponse
 
@@ -20,21 +21,23 @@ _GITHUB_API_BASE = "https://api.github.com"
 # GitHub Project board status → teamtakt internal status
 # Mapping is case-insensitive; unknown values fall back to "todo".
 # ---------------------------------------------------------------------------
-_GITHUB_STATUS_TO_TASK_STATUS: dict[str, str] = {
-    "backlog": "todo",
-    "sprint backlog": "todo",
-    "in progress": "running",
-    "in review": "running",
-    "done": "done",
+_GITHUB_STATUS_TO_TASK_STATUS: dict[str, TaskStatus] = {
+    "backlog": TaskStatus.todo,
+    "sprint backlog": TaskStatus.todo,
+    "in progress": TaskStatus.running,
+    "in review": TaskStatus.running,
+    "done": TaskStatus.done,
 }
 
 
-def map_github_status_to_task_status(github_status: str) -> str:
+def map_github_status_to_task_status(github_status: str) -> TaskStatus:
     """Map a GitHub Project board column name to a teamtakt TaskStatus value.
 
     Unknown/unrecognised column names default to ``"todo"``.
     """
-    return _GITHUB_STATUS_TO_TASK_STATUS.get(github_status.strip().lower(), "todo")
+    return _GITHUB_STATUS_TO_TASK_STATUS.get(
+        github_status.strip().lower(), TaskStatus.todo
+    )
 
 
 class GitHubTokenRevokedError(Exception):
@@ -155,7 +158,9 @@ async def map_to_task_fields(
         if isinstance(raw, str) and raw:
             github_status = raw
     derived_status = (
-        map_github_status_to_task_status(github_status) if github_status else "todo"
+        map_github_status_to_task_status(github_status)
+        if github_status
+        else TaskStatus.todo
     )
 
     return TaskAutoFillResponse(

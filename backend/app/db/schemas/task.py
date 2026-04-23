@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
-from app.db.models.task import EnergyType, TaskPriority
+from app.db.models.task import EnergyType, TaskPriority, TaskStatus
 
 _FIBONACCI = frozenset({1, 2, 3, 5, 8})
 
@@ -181,4 +181,4 @@ class TaskAutoFillResponse(BaseModel):
     # github_status is the raw GitHub Project board column (e.g. "In Progress").
     # status is the derived teamtakt internal value mapped from github_status.
     github_status: str | None = None
-    status: Literal["todo", "running", "done", "blocked"] = "todo"
+    status: TaskStatus = TaskStatus.todo
