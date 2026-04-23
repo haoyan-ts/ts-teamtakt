@@ -43,14 +43,12 @@ def _check_github_encryption_key() -> None:
     if not key or len(key) != 64:
         raise RuntimeError(
             "GITHUB_TOKEN_ENCRYPTION_KEY must be a 64-character hex string (32 bytes). "
-            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
         )
     try:
         bytes.fromhex(key)
     except ValueError as exc:
-        raise RuntimeError(
-            "GITHUB_TOKEN_ENCRYPTION_KEY is not valid hex."
-        ) from exc
+        raise RuntimeError("GITHUB_TOKEN_ENCRYPTION_KEY is not valid hex.") from exc
 
 
 @asynccontextmanager

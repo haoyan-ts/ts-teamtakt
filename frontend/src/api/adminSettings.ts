@@ -42,3 +42,32 @@ export async function upsertTeamsConfig(
   const res = await client.put<TeamsConfigData>(`/admin/teams-config/${teamId}`, payload);
   return res.data;
 }
+
+// ---------------------------------------------------------------------------
+// Debug endpoints
+// ---------------------------------------------------------------------------
+
+export interface DebugSendEmailPayload {
+  from_address: string;
+  to_address: string;
+  subject?: string;
+}
+
+export interface DebugSendTeamsPayload {
+  webhook_url: string;
+  message?: string;
+}
+
+export interface DebugOkResponse {
+  ok: boolean;
+}
+
+export async function debugSendEmail(payload: DebugSendEmailPayload): Promise<DebugOkResponse> {
+  const res = await client.post<DebugOkResponse>('/admin/debug/send-email', payload);
+  return res.data;
+}
+
+export async function debugSendTeamsMessage(payload: DebugSendTeamsPayload): Promise<DebugOkResponse> {
+  const res = await client.post<DebugOkResponse>('/admin/debug/send-teams-message', payload);
+  return res.data;
+}

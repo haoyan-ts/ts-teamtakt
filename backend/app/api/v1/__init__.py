@@ -5,6 +5,7 @@ from .auth import router as auth_router
 from .categories import router as categories_router
 from .daily_records import router as daily_records_router
 from .daily_records import unlock_router
+from .debug import router as debug_router
 from .export import router as export_router
 from .growth import router as growth_router
 from .health import router as health_router
@@ -24,6 +25,7 @@ from .weekly_reports import router as weekly_reports_router
 router = APIRouter()
 router.include_router(health_router)
 router.include_router(admin_settings_router)
+router.include_router(debug_router)
 router.include_router(auth_router)
 router.include_router(teams_router)
 router.include_router(users_router)
