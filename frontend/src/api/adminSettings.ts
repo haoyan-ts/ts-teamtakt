@@ -54,7 +54,7 @@ export interface DebugSendEmailPayload {
 }
 
 export interface DebugSendTeamsPayload {
-  webhook_url: string;
+  channel_link: string;
   message?: string;
 }
 

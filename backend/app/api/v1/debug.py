@@ -6,9 +6,8 @@ idempotency keys. [DEBUG] prefix is enforced server-side.
 
 from __future__ import annotations
 
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -19,6 +18,12 @@ from app.db.engine import get_db
 from app.db.models.user import User
 from app.services.graph_auth import ConsentRequiredError
 from app.services.graph_mail import refresh_graph_token, send_mail
+from app.services.graph_teams import (
+    post_channel_message,
+)
+from app.services.graph_teams import (
+    refresh_graph_token as refresh_teams_token,
+)
 
 router = APIRouter(tags=["admin-debug"])
 
@@ -37,7 +42,7 @@ class SendEmailRequest(BaseModel):
 
 
 class SendTeamsMessageRequest(BaseModel):
-    webhook_url: str
+    channel_link: str
     message: str | None = None
 
 
@@ -54,13 +59,34 @@ def _ensure_debug_prefix(text: str) -> str:
     return text if text.startswith(_DEBUG_PREFIX) else f"{_DEBUG_PREFIX} {text}"
 
 
-def _validate_https_url(url: str) -> None:
-    parsed = urlparse(url)
-    if parsed.scheme != "https":
+def _parse_teams_channel_link(link: str) -> tuple[str, str]:
+    """
+    Parse a Teams channel deep link and return (teams_team_id, teams_channel_id).
+
+    Expected format:
+    https://teams.microsoft.com/l/channel/{channelId}/{channelName}?groupId={teamId}&...
+    """
+    parsed = urlparse(link)
+    if parsed.scheme != "https" or parsed.netloc != "teams.microsoft.com":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="webhook_url must use HTTPS",
+            detail="channel_link must be a valid https://teams.microsoft.com/l/channel/... URL",
         )
+    parts = parsed.path.split("/")
+    # path: /l/channel/{channelId}/{channelName}
+    if len(parts) < 4 or parts[1:3] != ["l", "channel"]:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="channel_link path is invalid; expected /l/channel/{channelId}/...",
+        )
+    channel_id = unquote(parts[3])
+    group_ids = parse_qs(parsed.query).get("groupId", [])
+    if not group_ids:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="channel_link is missing the groupId query parameter",
+        )
+    return group_ids[0], channel_id
 
 
 # ---------------------------------------------------------------------------
@@ -140,26 +166,54 @@ async def debug_send_email(
 )
 async def debug_send_teams_message(
     body: SendTeamsMessageRequest,
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ) -> DebugOkResponse:
-    """Post a test message to a Teams channel via an incoming webhook URL.
+    """Post a test message to a Teams channel via the Graph API.
 
-    The admin provides the full webhook URL; no stored channel config is used.
+    The admin provides a Teams channel deep link; the backend parses the
+    groupId (team ID) and channel ID from it and posts using the admin's
+    own MS365 Graph token.
     """
-    _validate_https_url(body.webhook_url)
+    teams_team_id, teams_channel_id = _parse_teams_channel_link(body.channel_link)
+
+    if admin.ms_graph_refresh_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Admin account has no connected MS365 account",
+        )
+
+    try:
+        access_token, _ = await refresh_teams_token(admin.ms_graph_refresh_token)
+    except ConsentRequiredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Token refresh failed: {exc}",
+        ) from exc
 
     message_text = (
         body.message or "This is a test message from TeamTakt admin debug tools."
     )
-    payload = {"text": _ensure_debug_prefix(message_text)}
+    # Prepend the [DEBUG] banner as a standalone block, then append the
+    # user-supplied HTML verbatim. This avoids double-wrapping arbitrary HTML
+    # in a <p> tag while still guaranteeing the prefix is present.
+    html_body = f"<p><strong>{_DEBUG_PREFIX}</strong></p>{message_text}"
 
-    async with httpx.AsyncClient(timeout=30) as http:
-        resp = await http.post(body.webhook_url, json=payload)
-
-    if resp.status_code not in (200, 201, 202):
+    try:
+        await post_channel_message(
+            access_token=access_token,
+            teams_team_id=teams_team_id,
+            teams_channel_id=teams_channel_id,
+            html_body=html_body,
+        )
+    except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Teams webhook delivery failed [{resp.status_code}]: {resp.text}",
-        )
+            detail=f"Teams message delivery failed: {exc}",
+        ) from exc
 
     return DebugOkResponse()

@@ -164,7 +164,7 @@ function EmailForm({ adminEmail }: { adminEmail: string }) {
 // ---------------------------------------------------------------------------
 
 function TeamsForm() {
-  const [webhookUrl, setWebhookUrl] = useState('');
+  const [channelLink, setChannelLink] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -175,7 +175,7 @@ function TeamsForm() {
     setResult(null);
     try {
       await debugSendTeamsMessage({
-        webhook_url: webhookUrl,
+        channel_link: channelLink,
         message: message || undefined,
       });
       setResult({ ok: true, message: 'Teams message posted successfully.' });
@@ -198,30 +198,30 @@ function TeamsForm() {
       <h3 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>Send Test Teams Message</h3>
       <form onSubmit={handleSubmit}>
         <div style={fieldGroup}>
-          <label style={labelStyle} htmlFor="debug-webhook">
-            Incoming Webhook URL
+          <label style={labelStyle} htmlFor="debug-channel-link">
+            Teams Channel Link
           </label>
           <input
-            id="debug-webhook"
+            id="debug-channel-link"
             type="url"
             required
-            placeholder="https://…"
-            value={webhookUrl}
-            onChange={(e) => setWebhookUrl(e.target.value)}
+            placeholder="https://teams.microsoft.com/l/channel/…"
+            value={channelLink}
+            onChange={(e) => setChannelLink(e.target.value)}
             style={inputStyle}
           />
         </div>
         <div style={fieldGroup}>
           <label style={labelStyle} htmlFor="debug-message">
-            Message (optional)
+            Message body (HTML supported)
           </label>
-          <input
+          <textarea
             id="debug-message"
-            type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="This is a test message from TeamTakt admin debug tools."
-            style={inputStyle}
+            placeholder="<p>This is a <strong>test</strong> message from TeamTakt admin debug tools.</p>"
+            rows={6}
+            style={{ ...inputStyle, resize: 'vertical', fontFamily: 'monospace' }}
           />
         </div>
         <button type="submit" style={loading ? disabledBtn : primaryBtn} disabled={loading}>
