@@ -22,9 +22,6 @@ import { ControlledListSection } from '../components/admin/ControlledListSection
 import {
   sectionStyle,
   sectionTitle,
-  tinyBtn,
-  inputStyle,
-  primaryBtn,
 } from '../components/admin/adminStyles';
 
 // ---------------------------------------------------------------------------
@@ -234,5 +231,3 @@ export const AdminListsPage = () => {
     </div>
   );
 };
-
-export { sectionStyle, sectionTitle, inputStyle, tinyBtn, primaryBtn };

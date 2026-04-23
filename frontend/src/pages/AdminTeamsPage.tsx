@@ -18,7 +18,6 @@ import {
   tinyBtn,
   dangerTinyBtn,
   cancelBtn,
-  dangerBtn,
 } from '../components/admin/adminStyles';
 
 // ---------------------------------------------------------------------------
@@ -180,6 +179,3 @@ export const AdminTeamsPage = () => {
     </div>
   );
 };
-
-// Re-export for any downstream imports
-export { cancelBtn, dangerBtn };
