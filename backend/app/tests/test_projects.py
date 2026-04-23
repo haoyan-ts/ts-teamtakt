@@ -142,7 +142,9 @@ async def test_list_projects_creator_only(client, db_session):
 
 async def test_admin_sees_all_projects(client, db_session):
     user, user_tok = await make_active_user(db_session, "p04_user@t.com")
-    admin, admin_tok = await make_active_user(db_session, "p04_admin@t.com", is_admin=True)
+    admin, admin_tok = await make_active_user(
+        db_session, "p04_admin@t.com", is_admin=True
+    )
 
     await client.post(
         "/api/v1/projects",
