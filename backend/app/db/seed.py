@@ -43,7 +43,18 @@ async def seed_initial_data(db: AsyncSession):
         if not existing.scalar_one_or_none():
             db.add(Category(id=uuid4(), name=name, is_active=True, sort_order=i))
 
-    work_type_seeds = ["Software", "Hardware", "Documents", "Slide", "Other"]
+    work_type_seeds = [
+        "Software",       # code, apps, scripts
+        "Hardware",       # physical devices, firmware
+        "Document",       # specs, runbooks, knowledge base articles
+        "Slide",          # presentations, decks
+        "Test",           # test plans, test cases, QA artifacts
+        "Infrastructure", # deployment configs, CI/CD, cloud setup
+        "Data",           # data models, pipelines, reports, analytics
+        "Design",         # mockups, wireframes, UX flows
+        "Process",        # SOPs, checklists, workflow definitions
+        "Other",          # catch-all
+    ]
     for i, name in enumerate(work_type_seeds):
         existing = await db.execute(select(WorkType).where(WorkType.name == name))
         if not existing.scalar_one_or_none():

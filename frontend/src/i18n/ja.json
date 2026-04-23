@@ -89,6 +89,13 @@
       "newPlaceholder": "新しいブロッカータイプ",
       "add": "追加"
     },
+    "workTypes": {
+      "title": "作業タイプ",
+      "deactivate": "無効化",
+      "activate": "有効化",
+      "newPlaceholder": "新しい作業タイプ",
+      "add": "追加"
+    },
     "tags": {
       "title": "自己評価タグ",
       "save": "保存",

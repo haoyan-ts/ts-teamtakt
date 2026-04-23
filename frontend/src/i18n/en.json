@@ -89,6 +89,13 @@
       "newPlaceholder": "New blocker type",
       "add": "Add"
     },
+    "workTypes": {
+      "title": "Work Types",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "newPlaceholder": "New work type",
+      "add": "Add"
+    },
     "tags": {
       "title": "Self-Assessment Tags",
       "save": "Save",

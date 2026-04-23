@@ -89,6 +89,11 @@ export async function prefillFromGithubIssue(
 }
 
 export async function getWorkTypes(): Promise<WorkType[]> {
-  const res = await client.get<WorkType[]>('/categories/work-types');
+  const res = await client.get<WorkType[]>('/work-types');
+  return res.data;
+}
+
+export async function createWorkType(payload: { name: string }): Promise<WorkType> {
+  const res = await client.post<WorkType>('/work-types', payload);
   return res.data;
 }

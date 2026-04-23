@@ -13,10 +13,13 @@ import {
   getSelfAssessmentTags,
   createSelfAssessmentTag,
   updateSelfAssessmentTag,
+  getWorkTypes,
+  createWorkType,
+  updateWorkType,
 } from '../api/categories';
 import { getAdminSettings, updateAdminSettings } from '../api/adminSettings';
 import type { AdminSettingsData } from '../api/adminSettings';
-import type { Category, BlockerType, SelfAssessmentTag } from '../types/dailyRecord';
+import type { Category, BlockerType, SelfAssessmentTag, WorkType } from '../types/dailyRecord';
 
 // ---------------------------------------------------------------------------
 // Confirmation dialog helper (inline, no library)
@@ -254,6 +257,74 @@ function BlockerTypesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean
 }
 
 // ---------------------------------------------------------------------------
+// Work types section
+// ---------------------------------------------------------------------------
+
+function WorkTypesSection({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => void }) {
+  const { t } = useTranslation();
+  const [types, setTypes] = useState<WorkType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState('');
+
+  const reload = () =>
+    getWorkTypes(true).then(setTypes).finally(() => setLoading(false));
+
+  useEffect(() => { reload(); }, []);
+
+  const add = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    await createWorkType({ name });
+    setNewName('');
+    onDirtyChange(false);
+    reload();
+  };
+
+  const toggle = async (wt: WorkType) => {
+    await updateWorkType(wt.id, { is_active: !wt.is_active });
+    reload();
+  };
+
+  if (loading) return <p>{t('adminLists.loading')}</p>;
+
+  return (
+    <section style={sectionStyle}>
+      <h3 style={sectionTitle}>{t('adminLists.workTypes.title')}</h3>
+      <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+        {types.map((wt) => (
+          <li
+            key={wt.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.35rem 0',
+              borderBottom: '1px solid var(--border-subtle)',
+              opacity: wt.is_active ? 1 : 0.5,
+            }}
+          >
+            <span style={{ flex: 1 }}>{wt.name}</span>
+            <button style={tinyBtn} onClick={() => toggle(wt)}>
+              {wt.is_active ? t('adminLists.workTypes.deactivate') : t('adminLists.workTypes.activate')}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+        <input
+          style={inputStyle}
+          placeholder={t('adminLists.workTypes.newPlaceholder')}
+          value={newName}
+          onChange={(e) => { setNewName(e.target.value); onDirtyChange(!!e.target.value.trim()); }}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+        />
+        <button style={primaryBtn} onClick={add}>{t('adminLists.workTypes.add')}</button>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Self-assessment tags section
 // ---------------------------------------------------------------------------
 
@@ -402,8 +473,9 @@ export const AdminListsPage = () => {
   const navigate = useNavigate();
   const [catDirty, setCatDirty] = useState(false);
   const [blockerDirty, setBlockerDirty] = useState(false);
+  const [workTypeDirty, setWorkTypeDirty] = useState(false);
   const [tagDirty, setTagDirty] = useState(false);
-  const isDirty = catDirty || blockerDirty || tagDirty;
+  const isDirty = catDirty || blockerDirty || workTypeDirty || tagDirty;
 
   const handleBack = () => {
     if (isDirty && !window.confirm(t('adminLists.unsavedWarning'))) return;
@@ -422,6 +494,7 @@ export const AdminListsPage = () => {
       <AdminSettingsSection />
       <CategoriesSection onDirtyChange={setCatDirty} />
       <BlockerTypesSection onDirtyChange={setBlockerDirty} />
+      <WorkTypesSection onDirtyChange={setWorkTypeDirty} />
       <TagsSection onDirtyChange={setTagDirty} />
     </div>
   );
