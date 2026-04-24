@@ -371,6 +371,32 @@ async def test_work_log_effort_eight_accepted_schema(client, db_session):
     assert resp.status_code != 422, "effort=8 should pass Pydantic validation"
 
 
+async def test_work_log_effort_13_and_21_accepted_schema(client, db_session):
+    """effort=13 and effort=21 must pass Pydantic schema validation."""
+    user, tok = await make_user(db_session, "fib14@t.com")
+    team = await make_team(db_session, "fib14_team")
+    await make_membership(db_session, user.id, team.id)
+
+    import uuid
+
+    for effort in (13, 21):
+        fake_task_id = str(uuid.uuid4())
+        resp = await client.post(
+            "/api/v1/daily-records",
+            json={
+                "record_date": str(date.today()),
+                "day_load": 80,
+                "form_opened_at": datetime.now(UTC).isoformat(),
+                "daily_work_logs": [_work_log_payload(fake_task_id, effort)],
+            },
+            headers=auth(tok),
+        )
+        # May fail for reasons other than schema (e.g. task not found), but must NOT be 422
+        assert resp.status_code != 422, (
+            f"effort={effort} should pass Pydantic validation"
+        )
+
+
 async def test_work_log_invalid_energy_type_rejected(client, db_session):
     """energy_type values outside the allowed enum are rejected with 422."""
     user, tok = await make_user(db_session, "fib12@t.com")

@@ -396,7 +396,7 @@ async def test_task_estimated_effort_valid_fibonacci_values(client, db_session):
     cat = await make_category(db_session, "fib01_Cat")
     proj = await make_project(db_session, user.id)
 
-    for effort in (1, 2, 3, 5, 8):
+    for effort in (1, 2, 3, 5, 8, 13, 21):
         resp = await client.post(
             "/api/v1/tasks",
             json=task_payload(
@@ -466,6 +466,24 @@ async def test_task_update_estimated_effort_to_eight_accepted(client, db_session
     )
     assert resp.status_code == 200
     assert resp.json()["estimated_effort"] == 8
+
+
+async def test_task_estimated_effort_13_and_21_accepted(client, db_session):
+    user, tok = await make_user(db_session, "fib05@t.com")
+    await make_team_with_member(db_session, user.id)
+    cat = await make_category(db_session, "fib05_Cat")
+    proj = await make_project(db_session, user.id)
+
+    for effort in (13, 21):
+        resp = await client.post(
+            "/api/v1/tasks",
+            json=task_payload(
+                cat.id, proj.id, estimated_effort=effort, title=f"fib {effort}"
+            ),
+            headers=auth(tok),
+        )
+        assert resp.status_code == 201, f"effort={effort} should be accepted"
+        assert resp.json()["estimated_effort"] == effort
 
 
 # ===========================================================================

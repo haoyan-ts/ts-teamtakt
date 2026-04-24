@@ -331,7 +331,7 @@ export const WorkLogEditModal = ({
 
         {/* Effort */}
         <div style={s.fieldRow}>
-          <label style={s.label}>Effort *</label>
+          <label style={s.label}>Story Points *</label>
           <select
             value={effort}
             onChange={(e) => setEffort(Number(e.target.value))}

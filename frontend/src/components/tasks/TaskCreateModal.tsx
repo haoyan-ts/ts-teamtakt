@@ -376,14 +376,14 @@ export const TaskCreateModal = ({
               <option value="blocked">Blocked</option>
             </select>
 
-            <label style={{ ...s.label, marginLeft: '1rem' }}>Est. Effort</label>
+            <label style={{ ...s.label, marginLeft: '1rem' }}>Story Points</label>
             <select
               value={estimatedEffort ?? ''}
               onChange={(e) => setEstimatedEffort(e.target.value ? Number(e.target.value) : null)}
               style={{ ...s.select, width: '5rem' }}
             >
               <option value="">—</option>
-              {[1, 2, 3, 5, 8].map((n) => (
+              {[1, 2, 3, 5, 8, 13, 21].map((n) => (
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
