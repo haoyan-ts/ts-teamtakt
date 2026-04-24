@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { FIBONACCI, FIBONACCI_LABEL_KEYS } from './energyTypeMeta';
 import { createProject, getAvailableGitHubProjects } from '../../api/projects';
 import type { GitHubAvailableProject } from '../../api/projects';
 import { createTask, getWorkTypes, prefillFromGithubIssue } from '../../api/tasks';
@@ -32,6 +34,7 @@ export const TaskCreateModal = ({
   blockerTypes,
   onProjectCreated,
 }: TaskCreateModalProps) => {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [urlLocked, setUrlLocked] = useState(false); // true if editing an existing task with URL
@@ -383,8 +386,8 @@ export const TaskCreateModal = ({
               style={{ ...s.select, width: '5rem' }}
             >
               <option value="">—</option>
-              {[1, 2, 3, 5, 8, 13, 21].map((n) => (
-                <option key={n} value={n}>{n}</option>
+              {FIBONACCI.map((n) => (
+                <option key={n} value={n}>{n} – {t(FIBONACCI_LABEL_KEYS[n])}</option>
               ))}
             </select>
           </div>

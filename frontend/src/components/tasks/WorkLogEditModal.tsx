@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { updateTask, getWorkTypes } from '../../api/tasks';
 import type {
   DailyWorkLogFormEntry,
@@ -8,7 +9,7 @@ import type {
   EnergyType,
   WorkType,
 } from '../../types/dailyRecord';
-import { ENERGY_TYPE_META, ENERGY_TYPES, FIBONACCI } from './energyTypeMeta';
+import { ENERGY_TYPE_META, ENERGY_TYPES, FIBONACCI, FIBONACCI_LABEL_KEYS } from './energyTypeMeta';
 
 interface WorkLogEditModalProps {
   log: DailyWorkLogFormEntry;
@@ -26,6 +27,7 @@ export const WorkLogEditModal = ({
   onSave,
   onClose,
 }: WorkLogEditModalProps) => {
+  const { t } = useTranslation();
   // ── Section A: Task fields ──────────────────────────────────────────────
   const [title, setTitle] = useState(log.task.title);
   const [description, setDescription] = useState(log.task.description ?? '');
@@ -339,7 +341,7 @@ export const WorkLogEditModal = ({
           >
             {FIBONACCI.map((n) => (
               <option key={n} value={n}>
-                {n}
+                {n} – {t(FIBONACCI_LABEL_KEYS[n])}
               </option>
             ))}
           </select>

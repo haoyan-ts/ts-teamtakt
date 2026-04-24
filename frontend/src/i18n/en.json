@@ -142,5 +142,16 @@
       "saving": "Saving…",
       "description": "Applies to weekly emails and quarterly reports. UI language is set per user."
     }
+  },
+  "effort": {
+    "labels": {
+      "1": "Trivial",
+      "2": "Small",
+      "3": "Medium",
+      "5": "Large",
+      "8": "Very Large",
+      "13": "Epic",
+      "21": "Massive"
+    }
   }
 }
