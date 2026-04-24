@@ -164,8 +164,6 @@ export const TaskCreateModal = ({
     const cleanTitle = title.trim();
     if (!cleanTitle) { setFormError('Title is required.'); return; }
     if (!categoryId) { setFormError('Category is required.'); return; }
-    if (!projectId) { setFormError('Project is required.'); return; }
-    if (!workTypeId) { setFormError('Work type is required.'); return; }
 
     setSaving(true);
     setFormError(null);
@@ -173,9 +171,9 @@ export const TaskCreateModal = ({
       const task = await createTask({
         title: cleanTitle,
         description: description.trim() || null,
-        project_id: projectId,
+        project_id: projectId || null,
         category_id: categoryId,
-        work_type_id: workTypeId,
+        work_type_id: workTypeId || null,
         status,
         priority: priority ?? null,
         estimated_effort: estimatedEffort,
@@ -287,12 +285,11 @@ export const TaskCreateModal = ({
 
           {/* Work Type */}
           <div style={s.fieldRow}>
-            <label style={s.label}>Work Type *</label>
+            <label style={s.label}>Work Type</label>
             <select
               value={workTypeId}
               onChange={(e) => setWorkTypeId(e.target.value)}
               style={s.select}
-              required
             >
               <option value="">— select —</option>
               {workTypes.filter((wt) => wt.is_active).map((wt) => (
@@ -303,12 +300,11 @@ export const TaskCreateModal = ({
 
           {/* Project */}
           <div style={s.fieldRow}>
-            <label style={s.label}>Project *</label>
+            <label style={s.label}>Project</label>
             <select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
               style={s.select}
-              required
             >
               <option value="">— select —</option>
               {projects.filter((p) => p.is_active).map((p) => (
