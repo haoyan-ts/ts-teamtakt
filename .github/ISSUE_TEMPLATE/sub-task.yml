@@ -1,33 +1,17 @@
-name: Task
-description: A generic, actionable piece of work — tech debt, docs, dependency upgrade, test coverage, CI/CD, refactor, or other internal tasks
-labels: ["task"]
+name: Sub-task
+description: A small, discrete piece of work that breaks down a parent task or story
+labels: ["sub-task"]
 body:
   - type: markdown
     attributes:
       value: |
-        Use this template for any actionable work that isn't a story, bug, or sub-task — including tech debt, refactoring, docs, CI/CD, dependency upgrades, and other internal tasks.
-
-  - type: dropdown
-    id: task-type
-    attributes:
-      label: Task Type
-      options:
-        - refactor
-        - tech-debt
-        - docs
-        - dependency-upgrade
-        - test
-        - ci-cd
-        - infra
-        - other
-    validations:
-      required: true
+        Use this template to break a story, task, or bug into smaller, estimable pieces. Every sub-task must be linked to a parent issue.
 
   - type: textarea
     id: description
     attributes:
       label: Description
-      description: What needs to be done and why.
+      description: What needs to be done?
     validations:
       required: true
 
@@ -50,9 +34,10 @@ body:
         - backend
         - frontend
         - database
+        - auth
+        - notifications
+        - llm
         - infra
-        - ci-cd
-        - docs
         - multiple
     validations:
       required: true
@@ -67,8 +52,3 @@ body:
         - P3-low
     validations:
       required: true
-
-  - type: textarea
-    id: context
-    attributes:
-      label: Additional Context

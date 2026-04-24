@@ -1,28 +1,26 @@
-name: Story
-description: A user-centric requirement or feature that delivers value
-labels: ["story"]
+name: Epic
+description: A large body of work spanning multiple sprints or teams, defined at sprint planning
+labels: ["epic"]
 body:
   - type: markdown
     attributes:
       value: |
-        Use this template for user-centric requirements and features that deliver direct value.
+        Use this template for top-level initiatives. Epics are never children of another issue — they are broken down into stories, tasks, bugs, and sub-tasks.
 
   - type: textarea
-    id: user-story
+    id: description
     attributes:
-      label: User Story
-      description: "As a [role], I want [feature] so that [benefit]."
-      placeholder: "As a team leader, I want to see overload flags on the dashboard so that I can proactively support team members."
+      label: Description
+      description: What is this epic about? What outcome does it deliver?
     validations:
       required: true
 
   - type: textarea
-    id: acceptance-criteria
+    id: goals
     attributes:
-      label: Acceptance Criteria
-      description: Define the specific conditions that must be met for this feature to be considered complete.
+      label: Goals & Success Criteria
+      description: How will we know this epic is complete?
       placeholder: |
-        - [ ] Given X, when Y, then Z
         - [ ] ...
     validations:
       required: true
@@ -58,4 +56,4 @@ body:
     id: context
     attributes:
       label: Additional Context
-      description: Mockups, related issues, alternative approaches considered.
+      description: Related epics, references, or background information.
