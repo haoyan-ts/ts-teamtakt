@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { FIBONACCI, FIBONACCI_LABEL_KEYS } from './energyTypeMeta';
 import { createProject, getAvailableGitHubProjects } from '../../api/projects';
 import type { GitHubAvailableProject } from '../../api/projects';
 import { createTask, getWorkTypes, prefillFromGithubIssue } from '../../api/tasks';
@@ -32,6 +34,7 @@ export const TaskCreateModal = ({
   blockerTypes,
   onProjectCreated,
 }: TaskCreateModalProps) => {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [urlLocked, setUrlLocked] = useState(false); // true if editing an existing task with URL
@@ -159,13 +162,11 @@ export const TaskCreateModal = ({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     const cleanTitle = title.trim();
     if (!cleanTitle) { setFormError('Title is required.'); return; }
     if (!categoryId) { setFormError('Category is required.'); return; }
-    if (!projectId) { setFormError('Project is required.'); return; }
-    if (!workTypeId) { setFormError('Work type is required.'); return; }
 
     setSaving(true);
     setFormError(null);
@@ -173,9 +174,9 @@ export const TaskCreateModal = ({
       const task = await createTask({
         title: cleanTitle,
         description: description.trim() || null,
-        project_id: projectId,
+        project_id: projectId || null,
         category_id: categoryId,
-        work_type_id: workTypeId,
+        work_type_id: workTypeId || null,
         status,
         priority: priority ?? null,
         estimated_effort: estimatedEffort,
@@ -287,12 +288,11 @@ export const TaskCreateModal = ({
 
           {/* Work Type */}
           <div style={s.fieldRow}>
-            <label style={s.label}>Work Type *</label>
+            <label style={s.label}>Work Type</label>
             <select
               value={workTypeId}
               onChange={(e) => setWorkTypeId(e.target.value)}
               style={s.select}
-              required
             >
               <option value="">— select —</option>
               {workTypes.filter((wt) => wt.is_active).map((wt) => (
@@ -303,12 +303,11 @@ export const TaskCreateModal = ({
 
           {/* Project */}
           <div style={s.fieldRow}>
-            <label style={s.label}>Project *</label>
+            <label style={s.label}>Project</label>
             <select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
               style={s.select}
-              required
             >
               <option value="">— select —</option>
               {projects.filter((p) => p.is_active).map((p) => (
@@ -380,15 +379,15 @@ export const TaskCreateModal = ({
               <option value="blocked">Blocked</option>
             </select>
 
-            <label style={{ ...s.label, marginLeft: '1rem' }}>Est. Effort</label>
+            <label style={{ ...s.label, marginLeft: '1rem' }}>Story Points</label>
             <select
               value={estimatedEffort ?? ''}
               onChange={(e) => setEstimatedEffort(e.target.value ? Number(e.target.value) : null)}
               style={{ ...s.select, width: '5rem' }}
             >
               <option value="">—</option>
-              {[1, 2, 3, 5, 8].map((n) => (
-                <option key={n} value={n}>{n}</option>
+              {FIBONACCI.map((n) => (
+                <option key={n} value={n}>{n} - {t(FIBONACCI_LABEL_KEYS[n])}</option>
               ))}
             </select>
           </div>

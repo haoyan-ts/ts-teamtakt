@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { updateTask, getWorkTypes } from '../../api/tasks';
 import type {
   DailyWorkLogFormEntry,
@@ -6,9 +7,10 @@ import type {
   BlockerType,
   SelfAssessmentTagRef,
   EnergyType,
+  Task,
   WorkType,
 } from '../../types/dailyRecord';
-import { ENERGY_TYPE_META, ENERGY_TYPES, FIBONACCI } from './energyTypeMeta';
+import { ENERGY_TYPE_META, ENERGY_TYPES, FIBONACCI, FIBONACCI_LABEL_KEYS } from './energyTypeMeta';
 
 interface WorkLogEditModalProps {
   log: DailyWorkLogFormEntry;
@@ -26,10 +28,11 @@ export const WorkLogEditModal = ({
   onSave,
   onClose,
 }: WorkLogEditModalProps) => {
+  const { t } = useTranslation();
   // ── Section A: Task fields ──────────────────────────────────────────────
   const [title, setTitle] = useState(log.task.title);
   const [description, setDescription] = useState(log.task.description ?? '');
-  const [showDesc, setShowDesc] = useState(!!log.task.description);
+
   const [workTypeId, setWorkTypeId] = useState<string | null>(log.task.work_type_id);
   const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
   const [blockerTypeId, setBlockerTypeId] = useState<string | null>(
@@ -39,6 +42,7 @@ export const WorkLogEditModal = ({
   const [showBlocker, setShowBlocker] = useState(
     !!log.task.blocker_type_id || !!log.blocker_text
   );
+  const [status, setStatus] = useState<Task['status']>(log.task.status);
 
   // ── Section B: Log fields ───────────────────────────────────────────────
   const [effort, setEffort] = useState(log.effort);
@@ -71,6 +75,7 @@ export const WorkLogEditModal = ({
         workTypeId !== log.task.work_type_id ||
         blockerTypeId !== log.task.blocker_type_id ||
         blockerText !== (log.blocker_text ?? '') ||
+        status !== log.task.status ||
         effort !== log.effort ||
         energyType !== log.energy_type ||
         insight !== (log.insight ?? '') ||
@@ -83,6 +88,7 @@ export const WorkLogEditModal = ({
     workTypeId,
     blockerTypeId,
     blockerText,
+    status,
     effort,
     energyType,
     insight,
@@ -167,6 +173,8 @@ export const WorkLogEditModal = ({
         taskPatch.work_type_id = workTypeId;
       if (blockerTypeId !== log.task.blocker_type_id)
         taskPatch.blocker_type_id = blockerTypeId;
+      if (status !== log.task.status)
+        taskPatch.status = status;
 
       if (Object.keys(taskPatch).length > 0) {
         updatedTask = await updateTask(log.task.id, taskPatch);
@@ -236,38 +244,19 @@ export const WorkLogEditModal = ({
           </select>
         </div>
 
-        {/* Description (collapsible) */}
-        {!showDesc ? (          <button
-            type="button"
-            onClick={() => setShowDesc(true)}
-            style={s.toggleBtn}
-          >
-            + Add description
-          </button>
-        ) : (
-          <div style={s.collapsible}>
-            <div style={{ ...s.fieldRow, alignItems: 'flex-start' }}>
-              <label style={s.label}>Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-                style={{ ...s.input, resize: 'vertical' }}
-                placeholder="Task description"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setShowDesc(false);
-                  setDescription(log.task.description ?? '');
-                }}
-                style={s.iconBtn}
-              >
-                ✕
-              </button>
-            </div>
+        {/* Description */}
+        <div style={s.collapsible}>
+          <div style={{ ...s.fieldRow, alignItems: 'flex-start' }}>
+            <label style={s.label}>Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              style={{ ...s.input, resize: 'vertical' }}
+              placeholder="Task description"
+            />
           </div>
-        )}
+        </div>
 
         {/* Blocker (collapsible) */}
         {!showBlocker ? (
@@ -284,7 +273,11 @@ export const WorkLogEditModal = ({
               <label style={s.label}>Blocker type</label>
               <select
                 value={blockerTypeId ?? ''}
-                onChange={(e) => setBlockerTypeId(e.target.value || null)}
+                onChange={(e) => {
+                  const val = e.target.value || null;
+                  setBlockerTypeId(val);
+                  setStatus(val ? 'blocked' : 'running');
+                }}
                 style={s.select}
               >
                 <option value="">— select —</option>
@@ -302,6 +295,7 @@ export const WorkLogEditModal = ({
                   setShowBlocker(false);
                   setBlockerTypeId(null);
                   setBlockerText('');
+                  setStatus('running');
                 }}
                 style={s.iconBtn}
               >
@@ -331,7 +325,7 @@ export const WorkLogEditModal = ({
 
         {/* Effort */}
         <div style={s.fieldRow}>
-          <label style={s.label}>Effort *</label>
+          <label style={s.label}>Story Points *</label>
           <select
             value={effort}
             onChange={(e) => setEffort(Number(e.target.value))}
@@ -339,7 +333,7 @@ export const WorkLogEditModal = ({
           >
             {FIBONACCI.map((n) => (
               <option key={n} value={n}>
-                {n}
+                {n} – {t(FIBONACCI_LABEL_KEYS[n])}
               </option>
             ))}
           </select>

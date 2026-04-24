@@ -82,7 +82,7 @@ export interface DailyWorkLog {
   task_id: string;
   task?: Task; // populated when returned as part of DailyRecord
   daily_record_id: string;
-  effort: number; // Fibonacci: 1, 2, 3, 5, 8
+  effort: number; // Fibonacci: 1, 2, 3, 5, 8, 13, 21
   energy_type: EnergyType | null;
   insight: string | null;
   blocker_text: string | null; // private

@@ -8,7 +8,7 @@ from pydantic import BaseModel, field_validator
 
 from app.db.models.task import EnergyType, TaskPriority, TaskStatus
 
-_FIBONACCI = frozenset({1, 2, 3, 5, 8})
+_FIBONACCI = frozenset({1, 2, 3, 5, 8, 13, 21})
 
 
 def _validate_fibonacci(v: int) -> int:

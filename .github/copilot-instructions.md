@@ -4,7 +4,7 @@ Rules that MUST be followed in every coding task. Violating any of these is a bu
 
 ## Data Model
 
-- Effort is a relative scale — Fibonacci values only: {1, 2, 3, 5, 8}. No hour tracking anywhere in the system. No absolute time units.
+- Effort is a relative scale — Fibonacci values only: {1, 2, 3, 5, 8, 13, 21}. No hour tracking anywhere in the system. No absolute time units.
 - Work is split across two tables: `Task` (the persistent work item) and `DailyWorkLog` (one row per task-per-day, linking `Task` → `DailyRecord`). There is no `TaskEntry` model.
 - `DailyWorkLog.effort` holds the Fibonacci effort for that day's log entry. `Task.estimated_effort` holds the planning estimate (also Fibonacci, nullable).
 - Self-assessment tags are many-to-many via `DailyWorkLogSelfAssessmentTag` junction table with `is_primary` boolean. Exactly one tag per `DailyWorkLog` must have `is_primary=true`. Enforced at DB level via a partial unique index on `(daily_work_log_id) WHERE is_primary = TRUE`; also validate at app level.

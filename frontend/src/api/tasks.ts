@@ -6,9 +6,9 @@ import type { Task, WorkType } from '../types/dailyRecord';
 export interface CreateTaskPayload {
   title: string;
   description?: string | null;
-  project_id: string;
+  project_id?: string | null;
   category_id: string;
-  work_type_id: string;
+  work_type_id?: string | null;
   status: 'todo' | 'running' | 'done' | 'blocked';
   github_status?: string | null;
   priority?: 'p0_critical' | 'p1_high' | 'p2_medium' | 'p3_low' | null;

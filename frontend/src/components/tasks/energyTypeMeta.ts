@@ -1,6 +1,16 @@
 import type { EnergyType } from '../../types/dailyRecord';
 
-export const FIBONACCI = [1, 2, 3, 5, 8] as const;
+export const FIBONACCI = [1, 2, 3, 5, 8, 13, 21] as const;
+
+export const FIBONACCI_LABEL_KEYS: Record<number, string> = {
+  1: 'effort.labels.1',
+  2: 'effort.labels.2',
+  3: 'effort.labels.3',
+  5: 'effort.labels.5',
+  8: 'effort.labels.8',
+  13: 'effort.labels.13',
+  21: 'effort.labels.21',
+};
 
 export interface EnergyTypeMeta {
   label: string;

@@ -73,22 +73,33 @@ export const WorkLogCard = ({
       {/* Header row: status + title + GH link + actions */}
       <div style={s.header}>
         <div style={s.taskMeta}>
-          <select
-            value={log.task.status}
-            onChange={(e) => handleStatusChange(e.target.value as Task['status'])}
-            disabled={!isEditable || statusUpdating}
+          <span
             style={{
-              ...s.statusSelect,
-              borderColor: statusColor[log.task.status] ?? 'var(--text-muted)',
-              color: statusColor[log.task.status] ?? 'var(--text-muted)',
+              ...s.statusBadge,
+              background: statusColor[log.task.status] ?? 'var(--text-muted)',
             }}
-            title="Task status"
           >
-            <option value="todo">todo</option>
-            <option value="running">running</option>
-            <option value="done">done</option>
-            <option value="blocked">blocked</option>
-          </select>
+            {log.task.status === 'blocked' ? '🚧 blocked' : log.task.status}
+          </span>
+          {log.task.status !== 'blocked' && (['todo', 'running', 'done'] as const).map((st) => (
+            <button
+              key={st}
+              type="button"
+              onClick={() => handleStatusChange(st)}
+              disabled={!isEditable || statusUpdating || log.task.status === st}
+              style={{
+                ...s.statusBtn,
+                background: log.task.status === st ? (statusColor[st] ?? 'var(--text-muted)') : 'transparent',
+                color: log.task.status === st ? '#fff' : (statusColor[st] ?? 'var(--text-muted)'),
+                borderColor: statusColor[st] ?? 'var(--text-muted)',
+                opacity: (!isEditable || statusUpdating) ? 0.5 : 1,
+                cursor: (!isEditable || statusUpdating || log.task.status === st) ? 'default' : 'pointer',
+              }}
+              title={`Set status to ${st}`}
+            >
+              {st}
+            </button>
+          ))}
 
           <span style={s.taskTitle} title={log.task.title}>
             {log.task.title}
@@ -165,7 +176,7 @@ export const WorkLogCard = ({
             ⚠ no tag
           </span>
         )}
-        {log.task.blocker_type_id && (
+        {log.task.blocker_type_id && log.task.status !== 'blocked' && (
           <span style={s.blockerIndicator} title="Task has a blocker">
             🚧 blocked
           </span>
@@ -198,14 +209,21 @@ const cardStyles: Record<string, React.CSSProperties> = {
     flex: 1,
     minWidth: 0,
   },
-  statusSelect: {
-    padding: '0.15rem 0.35rem',
+  statusBadge: {
+    display: 'inline-block',
+    padding: '0.15rem 0.5rem',
+    borderRadius: '999px',
+    fontSize: '0.75rem',
+    fontWeight: 700,
+    color: '#fff',
+    flexShrink: 0,
+  },
+  statusBtn: {
+    padding: '0.1rem 0.45rem',
     border: '1px solid',
-    borderRadius: '4px',
-    fontSize: '0.78rem',
+    borderRadius: '999px',
+    fontSize: '0.72rem',
     fontWeight: 600,
-    background: 'var(--bg)',
-    cursor: 'pointer',
     flexShrink: 0,
   },
   taskTitle: {
