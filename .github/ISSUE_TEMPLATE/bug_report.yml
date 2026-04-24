@@ -1,6 +1,6 @@
-name: Bug Report
-description: Report a reproducible bug or unexpected behavior
-labels: ["bug", "needs-review"]
+name: Bug
+description: Report a reproducible defect, error, or fault in the product
+labels: ["bug"]
 body:
   - type: markdown
     attributes:
