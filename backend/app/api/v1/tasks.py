@@ -202,7 +202,7 @@ async def update_task(
         task.estimated_effort = body.estimated_effort
     if body.due_date is not None:
         task.due_date = body.due_date
-    if body.blocker_type_id is not None:
+    if "blocker_type_id" in body.model_fields_set:
         task.blocker_type_id = body.blocker_type_id
     if body.is_active is not None:
         task.is_active = body.is_active
