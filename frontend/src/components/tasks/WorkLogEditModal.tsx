@@ -7,6 +7,7 @@ import type {
   BlockerType,
   SelfAssessmentTagRef,
   EnergyType,
+  Task,
   WorkType,
 } from '../../types/dailyRecord';
 import { ENERGY_TYPE_META, ENERGY_TYPES, FIBONACCI, FIBONACCI_LABEL_KEYS } from './energyTypeMeta';
@@ -41,6 +42,7 @@ export const WorkLogEditModal = ({
   const [showBlocker, setShowBlocker] = useState(
     !!log.task.blocker_type_id || !!log.blocker_text
   );
+  const [status, setStatus] = useState<Task['status']>(log.task.status);
 
   // ── Section B: Log fields ───────────────────────────────────────────────
   const [effort, setEffort] = useState(log.effort);
@@ -73,6 +75,7 @@ export const WorkLogEditModal = ({
         workTypeId !== log.task.work_type_id ||
         blockerTypeId !== log.task.blocker_type_id ||
         blockerText !== (log.blocker_text ?? '') ||
+        status !== log.task.status ||
         effort !== log.effort ||
         energyType !== log.energy_type ||
         insight !== (log.insight ?? '') ||
@@ -85,6 +88,7 @@ export const WorkLogEditModal = ({
     workTypeId,
     blockerTypeId,
     blockerText,
+    status,
     effort,
     energyType,
     insight,
@@ -169,6 +173,8 @@ export const WorkLogEditModal = ({
         taskPatch.work_type_id = workTypeId;
       if (blockerTypeId !== log.task.blocker_type_id)
         taskPatch.blocker_type_id = blockerTypeId;
+      if (status !== log.task.status)
+        taskPatch.status = status;
 
       if (Object.keys(taskPatch).length > 0) {
         updatedTask = await updateTask(log.task.id, taskPatch);
@@ -267,7 +273,11 @@ export const WorkLogEditModal = ({
               <label style={s.label}>Blocker type</label>
               <select
                 value={blockerTypeId ?? ''}
-                onChange={(e) => setBlockerTypeId(e.target.value || null)}
+                onChange={(e) => {
+                  const val = e.target.value || null;
+                  setBlockerTypeId(val);
+                  setStatus(val ? 'blocked' : 'running');
+                }}
                 style={s.select}
               >
                 <option value="">— select —</option>
@@ -285,6 +295,7 @@ export const WorkLogEditModal = ({
                   setShowBlocker(false);
                   setBlockerTypeId(null);
                   setBlockerText('');
+                  setStatus('running');
                 }}
                 style={s.iconBtn}
               >
