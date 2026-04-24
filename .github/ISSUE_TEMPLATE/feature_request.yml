@@ -1,11 +1,11 @@
-name: Feature Request
-description: Propose a new feature or enhancement aligned with the PRD
-labels: ["feature", "needs-review"]
+name: Story
+description: A user-centric requirement or feature that delivers value
+labels: ["story"]
 body:
   - type: markdown
     attributes:
       value: |
-        Use this template for new features or enhancements. Reference the relevant PRD phase when applicable.
+        Use this template for user-centric requirements and features that deliver direct value.
 
   - type: textarea
     id: user-story
