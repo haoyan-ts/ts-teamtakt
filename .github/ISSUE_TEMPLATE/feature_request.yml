@@ -48,6 +48,7 @@ body:
     attributes:
       label: Priority
       options:
+        - P0-critical (system down / data loss)
         - P1-high
         - P2-medium
         - P3-low
