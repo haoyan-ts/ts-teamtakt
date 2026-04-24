@@ -162,7 +162,7 @@ export const TaskCreateModal = ({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     const cleanTitle = title.trim();
     if (!cleanTitle) { setFormError('Title is required.'); return; }
@@ -387,7 +387,7 @@ export const TaskCreateModal = ({
             >
               <option value="">—</option>
               {FIBONACCI.map((n) => (
-                <option key={n} value={n}>{n} – {t(FIBONACCI_LABEL_KEYS[n])}</option>
+                <option key={n} value={n}>{n} - {t(FIBONACCI_LABEL_KEYS[n])}</option>
               ))}
             </select>
           </div>
