@@ -31,7 +31,7 @@ export const WorkLogEditModal = ({
   // ── Section A: Task fields ──────────────────────────────────────────────
   const [title, setTitle] = useState(log.task.title);
   const [description, setDescription] = useState(log.task.description ?? '');
-  const [showDesc, setShowDesc] = useState(!!log.task.description);
+  const [showDesc, setShowDesc] = useState(true);
   const [workTypeId, setWorkTypeId] = useState<string | null>(log.task.work_type_id);
   const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
   const [blockerTypeId, setBlockerTypeId] = useState<string | null>(
