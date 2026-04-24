@@ -31,7 +31,7 @@ export const WorkLogEditModal = ({
   // ── Section A: Task fields ──────────────────────────────────────────────
   const [title, setTitle] = useState(log.task.title);
   const [description, setDescription] = useState(log.task.description ?? '');
-  const [showDesc, setShowDesc] = useState(true);
+
   const [workTypeId, setWorkTypeId] = useState<string | null>(log.task.work_type_id);
   const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
   const [blockerTypeId, setBlockerTypeId] = useState<string | null>(
@@ -238,38 +238,19 @@ export const WorkLogEditModal = ({
           </select>
         </div>
 
-        {/* Description (collapsible) */}
-        {!showDesc ? (          <button
-            type="button"
-            onClick={() => setShowDesc(true)}
-            style={s.toggleBtn}
-          >
-            + Add description
-          </button>
-        ) : (
-          <div style={s.collapsible}>
-            <div style={{ ...s.fieldRow, alignItems: 'flex-start' }}>
-              <label style={s.label}>Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-                style={{ ...s.input, resize: 'vertical' }}
-                placeholder="Task description"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setShowDesc(false);
-                  setDescription(log.task.description ?? '');
-                }}
-                style={s.iconBtn}
-              >
-                ✕
-              </button>
-            </div>
+        {/* Description */}
+        <div style={s.collapsible}>
+          <div style={{ ...s.fieldRow, alignItems: 'flex-start' }}>
+            <label style={s.label}>Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              style={{ ...s.input, resize: 'vertical' }}
+              placeholder="Task description"
+            />
           </div>
-        )}
+        </div>
 
         {/* Blocker (collapsible) */}
         {!showBlocker ? (
